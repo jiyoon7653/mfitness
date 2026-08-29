@@ -363,7 +363,6 @@ ul.bare{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;ga
         <tr><td>헬스권 종료일</td><td>날짜</td><td></td></tr>
         <tr><td>사물함 종료일</td><td>날짜</td><td></td></tr>
         <tr><td>미결제 개월</td><td class="f">수식 <span class="chip info">자동</span></td><td>두 종료일의 개월 차이. 12개월 헬스권 + 6개월 사물함 → <strong>6</strong></td></tr>
-        <tr><td>추가결제 예상액</td><td class="f">수식 <span class="chip info">자동</span></td><td><code>미결제 개월 × 월 사물함료</code></td></tr>
         <tr><td>사물함 만료 D-day</td><td class="f">수식 <span class="chip info">자동</span></td><td>오늘부터 남은 일수. 음수면 이미 만료</td></tr>
         <tr><td>안내 상태</td><td>선택</td><td>미안내 / 문자발송 / 통화완료 / <span class="chip ok">결제완료</span> / 거절</td></tr>
         <tr><td>안내일</td><td>날짜</td><td>같은 회원에게 두 번 전화하는 사고 방지</td></tr>
@@ -444,9 +443,9 @@ ul.bare{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;ga
       <div class="pane">
         <div class="panehead"><h4>오늘 할 일</h4><span class="count">6건</span></div>
         <div class="row"><span class="stripe hi"></span><span class="txt"><b>사물함 만료 D-3 · 4명</b><span>이지현 외 3명 · 추가결제 안내 미발송</span></span><span class="chip bad">긴급</span></div>
-        <div class="row"><span class="stripe hi"></span><span class="txt"><b>정산 미승인 · 2건</b><span>김수민(9월), 박태호(9월) 대조 후 승인</span></span><span class="chip bad">대표</span></div>
+        <div class="row"><span class="stripe hi"></span><span class="txt"><b>정산 미승인 · 1건</b><span>이새한(9월) 대조 후 승인</span></span><span class="chip bad">대표</span></div>
         <div class="row"><span class="stripe mid"></span><span class="txt"><b>오늘 방문 예약 · 3명</b><span>14:00 최윤아 / 17:30 정하람 / 19:00 김도경</span></span></div>
-        <div class="row"><span class="stripe mid"></span><span class="txt"><b>오늘 체험PT · 2건</b><span>15:00 정하람(김수민) / 20:00 오세진(박태호)</span></span></div>
+        <div class="row"><span class="stripe mid"></span><span class="txt"><b>오늘 체험PT · 2건</b><span>15:00 정하람(고범수) / 20:00 오세진(이새한)</span></span></div>
         <div class="row"><span class="stripe lo"></span><span class="txt"><b>어제 결과 미입력 · 2건</b><span>방문은 했는데 등록여부가 비어 있음</span></span></div>
         <div class="row"><span class="stripe lo"></span><span class="txt"><b>회원권 만료 D-7 · 5명</b><span>재등록 상담 전화 대상</span></span></div>
       </div>
@@ -454,7 +453,7 @@ ul.bare{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;ga
       <div class="pane">
         <div class="panehead"><h4>예정된 업무</h4><span class="count">이번 주</span></div>
         <div class="row"><span class="stripe mid"></span><span class="txt"><b>수 · 주간보고 작성</b><span>9/8~9/14 목표 대비 달성률 정리</span></span><span class="chip warn">D-2</span></div>
-        <div class="row"><span class="stripe lo"></span><span class="txt"><b>금 · 9월 정산 마감</b><span>트레이너 3명 시트 입력 마감일</span></span><span class="chip plain">D-4</span></div>
+        <div class="row"><span class="stripe lo"></span><span class="txt"><b>금 · 9월 정산 마감</b><span>고범수 · 이새한 시트 입력 마감일</span></span><span class="chip plain">D-4</span></div>
         <div class="row"><span class="stripe lo"></span><span class="txt"><b>이번 주 방문 예약 · 11명</b><span>네이버 7 · 전화 3 · 워크인 1</span></span></div>
         <div class="row"><span class="stripe lo"></span><span class="txt"><b>회원권 만료 D-30 · 14명</b><span>재등록 문자 발송 대상군</span></span></div>
         <div class="row"><span class="stripe lo"></span><span class="txt"><b>사물함 만료 D-14 · 9명</b><span>추가결제 대상 · 미안내</span></span></div>
@@ -512,7 +511,7 @@ pre .k{color:var(--accent);font-weight:600}
   <div class="stack-lg">
 
   <div>
-    <h3 style="margin-bottom:12px">트레이너 개인 시트 — 2026년 9월</h3>
+    <h3 style="margin-bottom:12px">개인 시트 — 고범수 · 2026년 9월</h3>
     <div class="tw"><table style="min-width:900px">
       <thead><tr>
         <th>이름</th><th>계약분류</th><th class="num">계약세션</th><th class="num">총결제금액</th>
@@ -558,22 +557,20 @@ pre .k{color:var(--accent);font-weight:600}
     <div class="tw"><table style="min-width:720px">
       <thead><tr><th>트레이너</th><th class="num">회원 수</th><th class="num">금월 수업</th><th class="num">총수업료</th><th>승인</th><th>승인일 <span class="chip info">자동</span></th></tr></thead>
       <tbody>
-        <tr><td>김수민</td><td class="num">4</td><td class="num">31</td><td class="num">2,080,000</td><td><span class="chip ok">승인완료</span></td><td class="mono">2026-10-02 11:24</td></tr>
-        <tr><td>박태호</td><td class="num">6</td><td class="num">44</td><td class="num">2,860,000</td><td><span class="chip bad">미승인</span></td><td class="mono" style="color:var(--muted)">—</td></tr>
-        <tr><td>이서준</td><td class="num">3</td><td class="num">19</td><td class="num">1,235,000</td><td><span class="chip bad">미승인</span></td><td class="mono" style="color:var(--muted)">—</td></tr>
+        <tr><td>고범수 <span class="chip plain">매니저</span></td><td class="num">4</td><td class="num">31</td><td class="num">2,080,000</td><td><span class="chip ok">승인완료</span></td><td class="mono">2026-10-02 11:24</td></tr>
+        <tr><td>이새한 <span class="chip plain">트레이너</span></td><td class="num">3</td><td class="num">19</td><td class="num">1,235,000</td><td><span class="chip bad">미승인</span></td><td class="mono" style="color:var(--muted)">—</td></tr>
         <tr style="background:var(--accent-soft);font-weight:600">
           <td colspan="3" style="text-align:right;font-family:var(--display)">센터 전체 수업료</td>
-          <td class="num" style="font-size:15px">6,175,000</td><td colspan="2"><span class="chip warn">2건 미승인</span></td>
+          <td class="num" style="font-size:15px">3,315,000</td><td colspan="2"><span class="chip warn">1건 미승인</span></td>
         </tr>
       </tbody>
     </table></div>
     <div class="card" style="margin-top:16px">
       <h4>어떻게 자동으로 모이나</h4>
       <pre><span class="c">// 대표 총괄 시트에서, 각 트레이너 파일의 총수업료를 끌어옴</span>
-D2 = IMPORTRANGE("<span class="c">김수민 시트 URL</span>", "요약!B2")
-D3 = IMPORTRANGE("<span class="c">박태호 시트 URL</span>", "요약!B2")
-D4 = IMPORTRANGE("<span class="c">이서준 시트 URL</span>", "요약!B2")
-D9 = SUM(D2:D8)   <span class="c">// 센터 전체 수업료</span></pre>
+D2 = IMPORTRANGE("<span class="c">고범수 시트 URL</span>", "요약!B2")
+D3 = IMPORTRANGE("<span class="c">이새한 시트 URL</span>", "요약!B2")
+D5 = SUM(D2:D4)   <span class="c">// 센터 전체 수업료</span></pre>
       <p style="font-size:13.5px;color:var(--ink-2);margin-top:12px">트레이너가 본인 시트에 숫자를 넣는 순간 대표님 총괄 시트의 합계가 <strong>따라 움직입니다.</strong> 반대 방향으로는 흐르지 않습니다 — 트레이너는 총괄 시트 URL 자체를 모르고, 알아도 열 권한이 없습니다.</p>
     </div>
   </div>
@@ -707,13 +704,13 @@ D9 = SUM(D2:D8)   <span class="c">// 센터 전체 수업료</span></pre>
     </li>
     <li>
       <div><h4>당장은 — 지금 엑셀을 그대로 옮기기</h4>
-      <p>직원분이 만든 엑셀을 ④번 표에 <strong>복사·붙여넣기</strong> 하면 끝입니다. Notion은 엑셀 붙여넣기를 표로 인식합니다. 그 다음부터는 <strong>만료 D-day와 추가결제 예상액이 자동으로 계산</strong>되고, "D-14 이내 미안내" 목록이 매일 아침 대시보드에 뜹니다. 주 1회만 갱신해도 지금보다 훨씬 낫습니다.</p></div>
+      <p>직원분이 만든 엑셀을 ④번 표에 <strong>복사·붙여넣기</strong> 하면 끝입니다. Notion은 엑셀 붙여넣기를 표로 인식합니다. 그 다음부터는 <strong>사물함 만료 D-day와 미결제 개월이 자동으로 계산</strong>되고, "D-14 이내 미안내" 목록이 매일 아침 대시보드에 뜹니다. 주 1회만 갱신해도 지금보다 훨씬 낫습니다.</p></div>
     </li>
   </ol>
 
   <div class="callout warn" style="margin-top:22px">
     <h4>여기가 돈이 새는 지점입니다</h4>
-    <p>12개월 헬스권에 6개월 사물함만 결제한 회원 한 명당, 월 사물함료가 1만원이면 <strong>6만원</strong>이 미수금입니다. 그런 회원이 30명이면 180만원입니다. 지금은 이 목록이 엑셀 파일 안에 잠들어 있어서 누가 열어보지 않으면 아무 일도 일어나지 않습니다. 4번 방법으로 하루 만에 옮겨두는 것만으로도 <strong>이번 달부터</strong> 회수가 시작됩니다.</p>
+    <p>12개월 헬스권에 6개월 사물함만 결제한 회원은 남은 6개월이 그대로 미수로 남습니다. 지금은 이 목록이 엑셀 파일 안에 잠들어 있어서 누가 열어보지 않으면 아무 일도 일어나지 않습니다. 4번 방법으로 하루 만에 옮겨두면 <strong>"만료 D-14 이내 · 미안내"</strong> 목록이 매일 아침 저절로 떠서, 안내가 빠지는 일이 없어집니다.</p>
   </div>
 </section>
 
@@ -756,7 +753,7 @@ D9 = SUM(D2:D8)   <span class="c">// 센터 전체 수업료</span></pre>
     <li><div><h4>1주차 — 데스크가 쓰는 것부터</h4>
       <p>①연락처 · ②방문예약자 · ③체험PT 세 표와 대시보드를 만듭니다. 직원 교육은 <strong>10분</strong>이면 됩니다. 폰에 Notion 앱을 깔고 홈 화면에 바로가기를 걸어두는 것까지가 이 주의 일입니다. 이 주가 끝나면 "어제 몇 명 왔고 몇 명 등록했나"에 즉시 답할 수 있습니다.</p></div></li>
     <li><div><h4>2주차 — 정산</h4>
-      <p>트레이너 수만큼 구글 시트를 만들고, 총괄 시트에 <code>IMPORTRANGE</code>를 걸고, 승인 스크립트를 붙입니다. 이번 달 정산부터 바로 적용해보고 트레이너 피드백을 받습니다. <strong>첫 달은 기존 종이 방식과 병행</strong>하며 숫자가 맞는지 대조하세요.</p></div></li>
+      <p>고범수·이새한 두 분의 구글 시트를 만들고, 총괄 시트에 <code>IMPORTRANGE</code>를 걸고, 승인 스크립트를 붙입니다. 이번 달 정산부터 바로 적용해보고 트레이너 피드백을 받습니다. <strong>첫 달은 기존 종이 방식과 병행</strong>하며 숫자가 맞는지 대조하세요.</p></div></li>
     <li><div><h4>3주차 — 나머지와 자동화</h4>
       <p>④사물함 엑셀을 옮기고, ⑤목표·실적 표를 만들어 첫 주간보고를 이 시스템으로 돌려봅니다. 네이버 문진 링크와 문자 발송 흐름도 이때 붙입니다. 여기까지 오면 <strong>매주 취합에 쓰던 시간이 없어집니다.</strong></p></div></li>
   </ol>
@@ -782,15 +779,21 @@ D9 = SUM(D2:D8)   <span class="c">// 센터 전체 수업료</span></pre>
 
 <section id="decide">
   <div class="shead"><span class="kicker">결정할 것</span><h2>이것만 알려주시면 바로 만듭니다</h2></div>
-  <p class="sintro">아래 여섯 가지만 정해지면 실제 구축에 들어갈 수 있습니다. 전부 아니어도 됩니다 — 아는 것만 주시면 나머지는 기본값으로 만들고 나중에 바꾸면 됩니다.</p>
+  <p class="sintro">아래 네 가지만 정해지면 실제 구축에 들어갈 수 있습니다. 전부 아니어도 됩니다 — 아는 것만 주시면 나머지는 기본값으로 만들고 나중에 바꾸면 됩니다.</p>
   <div class="stack">
+    <div class="callout" style="border-left-color:var(--green);background:var(--green-soft)">
+      <h4>확정된 것</h4>
+      <ul class="tight">
+        <li><strong>정산 시트 대상 2명</strong> — 고범수(매니저) · 이새한(트레이너). 각자 본인 파일만, 대표님 총괄 시트에서 자동 합산</li>
+        <li><strong>사물함은 금액 계산 없음</strong> — 만료일과 미결제 개월, 안내 상태만 관리</li>
+        <li><strong>대표 승인</strong> — 체크박스 + 승인일시 자동기록</li>
+      </ul>
+    </div>
     <div class="tw">
       <table style="min-width:600px">
         <thead><tr><th style="width:30%">항목</th><th style="width:24%">기본값</th><th>왜 필요한가</th></tr></thead>
         <tbody>
-          <tr><td><strong>트레이너 인원과 이름</strong></td><td>3명</td><td>정산 시트를 인원수만큼 만들고 권한을 나눠야 함</td></tr>
           <tr><td><strong>유입경로 선택지</strong></td><td>네이버예약 / 전화 / 워크인 / 지인소개 / 인스타 / 당근 / 전단</td><td>세 표에서 똑같이 써야 통계가 합쳐짐. 실제로 쓰는 경로만 남기는 게 좋습니다</td></tr>
-          <tr><td><strong>사물함 월 요금</strong></td><td>10,000원</td><td>추가결제 예상액 자동 계산에 들어감</td></tr>
           <tr><td><strong>회원관리 프로그램 이름</strong></td><td>—</td><td>엑셀 내보내기 기능이 있는지 함께 찾아보기 위해</td></tr>
           <tr><td><strong>주간 목표 항목</strong></td><td>신규등록 · 체험PT · 매출</td><td>주간보고 표의 열이 됨</td></tr>
           <tr><td><strong>Notion 구축 승인</strong></td><td>—</td><td>워크스페이스에 실제로 만들어도 될지</td></tr>
