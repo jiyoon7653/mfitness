@@ -1,0 +1,807 @@
+<title>M휘트니스 운영 허브</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Gothic+A1:wght@500;700;800&family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans+KR:wght@400;500;600&display=swap">
+<style>
+:root{
+  --ground:#E8ECEF; --surface:#FFFFFF; --surface-2:#F3F6F8;
+  --ink:#0F1720; --ink-2:#2B3742; --muted:#5D6B79;
+  --line:#CFD8DF; --line-strong:#A9B7C2;
+  --accent:#1D5B8F; --accent-soft:#DCEAF5;
+  --red:#A8332B; --red-soft:#F7E3E1;
+  --amber:#8F620A; --amber-soft:#F6EAD1;
+  --green:#256045; --green-soft:#DBEBE2;
+  --shadow:0 1px 2px rgba(15,23,32,.06), 0 6px 18px -10px rgba(15,23,32,.18);
+  --display:"Gothic A1","Apple SD Gothic Neo","Malgun Gothic",sans-serif;
+  --body:"IBM Plex Sans KR","Apple SD Gothic Neo","Malgun Gothic",sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,"SFMono-Regular",Menlo,monospace;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --ground:#0D1418; --surface:#151E25; --surface-2:#1B262E;
+    --ink:#E4EDF3; --ink-2:#C2D0DA; --muted:#8A9BA8;
+    --line:#2A3841; --line-strong:#41535F;
+    --accent:#6FB3E4; --accent-soft:#15303F;
+    --red:#E28377; --red-soft:#36201D;
+    --amber:#DBA748; --amber-soft:#332913;
+    --green:#6FC29A; --green-soft:#153025;
+    --shadow:0 1px 2px rgba(0,0,0,.4), 0 6px 18px -10px rgba(0,0,0,.6);
+  }
+}
+:root[data-theme="dark"]{
+  --ground:#0D1418; --surface:#151E25; --surface-2:#1B262E;
+  --ink:#E4EDF3; --ink-2:#C2D0DA; --muted:#8A9BA8;
+  --line:#2A3841; --line-strong:#41535F;
+  --accent:#6FB3E4; --accent-soft:#15303F;
+  --red:#E28377; --red-soft:#36201D;
+  --amber:#DBA748; --amber-soft:#332913;
+  --green:#6FC29A; --green-soft:#153025;
+  --shadow:0 1px 2px rgba(0,0,0,.4), 0 6px 18px -10px rgba(0,0,0,.6);
+}
+*{box-sizing:border-box}
+body{background:var(--ground);color:var(--ink);font-family:var(--body);font-size:15.5px;line-height:1.72;-webkit-font-smoothing:antialiased}
+.wrap{max-width:1080px;margin:0 auto;padding:0 24px 96px}
+.prose{max-width:68ch}
+h1,h2,h3,h4{font-family:var(--display);text-wrap:balance;margin:0;line-height:1.28}
+h1{font-weight:800;font-size:clamp(30px,5vw,46px);letter-spacing:-.02em}
+h2{font-weight:800;font-size:clamp(21px,2.8vw,27px);letter-spacing:-.015em}
+h3{font-weight:700;font-size:17.5px}
+h4{font-weight:700;font-size:15px}
+p{margin:0}
+a{color:var(--accent)}
+a:focus-visible,button:focus-visible{outline:2px solid var(--accent);outline-offset:3px;border-radius:3px}
+code,.mono{font-family:var(--mono);font-size:.88em;font-variant-numeric:tabular-nums}
+code{background:var(--surface-2);border:1px solid var(--line);border-radius:4px;padding:.1em .38em}
+
+/* ---------- masthead ---------- */
+.masthead{border-bottom:1px solid var(--line);background:var(--surface)}
+.masthead .wrap{padding-top:52px;padding-bottom:40px;display:flex;flex-direction:column;gap:22px}
+.eyebrow{font-family:var(--mono);font-size:11.5px;font-weight:600;letter-spacing:.16em;text-transform:uppercase;color:var(--muted)}
+.lede{font-size:17px;color:var(--ink-2);max-width:62ch}
+.meta{display:flex;flex-wrap:wrap;gap:8px}
+.tag{font-family:var(--mono);font-size:11.5px;font-weight:500;padding:4px 9px;border-radius:999px;border:1px solid var(--line-strong);color:var(--muted)}
+
+/* ---------- nav ---------- */
+nav.toc{position:sticky;top:0;z-index:20;background:var(--ground);background:color-mix(in srgb,var(--ground) 88%,transparent);backdrop-filter:blur(10px);border-bottom:1px solid var(--line)}
+nav.toc ul{max-width:1080px;margin:0 auto;padding:0 24px;list-style:none;display:flex;gap:2px;overflow-x:auto;scrollbar-width:thin}
+nav.toc a{display:block;white-space:nowrap;padding:11px 11px;font-size:13px;color:var(--muted);text-decoration:none;border-bottom:2px solid transparent}
+nav.toc a:hover{color:var(--ink);border-bottom-color:var(--line-strong)}
+
+/* ---------- sections ---------- */
+section{padding-top:64px;scroll-margin-top:56px}
+.shead{display:flex;align-items:baseline;gap:14px;flex-wrap:wrap;margin-bottom:8px}
+.shead .kicker{font-family:var(--mono);font-size:11.5px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--accent)}
+.sintro{color:var(--muted);max-width:66ch;margin-top:10px}
+.stack{display:flex;flex-direction:column;gap:16px;margin-top:26px}
+.stack-lg{display:flex;flex-direction:column;gap:26px;margin-top:26px}
+
+/* ---------- cards ---------- */
+.card{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:22px;box-shadow:var(--shadow)}
+.card > * + *{margin-top:12px}
+.grid2{display:grid;gap:16px;grid-template-columns:repeat(auto-fit,minmax(300px,1fr))}
+.grid3{display:grid;gap:16px;grid-template-columns:repeat(auto-fit,minmax(228px,1fr))}
+.callout{border-left:3px solid var(--accent);background:var(--accent-soft);border-radius:0 8px 8px 0;padding:18px 20px}
+.callout.warn{border-left-color:var(--amber);background:var(--amber-soft)}
+.callout.stop{border-left-color:var(--red);background:var(--red-soft)}
+.callout h4{margin-bottom:6px}
+.callout p, .callout li{color:var(--ink-2)}
+
+/* ---------- chips ---------- */
+.chip{display:inline-flex;align-items:center;gap:5px;font-family:var(--mono);font-size:11px;font-weight:600;letter-spacing:.03em;padding:3px 8px;border-radius:5px;border:1px solid transparent;white-space:nowrap}
+.chip.ok{background:var(--green-soft);color:var(--green);border-color:var(--green)}
+.chip.warn{background:var(--amber-soft);color:var(--amber);border-color:var(--amber)}
+.chip.bad{background:var(--red-soft);color:var(--red);border-color:var(--red)}
+.chip.info{background:var(--accent-soft);color:var(--accent);border-color:var(--accent)}
+.chip.plain{background:var(--surface-2);color:var(--muted);border-color:var(--line-strong)}
+
+/* ---------- tables ---------- */
+.tw{overflow-x:auto;border:1px solid var(--line);border-radius:10px;background:var(--surface);box-shadow:var(--shadow)}
+table{border-collapse:collapse;width:100%;font-size:13.5px;min-width:520px}
+th,td{text-align:left;padding:11px 14px;border-bottom:1px solid var(--line);vertical-align:top}
+thead th{background:var(--surface-2);font-family:var(--display);font-weight:700;font-size:12.5px;letter-spacing:.02em;color:var(--ink-2);position:sticky;top:0}
+tbody tr:last-child td{border-bottom:none}
+td.num,th.num{font-family:var(--mono);font-variant-numeric:tabular-nums;text-align:right}
+td.f{font-family:var(--mono);font-size:12.5px;color:var(--accent)}
+.tcap{font-size:12.5px;color:var(--muted);margin-top:9px}
+ul.tight,ol.tight{margin:0;padding-left:1.15em;display:flex;flex-direction:column;gap:6px}
+ul.tight li,ol.tight li{color:var(--ink-2)}
+ul.bare{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:9px}
+</style>
+
+<header class="masthead">
+  <div class="wrap">
+    <div class="eyebrow">운영 자동화 설계안 · 2026.08</div>
+    <h1>M휘트니스 운영 허브</h1>
+    <p class="lede">상담 연락처부터 트레이너 정산까지, 지금 흩어져 있는 기록을 하나의 데이터베이스로 모으고 <strong>오늘 할 일 · 예정된 업무 · 업무 성과</strong> 세 칸으로 요약하는 구조입니다. 아직 아무것도 만들지 않았습니다 — 이 문서는 <strong>무엇을 어디에 둘지</strong> 정하기 위한 설계안입니다.</p>
+    <div class="meta">
+      <span class="tag">DB 6종</span>
+      <span class="tag">대시보드 1면</span>
+      <span class="tag">권한 분리 포함</span>
+      <span class="tag">단계별 도입 3주</span>
+    </div>
+  </div>
+</header>
+
+<nav class="toc">
+  <ul>
+    <li><a href="#conclusion">결론</a></li>
+    <li><a href="#tools">도구 비교</a></li>
+    <li><a href="#map">전체 구조</a></li>
+    <li><a href="#db">데이터베이스 설계</a></li>
+    <li><a href="#dash">대시보드</a></li>
+    <li><a href="#payroll">정산</a></li>
+    <li><a href="#perm">권한</a></li>
+    <li><a href="#naver">네이버 예약</a></li>
+    <li><a href="#locker">사물함</a></li>
+    <li><a href="#sms">문자 발송</a></li>
+    <li><a href="#rollout">도입 순서</a></li>
+    <li><a href="#cost">비용</a></li>
+    <li><a href="#decide">결정할 것</a></li>
+  </ul>
+</nav>
+
+<div class="wrap">
+
+<section id="conclusion">
+  <div class="shead"><span class="kicker">결론</span><h2>Notion 하나로 다 하지 마세요</h2></div>
+  <p class="sintro">Notion은 대시보드와 누적 데이터에 강하고, 정산에는 결정적인 약점이 하나 있습니다. 그래서 <strong>운영은 Notion, 정산은 구글 스프레드시트</strong>로 나누는 하이브리드를 권합니다.</p>
+
+  <div class="stack">
+    <div class="callout stop">
+      <h4>Notion으로 정산을 하면 안 되는 이유</h4>
+      <p>Notion에는 <strong>행 단위 권한이 없습니다.</strong> 하나의 정산 DB에 모든 트레이너를 모으면, 그 DB를 볼 수 있는 사람은 남의 수업료·계약금액까지 전부 보게 됩니다. 트레이너별로 DB를 쪼개 페이지 권한을 나누면 서로 못 보게는 되지만, 이번엔 <strong>대표님이 볼 총수업료 자동 합산</strong>이 끊깁니다. 트레이너마다 별도 DB라 하나로 더할 방법이 없어서, 매달 대표님이 각 시트를 열어 총합을 손으로 옮겨 적어야 합니다.</p>
+    </div>
+
+    <div class="callout">
+      <h4>구글 스프레드시트는 이 문제가 없습니다</h4>
+      <p>권한이 <strong>파일 단위</strong>라, 트레이너별로 파일을 하나씩 만들고 각자 본인 파일만 공유하면 서로 볼 수 없습니다. 그리고 대표님 파일에서 <code>IMPORTRANGE</code>로 각 파일의 총수업료를 끌어오면 <strong>총합이 자동으로 계산</strong>됩니다. 트레이너는 본인 것만 보고, 대표님은 전부 보면서 합계까지 자동 — 요청하신 조건이 정확히 맞아떨어집니다.</p>
+    </div>
+
+    <div class="tw">
+      <table>
+        <thead><tr><th style="width:30%">업무</th><th style="width:20%">둘 곳</th><th>이유</th></tr></thead>
+        <tbody>
+          <tr><td>연락처 누적</td><td><span class="chip info">Notion</span></td><td>계속 쌓이기만 하는 목록. 중복 제거와 문자 발송용 내보내기만 되면 됨</td></tr>
+          <tr><td>방문·예약자</td><td><span class="chip info">Notion</span></td><td>유입경로별 등록률을 뷰 하나로 바로 집계</td></tr>
+          <tr><td>체험PT · OT</td><td><span class="chip info">Notion</span></td><td>진행상황을 보드(칸반)로 보면 트레이너가 직접 카드를 끌어 옮기며 관리</td></tr>
+          <tr><td>사물함 추가결제 대상</td><td><span class="chip info">Notion</span></td><td>지금 쓰는 엑셀을 그대로 붙여넣기. 만료 D-day 자동 계산</td></tr>
+          <tr><td>주간 · 월간 보고</td><td><span class="chip info">Notion</span></td><td>목표 대비 달성률을 위 DB들에서 자동으로 끌어옴</td></tr>
+          <tr><td><strong>정산</strong></td><td><span class="chip ok">구글 시트</span></td><td><strong>트레이너 간 비공개 + 대표 총합 자동 합산</strong>을 동시에 만족하는 유일한 방법</td></tr>
+          <tr><td>대시보드 (오늘 / 예정 / 성과)</td><td><span class="chip info">Notion</span></td><td>모든 DB를 한 페이지에 모아 보여줌. 정산은 미승인 건수만 링크로</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="tcap">두 서비스를 오가는 부담은 실질적으로 없습니다. Notion 대시보드에 구글 시트 링크를 붙여두면 대표님은 한 페이지에서 출발하고, 트레이너는 애초에 본인 정산 시트 하나만 봅니다.</p>
+  </div>
+</section>
+
+<section id="tools">
+  <div class="shead"><span class="kicker">도구 비교</span><h2>왜 이 조합인가</h2></div>
+  <p class="sintro">헬스장 운영에 흔히 쓰이는 네 갈래를 요청하신 조건 기준으로 비교했습니다.</p>
+  <div class="stack">
+    <div class="tw">
+      <table style="min-width:760px">
+        <thead><tr>
+          <th style="width:19%">도구</th><th>대시보드</th><th>정산 권한 분리</th><th>수식 · 합산</th><th>직원 진입장벽</th><th>월 비용</th>
+        </tr></thead>
+        <tbody>
+          <tr>
+            <td><strong>Notion 단독</strong></td>
+            <td><span class="chip ok">매우 좋음</span></td>
+            <td><span class="chip bad">불가</span><br><span style="font-size:12px;color:var(--muted)">행 단위 권한 없음</span></td>
+            <td><span class="chip warn">보통</span></td>
+            <td><span class="chip ok">낮음</span><br><span style="font-size:12px;color:var(--muted)">모바일 입력 편함</span></td>
+            <td>0원~</td>
+          </tr>
+          <tr>
+            <td><strong>구글 시트 단독</strong></td>
+            <td><span class="chip warn">보통</span><br><span style="font-size:12px;color:var(--muted)">보기 좋게 만들기 어려움</span></td>
+            <td><span class="chip ok">완벽</span></td>
+            <td><span class="chip ok">매우 좋음</span></td>
+            <td><span class="chip warn">보통</span><br><span style="font-size:12px;color:var(--muted)">폰으로 입력 불편</span></td>
+            <td>0원</td>
+          </tr>
+          <tr style="background:var(--accent-soft)">
+            <td><strong>Notion + 구글 시트</strong><br><span class="chip info">추천</span></td>
+            <td><span class="chip ok">매우 좋음</span></td>
+            <td><span class="chip ok">완벽</span></td>
+            <td><span class="chip ok">매우 좋음</span></td>
+            <td><span class="chip ok">낮음</span></td>
+            <td>0~4만원</td>
+          </tr>
+          <tr>
+            <td><strong>헬스장 전용 프로그램</strong><br><span style="font-size:12px;color:var(--muted)">(현재 쓰시는 것 포함)</span></td>
+            <td><span class="chip warn">고정</span><br><span style="font-size:12px;color:var(--muted)">원하는 항목만 못 뽑음</span></td>
+            <td><span class="chip warn">제품마다 다름</span></td>
+            <td><span class="chip bad">수정 불가</span></td>
+            <td><span class="chip ok">낮음</span></td>
+            <td>제품별</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="callout warn">
+      <h4>전용 프로그램을 버리자는 뜻이 아닙니다</h4>
+      <p>회원 출입·결제·회원권 관리는 지금 쓰시는 프로그램이 계속 담당합니다. 이 허브가 맡는 건 그 프로그램이 <strong>안 해주는 것들</strong> — 상담 연락처 누적, 유입경로별 등록률, 체험PT 세일즈 현황, 목표 대비 달성률, 트레이너 정산 — 입니다. 둘은 경쟁 관계가 아니라 역할이 다릅니다.</p>
+    </div>
+  </div>
+</section>
+
+<style>
+.flow{display:grid;gap:14px;grid-template-columns:1fr;margin-top:26px}
+@media(min-width:880px){.flow{grid-template-columns:1fr 1fr 1fr;gap:18px}}
+.flowcol{display:flex;flex-direction:column;gap:10px}
+.flowhead{font-family:var(--mono);font-size:11px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);padding-bottom:8px;border-bottom:2px solid var(--line-strong)}
+.node{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:11px 13px;font-size:13.5px;box-shadow:var(--shadow)}
+.node strong{display:block;font-family:var(--display);font-weight:700;font-size:13.5px}
+.node span{color:var(--muted);font-size:12.5px}
+.node.store{border-left:3px solid var(--accent)}
+.node.sheet{border-left:3px solid var(--green)}
+.node.out{border-left:3px solid var(--amber)}
+.node.manual{border-style:dashed}
+</style>
+
+<section id="map">
+  <div class="shead"><span class="kicker">전체 구조</span><h2>데이터가 흘러가는 길</h2></div>
+  <p class="sintro">왼쪽에서 들어와 가운데에 쌓이고 오른쪽으로 나옵니다. 점선 상자는 <strong>사람이 손으로 넣는 곳</strong>, 실선은 자동으로 넘어오는 곳입니다.</p>
+
+  <div class="flow">
+    <div class="flowcol">
+      <div class="flowhead">들어오는 곳</div>
+      <div class="node manual"><strong>상담용 휴대폰</strong><span>수신 번호를 그때그때 폰에서 추가</span></div>
+      <div class="node manual"><strong>전화 · 워크인 방문</strong><span>데스크가 폰으로 3초 입력</span></div>
+      <div class="node"><strong>네이버 예약</strong><span>예약 알림 메일 → 자동 적재 <a href="#naver">(방법 3가지)</a></span></div>
+      <div class="node manual"><strong>트레이너 체험PT · OT</strong><span>수업 끝나고 카드 한 장 생성</span></div>
+      <div class="node manual"><strong>회원관리 프로그램</strong><span>사물함·회원권 엑셀 내보내기 <a href="#locker">(자동화 방안)</a></span></div>
+      <div class="node manual"><strong>트레이너 정산 입력</strong><span>매월 말 본인 시트에 직접 작성</span></div>
+    </div>
+
+    <div class="flowcol">
+      <div class="flowhead">쌓이는 곳</div>
+      <div class="node store"><strong>① 연락처</strong><span>Notion · 문자 발송 모수</span></div>
+      <div class="node store"><strong>② 방문 · 예약자</strong><span>Notion · 유입경로별 등록률</span></div>
+      <div class="node store"><strong>③ 체험PT · OT</strong><span>Notion · 트레이너 세일즈 현황</span></div>
+      <div class="node store"><strong>④ 사물함 추가결제 대상</strong><span>Notion · 기간 불일치 회원</span></div>
+      <div class="node store"><strong>⑤ 목표 · 실적</strong><span>Notion · 주간/월간 목표치</span></div>
+      <div class="node sheet"><strong>⑥ 정산 시트</strong><span>구글 시트 · 트레이너별 개별 파일</span></div>
+    </div>
+
+    <div class="flowcol">
+      <div class="flowhead">나오는 곳</div>
+      <div class="node out"><strong>오늘 할 일</strong><span>오늘 예약·OT, 만료 임박, 미승인 정산</span></div>
+      <div class="node out"><strong>예정된 업무</strong><span>이번 주 예약, 재등록 상담 대상</span></div>
+      <div class="node out"><strong>업무 성과</strong><span>유입경로별 전환율, 트레이너별 매출</span></div>
+      <div class="node out"><strong>주간 · 월간 보고</strong><span>목표 대비 달성률 + 피드백</span></div>
+      <div class="node out"><strong>문자 발송 명단</strong><span>조건별로 걸러 CSV 내보내기</span></div>
+      <div class="node out"><strong>정산 승인</strong><span>대표 총합 자동 합산 → 체크 승인</span></div>
+    </div>
+  </div>
+</section>
+
+<section id="db">
+  <div class="shead"><span class="kicker">데이터베이스 설계</span><h2>다섯 개의 표, 그리고 그 안의 자동 계산</h2></div>
+  <p class="sintro">각 표에서 <span class="chip info">자동</span> 표시된 칸은 직원이 입력하지 않습니다. 다른 칸에서 계산되거나 날짜에서 자동으로 나옵니다. 직원이 손대는 칸을 최대한 줄이는 것이 이 설계의 핵심입니다.</p>
+
+  <div class="stack-lg">
+
+  <div>
+    <h3 style="margin-bottom:4px">① 연락처</h3>
+    <p style="color:var(--muted);font-size:13.5px;margin-bottom:12px">상담용 휴대폰으로 들어온 번호를 버리지 않고 모읍니다. 나중에 문자 발송할 때의 모수가 됩니다.</p>
+    <div class="tw"><table>
+      <thead><tr><th style="width:22%">칸</th><th style="width:18%">형식</th><th>설명</th></tr></thead>
+      <tbody>
+        <tr><td>연락처</td><td>전화번호</td><td>중복 방지의 기준값. 하이픈 없이 <code>01012345678</code>로 통일</td></tr>
+        <tr><td>이름</td><td>텍스트</td><td>모르면 비워둠. 나중에 채워짐</td></tr>
+        <tr><td>최초 유입일</td><td>날짜 <span class="chip info">자동</span></td><td>카드 생성 시각에서 자동</td></tr>
+        <tr><td>유입경로</td><td>선택</td><td>네이버예약 / 전화 / 워크인 / 지인소개 / 인스타 / 당근 / 전단 / 기타</td></tr>
+        <tr><td>문자 수신동의</td><td>체크</td><td><strong>필수.</strong> 아래 경고 참고</td></tr>
+        <tr><td>발송 제외</td><td>체크</td><td>수신거부 요청 시 체크. 발송 명단에서 자동 제외</td></tr>
+        <tr><td>메모</td><td>텍스트</td><td>"가격만 묻고 끊음", "9월에 다시 연락 준다고 함"</td></tr>
+      </tbody>
+    </table></div>
+    <div class="callout stop" style="margin-top:14px">
+      <h4>문자 발송은 법적으로 동의가 필요합니다</h4>
+      <p>단순 문의로 받은 번호에 광고 문자를 보내려면 <strong>사전 수신동의</strong>가 있어야 하고, 문자 앞에 <code>(광고)</code>, 끝에 무료 수신거부 번호를 넣어야 합니다. 오후 9시~오전 8시 발송은 별도 동의 없이는 금지입니다. 그래서 <strong>수신동의 · 발송제외</strong> 두 칸을 처음부터 넣었습니다. 상담 시 "할인 소식 문자로 보내드려도 될까요?" 한 마디를 습관화하시고, 동의한 건만 체크하시면 됩니다.</p>
+    </div>
+  </div>
+
+  <div>
+    <h3 style="margin-bottom:4px">② 방문 · 예약자</h3>
+    <p style="color:var(--muted);font-size:13.5px;margin-bottom:12px">"어느 경로로 온 사람이 실제로 등록하는가"를 답하는 표입니다. 광고비를 어디에 쓸지 결정하는 근거가 됩니다.</p>
+    <div class="tw"><table>
+      <thead><tr><th style="width:22%">칸</th><th style="width:18%">형식</th><th>설명</th></tr></thead>
+      <tbody>
+        <tr><td>이름</td><td>텍스트</td><td></td></tr>
+        <tr><td>연락처</td><td>전화번호</td><td>①번 표와 같은 형식으로 맞춰야 나중에 대조 가능</td></tr>
+        <tr><td>유입경로</td><td>선택</td><td>①번과 <strong>동일한 선택지</strong>를 써야 통계가 합쳐집니다</td></tr>
+        <tr><td>방문 예정일</td><td>날짜</td><td>예약 시각까지 입력. "오늘 할 일"에 뜨는 기준</td></tr>
+        <tr><td>방문 여부</td><td>선택</td><td>예약대기 / 방문완료 / <span class="chip bad">노쇼</span> / 취소</td></tr>
+        <tr><td>등록여부</td><td>선택</td><td>등록 / 보류 / 미등록</td></tr>
+        <tr><td>등록 상품</td><td>선택</td><td>헬스 3·6·12개월 / PT / 헬스+PT</td></tr>
+        <tr><td>등록 금액</td><td>숫자</td><td>경로별 매출 기여도 계산용</td></tr>
+        <tr><td>응대 직원</td><td>사람</td><td>누가 상담했는지</td></tr>
+        <tr><td>노쇼율 · 등록률</td><td class="f">뷰 집계 <span class="chip info">자동</span></td><td>유입경로로 그룹 묶고 "등록" 개수 ÷ "방문완료" 개수</td></tr>
+      </tbody>
+    </table></div>
+    <p class="tcap">보기(View) 3개를 만들어 둡니다 — <strong>오늘 방문 예정</strong>(오늘 날짜 필터) · <strong>결과 미입력</strong>(방문완료인데 등록여부가 비어있는 건) · <strong>경로별 집계</strong>(유입경로로 그룹).</p>
+  </div>
+
+  <div>
+    <h3 style="margin-bottom:4px">③ 체험PT · OT</h3>
+    <p style="color:var(--muted);font-size:13.5px;margin-bottom:12px">트레이너가 직접 관리하는 표입니다. 진행상황을 <strong>보드 형태</strong>로 두면 카드를 오른쪽으로 끌어 옮기는 것만으로 상태가 바뀝니다.</p>
+    <div class="tw"><table>
+      <thead><tr><th style="width:22%">칸</th><th style="width:18%">형식</th><th>설명</th></tr></thead>
+      <tbody>
+        <tr><td>이름</td><td>텍스트</td><td></td></tr>
+        <tr><td>담당 트레이너</td><td>사람</td><td>트레이너별 실적의 기준</td></tr>
+        <tr><td>구분</td><td>선택</td><td>체험PT / OT(신규회원 오리엔테이션)</td></tr>
+        <tr><td>유입경로</td><td>선택</td><td>①②와 동일 선택지</td></tr>
+        <tr><td>진행상황</td><td>선택 <span class="chip plain">보드 열</span></td><td>예정 → 진행완료 → 상담중 → <span class="chip ok">등록</span> / <span class="chip bad">미등록</span></td></tr>
+        <tr><td>진행일</td><td>날짜</td><td></td></tr>
+        <tr><td>등록여부</td><td>선택</td><td>등록 / 미등록 / 보류</td></tr>
+        <tr><td>계약 세션</td><td>숫자</td><td>10 / 20 / 30</td></tr>
+        <tr><td>결제금액</td><td>숫자</td><td>이 표의 매출 집계 기준</td></tr>
+        <tr><td>미등록 사유</td><td>선택</td><td>가격 / 시간 / 거리 / 타 센터 / 고민중 — <strong>주간보고에서 가장 쓸모있는 칸</strong></td></tr>
+        <tr><td>전환율</td><td class="f">뷰 집계 <span class="chip info">자동</span></td><td>트레이너로 그룹 → 등록 건수 ÷ 진행완료 건수</td></tr>
+      </tbody>
+    </table></div>
+    <div class="callout" style="margin-top:14px">
+      <h4>주간보고가 저절로 만들어지는 지점</h4>
+      <p>이 표에 <strong>담당 트레이너 · 등록여부 · 결제금액 · 미등록 사유</strong> 네 칸만 성실히 채워지면, 주간보고에 필요한 "트레이너별 체험PT 건수 / 등록 건수 / 전환율 / 매출"이 전부 자동으로 나옵니다. 따로 취합하는 시간이 사라집니다.</p>
+    </div>
+  </div>
+
+  <div>
+    <h3 style="margin-bottom:4px">④ 사물함 추가결제 대상</h3>
+    <p style="color:var(--muted);font-size:13.5px;margin-bottom:12px">전체 사물함이 아니라 <strong>헬스권 기간과 사물함 기간이 어긋난 회원만</strong> 담습니다. 지금 직원분이 만든 엑셀을 그대로 붙여넣으면 바로 시작할 수 있습니다.</p>
+    <div class="tw"><table>
+      <thead><tr><th style="width:22%">칸</th><th style="width:18%">형식</th><th>설명</th></tr></thead>
+      <tbody>
+        <tr><td>회원명</td><td>텍스트</td><td></td></tr>
+        <tr><td>연락처</td><td>전화번호</td><td>안내 문자 발송용</td></tr>
+        <tr><td>사물함 번호</td><td>텍스트</td><td></td></tr>
+        <tr><td>헬스권 종료일</td><td>날짜</td><td></td></tr>
+        <tr><td>사물함 종료일</td><td>날짜</td><td></td></tr>
+        <tr><td>미결제 개월</td><td class="f">수식 <span class="chip info">자동</span></td><td>두 종료일의 개월 차이. 12개월 헬스권 + 6개월 사물함 → <strong>6</strong></td></tr>
+        <tr><td>추가결제 예상액</td><td class="f">수식 <span class="chip info">자동</span></td><td><code>미결제 개월 × 월 사물함료</code></td></tr>
+        <tr><td>사물함 만료 D-day</td><td class="f">수식 <span class="chip info">자동</span></td><td>오늘부터 남은 일수. 음수면 이미 만료</td></tr>
+        <tr><td>안내 상태</td><td>선택</td><td>미안내 / 문자발송 / 통화완료 / <span class="chip ok">결제완료</span> / 거절</td></tr>
+        <tr><td>안내일</td><td>날짜</td><td>같은 회원에게 두 번 전화하는 사고 방지</td></tr>
+      </tbody>
+    </table></div>
+    <p class="tcap"><strong>D-day 자동 계산이 핵심입니다.</strong> "사물함 만료 14일 이내 + 안내 상태가 미안내"인 건만 걸러진 보기를 만들어 대시보드의 <em>오늘 할 일</em>에 띄우면, 직원은 엑셀을 열어 눈으로 훑을 필요가 없어집니다.</p>
+  </div>
+
+  <div>
+    <h3 style="margin-bottom:4px">⑤ 목표 · 실적 (주간 · 월간 보고)</h3>
+    <p style="color:var(--muted);font-size:13.5px;margin-bottom:12px">한 주가 한 줄입니다. 목표치는 주 시작 전에 대표님이, 달성치는 ②③번 표에서 자동으로 채워집니다.</p>
+    <div class="tw"><table>
+      <thead><tr><th style="width:22%">칸</th><th style="width:18%">형식</th><th>설명</th></tr></thead>
+      <tbody>
+        <tr><td>기간</td><td>날짜 범위</td><td>2026-09-01 ~ 09-07</td></tr>
+        <tr><td>구분</td><td>선택</td><td>주간 / 월간</td></tr>
+        <tr><td>담당</td><td>사람</td><td>센터 전체 또는 트레이너 개인</td></tr>
+        <tr><td>신규등록 목표 / 달성</td><td>숫자 / <span class="chip info">자동</span></td><td>달성치는 ②번 표에서 집계</td></tr>
+        <tr><td>체험PT 목표 / 달성</td><td>숫자 / <span class="chip info">자동</span></td><td>달성치는 ③번 표에서 집계</td></tr>
+        <tr><td>매출 목표 / 달성</td><td>숫자 / <span class="chip info">자동</span></td><td></td></tr>
+        <tr><td>달성률</td><td class="f">수식 <span class="chip info">자동</span></td><td><code>달성 ÷ 목표</code>. 100% 미만은 붉게 표시</td></tr>
+        <tr><td>잘된 점 / 안된 점 / 다음 주 액션</td><td>텍스트</td><td>대표님 피드백란. <strong>숫자보다 이 칸이 오래 남습니다</strong></td></tr>
+      </tbody>
+    </table></div>
+    <div class="callout warn" style="margin-top:14px">
+      <h4>정직하게 말씀드릴 제약</h4>
+      <p>Notion에서 "이번 주 등록 건수"를 다른 표에서 <strong>완전 자동으로</strong> 끌어오려면 기간별 관계 연결을 걸어야 해서 설정이 다소 번거롭습니다. 현실적인 절충은 이렇습니다 — 대시보드에 ②③번 표의 <strong>이번 주 필터 보기</strong>를 나란히 띄워두고, 주간회의 때 그 숫자를 보고 표에 옮겨 적는 것. 5초면 끝나고, 회의 중에 숫자를 함께 확인하게 되는 부수 효과도 있습니다.</p>
+    </div>
+  </div>
+
+  </div>
+</section>
+
+<style>
+.mock{background:var(--surface-2);border:1px solid var(--line-strong);border-radius:12px;padding:16px;margin-top:26px}
+.mockbar{display:flex;align-items:center;gap:8px;padding-bottom:12px;border-bottom:1px solid var(--line);margin-bottom:14px}
+.dot{width:9px;height:9px;border-radius:50%;background:var(--line-strong)}
+.mocktitle{font-family:var(--display);font-weight:800;font-size:14px;margin-left:6px}
+.mockdate{margin-left:auto;font-family:var(--mono);font-size:11.5px;color:var(--muted)}
+.panes{display:grid;gap:12px;grid-template-columns:1fr}
+@media(min-width:820px){.panes{grid-template-columns:1fr 1fr 1fr}}
+.pane{background:var(--surface);border:1px solid var(--line);border-radius:9px;padding:14px;display:flex;flex-direction:column;gap:11px}
+.panehead{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.panehead h4{font-size:13.5px}
+.count{font-family:var(--mono);font-size:11px;font-weight:600;color:var(--muted)}
+.row{display:flex;align-items:flex-start;gap:9px;font-size:13px;line-height:1.5;padding-bottom:9px;border-bottom:1px dashed var(--line)}
+.row:last-child{border-bottom:none;padding-bottom:0}
+.row .stripe{width:3px;align-self:stretch;border-radius:2px;background:var(--line-strong);flex:none}
+.row .stripe.hi{background:var(--red)} .row .stripe.mid{background:var(--amber)} .row .stripe.lo{background:var(--green)}
+.row .txt{flex:1;min-width:0}
+.row .txt b{font-weight:600;font-family:var(--display)}
+.row .txt span{display:block;color:var(--muted);font-size:12px}
+.bars{display:flex;flex-direction:column;gap:10px}
+.bar{display:flex;flex-direction:column;gap:4px}
+.barlab{display:flex;justify-content:space-between;font-size:12.5px}
+.barlab .v{font-family:var(--mono);font-variant-numeric:tabular-nums;color:var(--muted)}
+.track{height:7px;border-radius:4px;background:var(--surface-2);border:1px solid var(--line);overflow:hidden}
+.fill{height:100%;border-radius:3px;background:var(--accent)}
+.fill.good{background:var(--green)} .fill.warn{background:var(--amber)} .fill.bad{background:var(--red)}
+.kpis{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+.kpi{background:var(--surface-2);border:1px solid var(--line);border-radius:7px;padding:9px 11px}
+.kpi .k{font-size:11px;color:var(--muted)}
+.kpi .v{font-family:var(--mono);font-weight:600;font-size:19px;font-variant-numeric:tabular-nums;line-height:1.3}
+</style>
+
+<section id="dash">
+  <div class="shead"><span class="kicker">대시보드</span><h2>아침에 이 한 화면만 보면 됩니다</h2></div>
+  <p class="sintro">요청하신 세 칸 — 오늘 할 일 · 예정된 업무 · 업무 성과 — 을 그대로 세 열로 놓았습니다. 아래는 실제 데이터가 들어갔을 때의 모습입니다.</p>
+
+  <div class="mock">
+    <div class="mockbar">
+      <span class="dot"></span><span class="dot"></span><span class="dot"></span>
+      <span class="mocktitle">M휘트니스 용문점 · 운영 허브</span>
+      <span class="mockdate">2026-09-14 (월)</span>
+    </div>
+    <div class="panes">
+
+      <div class="pane">
+        <div class="panehead"><h4>오늘 할 일</h4><span class="count">6건</span></div>
+        <div class="row"><span class="stripe hi"></span><span class="txt"><b>사물함 만료 D-3 · 4명</b><span>이지현 외 3명 · 추가결제 안내 미발송</span></span><span class="chip bad">긴급</span></div>
+        <div class="row"><span class="stripe hi"></span><span class="txt"><b>정산 미승인 · 2건</b><span>김수민(9월), 박태호(9월) 대조 후 승인</span></span><span class="chip bad">대표</span></div>
+        <div class="row"><span class="stripe mid"></span><span class="txt"><b>오늘 방문 예약 · 3명</b><span>14:00 최윤아 / 17:30 정하람 / 19:00 김도경</span></span></div>
+        <div class="row"><span class="stripe mid"></span><span class="txt"><b>오늘 체험PT · 2건</b><span>15:00 정하람(김수민) / 20:00 오세진(박태호)</span></span></div>
+        <div class="row"><span class="stripe lo"></span><span class="txt"><b>어제 결과 미입력 · 2건</b><span>방문은 했는데 등록여부가 비어 있음</span></span></div>
+        <div class="row"><span class="stripe lo"></span><span class="txt"><b>회원권 만료 D-7 · 5명</b><span>재등록 상담 전화 대상</span></span></div>
+      </div>
+
+      <div class="pane">
+        <div class="panehead"><h4>예정된 업무</h4><span class="count">이번 주</span></div>
+        <div class="row"><span class="stripe mid"></span><span class="txt"><b>수 · 주간보고 작성</b><span>9/8~9/14 목표 대비 달성률 정리</span></span><span class="chip warn">D-2</span></div>
+        <div class="row"><span class="stripe lo"></span><span class="txt"><b>금 · 9월 정산 마감</b><span>트레이너 3명 시트 입력 마감일</span></span><span class="chip plain">D-4</span></div>
+        <div class="row"><span class="stripe lo"></span><span class="txt"><b>이번 주 방문 예약 · 11명</b><span>네이버 7 · 전화 3 · 워크인 1</span></span></div>
+        <div class="row"><span class="stripe lo"></span><span class="txt"><b>회원권 만료 D-30 · 14명</b><span>재등록 문자 발송 대상군</span></span></div>
+        <div class="row"><span class="stripe lo"></span><span class="txt"><b>사물함 만료 D-14 · 9명</b><span>추가결제 대상 · 미안내</span></span></div>
+        <div class="row"><span class="stripe lo"></span><span class="txt"><b>10월 목표 설정</b><span>9/28까지 트레이너별 목표 입력</span></span></div>
+      </div>
+
+      <div class="pane">
+        <div class="panehead"><h4>업무 성과</h4><span class="count">9월 누적</span></div>
+        <div class="kpis">
+          <div class="kpi"><div class="k">신규등록</div><div class="v">23<span style="font-size:12px;color:var(--muted)">/30</span></div></div>
+          <div class="kpi"><div class="k">PT 매출</div><div class="v">1,840<span style="font-size:12px;color:var(--muted)">만</span></div></div>
+        </div>
+        <div class="bars" style="margin-top:2px">
+          <div class="bar"><div class="barlab"><span>신규등록 달성률</span><span class="v">77%</span></div><div class="track"><div class="fill warn" style="width:77%"></div></div></div>
+          <div class="bar"><div class="barlab"><span>PT 매출 달성률</span><span class="v">92%</span></div><div class="track"><div class="fill good" style="width:92%"></div></div></div>
+          <div class="bar"><div class="barlab"><span>체험PT 전환율</span><span class="v">61%</span></div><div class="track"><div class="fill good" style="width:61%"></div></div></div>
+        </div>
+        <div style="border-top:1px dashed var(--line);padding-top:11px">
+          <div style="font-size:11px;color:var(--muted);font-family:var(--mono);letter-spacing:.1em;margin-bottom:8px">유입경로별 등록률</div>
+          <div class="bars">
+            <div class="bar"><div class="barlab"><span>지인소개</span><span class="v">8 / 11 · 73%</span></div><div class="track"><div class="fill good" style="width:73%"></div></div></div>
+            <div class="bar"><div class="barlab"><span>워크인</span><span class="v">6 / 12 · 50%</span></div><div class="track"><div class="fill" style="width:50%"></div></div></div>
+            <div class="bar"><div class="barlab"><span>네이버예약</span><span class="v">7 / 24 · 29%</span></div><div class="track"><div class="fill warn" style="width:29%"></div></div></div>
+            <div class="bar"><div class="barlab"><span>인스타 광고</span><span class="v">2 / 19 · 11%</span></div><div class="track"><div class="fill bad" style="width:11%"></div></div></div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+  <p class="tcap">숫자는 예시입니다. 다만 맨 아래 유입경로 막대는 이 시스템의 목적을 잘 보여줍니다 — 네이버예약이 <strong>가장 많이 오지만 가장 적게 등록하는</strong> 경로라면, 광고비를 옮기거나 예약 후 안내 방식을 바꿔야 한다는 뜻입니다. 지금은 이 판단의 근거가 되는 숫자가 남지 않고 흩어집니다.</p>
+
+  <div class="grid3" style="margin-top:26px">
+    <div class="card"><h4>모바일에서 그대로</h4><p style="font-size:13.5px;color:var(--ink-2)">Notion 앱에서 같은 페이지가 세로로 쌓입니다. 데스크 직원이 방문자를 폰으로 3초 만에 추가할 수 있어야 데이터가 실제로 쌓입니다.</p></div>
+    <div class="card"><h4>직원은 자기 것만</h4><p style="font-size:13.5px;color:var(--ink-2)">트레이너에게는 <strong>체험PT 보드</strong>와 <strong>본인 정산 시트</strong>만 공유합니다. 대시보드 전체는 대표님과 데스크만 봅니다.</p></div>
+    <div class="card"><h4>붉은 줄부터</h4><p style="font-size:13.5px;color:var(--ink-2)">왼쪽 색 막대는 급한 순서입니다. 돈이 걸린 건(사물함 미결제, 정산 미승인)이 항상 맨 위에 옵니다.</p></div>
+  </div>
+</section>
+
+<style>
+pre{margin:0;background:var(--surface-2);border:1px solid var(--line);border-radius:9px;padding:15px 17px;overflow-x:auto;font-family:var(--mono);font-size:12.5px;line-height:1.65;color:var(--ink-2)}
+pre .c{color:var(--muted)}
+pre .k{color:var(--accent);font-weight:600}
+.steps{counter-reset:st;list-style:none;margin:26px 0 0;padding:0;display:flex;flex-direction:column;gap:14px}
+.steps li{counter-increment:st;display:grid;grid-template-columns:auto 1fr;gap:15px;align-items:start}
+.steps li::before{content:counter(st,decimal-leading-zero);font-family:var(--mono);font-size:12px;font-weight:600;color:var(--accent);background:var(--accent-soft);border:1px solid var(--accent);border-radius:6px;padding:5px 8px;line-height:1}
+.steps h4{margin-bottom:3px}
+.steps p{font-size:13.5px;color:var(--ink-2)}
+</style>
+
+<section id="payroll">
+  <div class="shead"><span class="kicker">정산</span><h2>트레이너가 쓰고, 대표는 체크만</h2></div>
+  <p class="sintro">요청하신 항목을 그대로 열로 놓고, 계산이 필요한 두 칸에 수식을 걸었습니다. 트레이너는 <strong>흰 칸만</strong> 채우고 <span class="chip info">자동</span> 칸은 건드릴 수 없게 잠급니다.</p>
+
+  <div class="stack-lg">
+
+  <div>
+    <h3 style="margin-bottom:12px">트레이너 개인 시트 — 2026년 9월</h3>
+    <div class="tw"><table style="min-width:900px">
+      <thead><tr>
+        <th>이름</th><th>계약분류</th><th class="num">계약세션</th><th class="num">총결제금액</th>
+        <th class="num">세션당단가 <span class="chip info">자동</span></th><th class="num">전월까지</th><th class="num">금월 수업</th>
+        <th class="num">잔여 <span class="chip info">자동</span></th><th class="num">수업료 <span class="chip info">자동</span></th>
+      </tr></thead>
+      <tbody>
+        <tr><td>최윤아</td><td><span class="chip plain">신규</span></td><td class="num">20</td><td class="num">1,400,000</td><td class="num">70,000</td><td class="num">4</td><td class="num">8</td><td class="num">8</td><td class="num">560,000</td></tr>
+        <tr><td>김도경</td><td><span class="chip plain">재등록</span></td><td class="num">30</td><td class="num">1,950,000</td><td class="num">65,000</td><td class="num">12</td><td class="num">10</td><td class="num">8</td><td class="num">650,000</td></tr>
+        <tr><td>오세진</td><td><span class="chip plain">소개</span></td><td class="num">10</td><td class="num">750,000</td><td class="num">75,000</td><td class="num">0</td><td class="num">6</td><td class="num">4</td><td class="num">450,000</td></tr>
+        <tr><td>정하람</td><td><span class="chip plain">지인</span></td><td class="num">20</td><td class="num">1,200,000</td><td class="num">60,000</td><td class="num">9</td><td class="num">7</td><td class="num">4</td><td class="num">420,000</td></tr>
+        <tr style="background:var(--accent-soft);font-weight:600">
+          <td colspan="8" style="text-align:right;font-family:var(--display)">총수업료</td>
+          <td class="num" style="font-size:15px">2,080,000</td>
+        </tr>
+      </tbody>
+    </table></div>
+
+    <div class="grid2" style="margin-top:16px">
+      <div class="card">
+        <h4>걸려 있는 수식</h4>
+        <pre><span class="c">// 2행 기준, 아래로 복사됨</span>
+<span class="k">세션당단가</span>  E2 = ROUND(D2/C2)
+<span class="k">잔여 수업횟수</span> H2 = C2-(F2+G2)
+<span class="k">수업료</span>     I2 = E2*G2
+<span class="k">총수업료</span>    I99 = SUM(I2:I50)</pre>
+        <p style="font-size:13px;color:var(--muted)">세션당단가는 총결제금액÷계약세션으로 자동 계산되지만, 이벤트가·지인할인처럼 단가를 따로 정한 회원은 그 칸만 숫자로 덮어쓰면 됩니다. 수업료는 <strong>덮어쓴 단가 기준</strong>으로 다시 계산됩니다.</p>
+      </div>
+      <div class="card">
+        <h4>잠그는 범위</h4>
+        <ul class="tight">
+          <li><strong>트레이너가 입력</strong> — 이름 · 계약분류 · 계약세션 · 총결제금액 · 금월 수업횟수</li>
+          <li><strong>잠금(수식)</strong> — 세션당단가 · 잔여 · 수업료 · 총수업료</li>
+          <li><strong>대표만 수정</strong> — 승인 체크박스 · 승인일 · 대표 메모</li>
+        </ul>
+        <p style="font-size:13px;color:var(--muted)">구글 시트의 <strong>범위 보호</strong> 기능으로 설정합니다. 잠긴 칸을 건드리면 "이 셀은 수정할 수 없습니다" 안내가 뜹니다. 수식이 실수로 지워져 계산이 틀어지는 사고를 막습니다.</p>
+      </div>
+    </div>
+  </div>
+
+  <div>
+    <h3 style="margin-bottom:12px">대표 총괄 시트 — 자동으로 모입니다</h3>
+    <div class="tw"><table style="min-width:720px">
+      <thead><tr><th>트레이너</th><th class="num">회원 수</th><th class="num">금월 수업</th><th class="num">총수업료</th><th>승인</th><th>승인일 <span class="chip info">자동</span></th></tr></thead>
+      <tbody>
+        <tr><td>김수민</td><td class="num">4</td><td class="num">31</td><td class="num">2,080,000</td><td><span class="chip ok">승인완료</span></td><td class="mono">2026-10-02 11:24</td></tr>
+        <tr><td>박태호</td><td class="num">6</td><td class="num">44</td><td class="num">2,860,000</td><td><span class="chip bad">미승인</span></td><td class="mono" style="color:var(--muted)">—</td></tr>
+        <tr><td>이서준</td><td class="num">3</td><td class="num">19</td><td class="num">1,235,000</td><td><span class="chip bad">미승인</span></td><td class="mono" style="color:var(--muted)">—</td></tr>
+        <tr style="background:var(--accent-soft);font-weight:600">
+          <td colspan="3" style="text-align:right;font-family:var(--display)">센터 전체 수업료</td>
+          <td class="num" style="font-size:15px">6,175,000</td><td colspan="2"><span class="chip warn">2건 미승인</span></td>
+        </tr>
+      </tbody>
+    </table></div>
+    <div class="card" style="margin-top:16px">
+      <h4>어떻게 자동으로 모이나</h4>
+      <pre><span class="c">// 대표 총괄 시트에서, 각 트레이너 파일의 총수업료를 끌어옴</span>
+D2 = IMPORTRANGE("<span class="c">김수민 시트 URL</span>", "요약!B2")
+D3 = IMPORTRANGE("<span class="c">박태호 시트 URL</span>", "요약!B2")
+D4 = IMPORTRANGE("<span class="c">이서준 시트 URL</span>", "요약!B2")
+D9 = SUM(D2:D8)   <span class="c">// 센터 전체 수업료</span></pre>
+      <p style="font-size:13.5px;color:var(--ink-2);margin-top:12px">트레이너가 본인 시트에 숫자를 넣는 순간 대표님 총괄 시트의 합계가 <strong>따라 움직입니다.</strong> 반대 방향으로는 흐르지 않습니다 — 트레이너는 총괄 시트 URL 자체를 모르고, 알아도 열 권한이 없습니다.</p>
+    </div>
+  </div>
+
+  <div>
+    <h3 style="margin-bottom:12px">대표 승인 — 체크 한 번에 날짜가 박힙니다</h3>
+    <p style="color:var(--muted);font-size:13.5px;margin-bottom:14px">선택하신 방식입니다. 수기 종이와 대조한 뒤 체크박스만 누르면 승인 시각과 승인자가 자동 기록되고, 그 뒤로는 트레이너가 그 달 시트를 수정할 수 없게 됩니다.</p>
+    <div class="card">
+      <h4>Google Apps Script · 도구 → 스크립트 편집기에 붙여넣기</h4>
+      <pre>function onEdit(e) {
+  <span class="c">// 승인 체크박스(요약 시트 D2)가 켜지면 시각·승인자 기록</span>
+  const sh = e.range.getSheet();
+  if (sh.getName() !== '요약') return;
+  if (e.range.getA1Notation() !== 'D2') return;
+
+  if (e.value === 'TRUE') {
+    sh.getRange('E2').setValue(new Date());          <span class="c">// 승인일시</span>
+    sh.getRange('F2').setValue(Session.getActiveUser().getEmail());  <span class="c">// 승인자</span>
+  } else {
+    sh.getRange('E2:F2').clearContent();             <span class="c">// 승인 취소 시 지움</span>
+  }
+}</pre>
+      <p style="font-size:13px;color:var(--muted);margin-top:12px">10줄짜리이고, 한 번 붙여넣으면 그 뒤로 손댈 일이 없습니다. 승인 취소도 체크 해제 한 번으로 되돌아갑니다.</p>
+    </div>
+    <div class="callout warn" style="margin-top:16px">
+      <h4>서명의 법적 효력이 필요하시면</h4>
+      <p>체크박스는 <strong>내부 확인 기록</strong>이지 법적 서명은 아닙니다. 지금처럼 수기 종이에 실제 서명을 하시고 그 종이를 보관하는 절차는 그대로 두시고, 이 체크박스는 "대조 끝났음"을 표시하는 용도로 쓰시는 걸 권합니다. 종이 서명본을 사진 찍어 해당 월 시트에 첨부해두면 나중에 찾기도 쉬워집니다.</p>
+    </div>
+  </div>
+
+  </div>
+</section>
+
+<section id="perm">
+  <div class="shead"><span class="kicker">권한</span><h2>누가 무엇을 볼 수 있나</h2></div>
+  <p class="sintro">가장 신경 쓰신 부분입니다. 아래가 최종 상태이고, 트레이너끼리는 서로의 정산을 <strong>존재조차 알 수 없습니다</strong>.</p>
+  <div class="tw" style="margin-top:26px">
+    <table style="min-width:760px">
+      <thead><tr>
+        <th style="width:26%">항목</th><th>대표</th><th>데스크 직원</th><th>트레이너 본인</th><th>다른 트레이너</th>
+      </tr></thead>
+      <tbody>
+        <tr><td>대시보드 전체</td><td><span class="chip ok">전체</span></td><td><span class="chip ok">전체</span></td><td><span class="chip bad">불가</span></td><td><span class="chip bad">불가</span></td></tr>
+        <tr><td>① 연락처</td><td><span class="chip ok">편집</span></td><td><span class="chip ok">편집</span></td><td><span class="chip bad">불가</span></td><td><span class="chip bad">불가</span></td></tr>
+        <tr><td>② 방문 · 예약자</td><td><span class="chip ok">편집</span></td><td><span class="chip ok">편집</span></td><td><span class="chip warn">읽기</span></td><td><span class="chip warn">읽기</span></td></tr>
+        <tr><td>③ 체험PT · OT</td><td><span class="chip ok">편집</span></td><td><span class="chip ok">편집</span></td><td><span class="chip ok">편집</span></td><td><span class="chip ok">편집</span></td></tr>
+        <tr><td>④ 사물함</td><td><span class="chip ok">편집</span></td><td><span class="chip ok">편집</span></td><td><span class="chip bad">불가</span></td><td><span class="chip bad">불가</span></td></tr>
+        <tr><td>⑤ 목표 · 실적</td><td><span class="chip ok">편집</span></td><td><span class="chip warn">읽기</span></td><td><span class="chip warn">본인만 읽기</span></td><td><span class="chip bad">불가</span></td></tr>
+        <tr style="background:var(--red-soft)"><td><strong>⑥ 정산 시트</strong></td><td><span class="chip ok">전체 + 승인</span></td><td><span class="chip bad">불가</span></td><td><span class="chip ok">본인 파일만 편집</span></td><td><span class="chip bad">파일 존재 자체를 모름</span></td></tr>
+        <tr><td>정산 총괄 시트</td><td><span class="chip ok">소유자</span></td><td><span class="chip bad">불가</span></td><td><span class="chip bad">불가</span></td><td><span class="chip bad">불가</span></td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="grid2" style="margin-top:20px">
+    <div class="callout">
+      <h4>체험PT를 서로 열어둔 이유</h4>
+      <p>③번만 트레이너 전원이 편집 가능합니다. 여기엔 개인 급여 정보가 없고, 서로의 전환율이 보이는 편이 건강한 자극이 됩니다. 이게 불편하시면 트레이너별 보기를 나눠 본인 카드만 보이게 할 수도 있지만, 그러면 팀 전체 현황판의 의미가 줄어듭니다.</p>
+    </div>
+    <div class="callout stop">
+      <h4>퇴사 시 반드시 할 일</h4>
+      <p>트레이너 퇴사 시 <strong>구글 시트 공유 해제</strong>와 <strong>Notion 게스트 제거</strong>를 같은 날 처리하세요. 정산 파일의 소유자는 항상 <strong>대표님 계정</strong>이어야 합니다. 트레이너 계정으로 파일을 만들면, 퇴사하면서 파일을 들고 나가거나 삭제할 수 있습니다.</p>
+    </div>
+  </div>
+</section>
+
+<section id="naver">
+  <div class="shead"><span class="kicker">네이버 예약</span><h2>API가 없을 때 쓸 수 있는 세 갈래</h2></div>
+  <p class="sintro">확인해봤지만 네이버 예약이 외부에 공개한 연동 API는 없고, 스마트플레이스센터에서 예약자 목록을 엑셀로 내려받는 공식 기능도 확인되지 않았습니다. 대신 실제로 쓰이는 우회 경로가 셋 있습니다.</p>
+
+  <div class="grid3" style="margin-top:26px">
+    <div class="card" style="border-left:3px solid var(--green)">
+      <div class="chip ok">먼저 이것부터</div>
+      <h4>예약 안내 문자에 사전 문진 링크</h4>
+      <p style="font-size:13.5px;color:var(--ink-2)">예약 확정 후 보내는 안내 문자에 <strong>구글폼 링크</strong>를 넣습니다. "방문 전 30초만 작성해주세요 — 운동 목적, 희망 시간대". 폼 응답이 ②번 표로 바로 들어옵니다.</p>
+      <ul class="tight" style="font-size:13px">
+        <li>네이버와 연동할 필요가 아예 없음</li>
+        <li>연락처를 <strong>본인이 직접</strong> 적어 마스킹 문제 없음</li>
+        <li>유입경로·운동목적까지 확보 — 상담 품질이 올라감</li>
+        <li>단점: 안 쓰는 사람이 있음 (경험상 절반 정도)</li>
+      </ul>
+    </div>
+
+    <div class="card" style="border-left:3px solid var(--accent)">
+      <div class="chip info">현실적 기본값</div>
+      <h4>하루 한 번 눈으로 옮기기</h4>
+      <p style="font-size:13.5px;color:var(--ink-2)">스마트플레이스센터 앱에서 신규 예약을 확인하고 ②번 표에 추가합니다. 하루 5~10건이면 <strong>1분</strong>입니다.</p>
+      <ul class="tight" style="font-size:13px">
+        <li>설정 비용 0원, 오늘 바로 시작</li>
+        <li>깨질 일이 없음</li>
+        <li>예약 취소·변경도 같이 반영됨</li>
+        <li>단점: 빼먹으면 구멍이 남 — 아침 루틴에 고정 필요</li>
+      </ul>
+    </div>
+
+    <div class="card" style="border-left:3px solid var(--amber)">
+      <div class="chip warn">나중에 자동화</div>
+      <h4>예약 알림 메일 자동 파싱</h4>
+      <p style="font-size:13.5px;color:var(--ink-2)">예약이 들어오면 네이버가 보내는 <strong>알림 메일</strong>을 전용 지메일로 받고, Make나 Zapier가 그 메일에서 이름·일시를 뽑아 ②번 표에 카드를 자동 생성합니다.</p>
+      <ul class="tight" style="font-size:13px">
+        <li>완전 자동 — 사람이 개입하지 않음</li>
+        <li>단점: 알림 메일에 <strong>연락처가 안심번호로 가려져</strong> 올 수 있음 (실제 메일을 봐야 확인 가능)</li>
+        <li>단점: 네이버가 메일 양식을 바꾸면 조용히 멈춤</li>
+        <li>설정에 반나절, 월 유지비 발생 가능</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="callout" style="margin-top:20px">
+    <h4>권하는 순서</h4>
+    <p><strong>①번 문진 링크 + ②번 하루 1분</strong>으로 먼저 시작하세요. 두 달쯤 굴려보고 "옮겨 적는 게 진짜 부담이다" 싶을 때 ③번을 붙이면 됩니다. 자동화를 먼저 깔면, 정작 그 표를 아무도 안 보는데 파이프만 도는 상황이 자주 생깁니다. <strong>먼저 쓰는 습관이 붙고, 그 다음이 자동화입니다.</strong></p>
+  </div>
+  <p class="tcap">③번을 검토하실 때 참고 — <a href="https://www.gpters.org/nocode/post/meil-pasing---eeoteibeul---gugeul-kaelrindeoggaji-eomceongnaneyo-japieoneun-iqSmMXkaNHSSObM">네이버 예약 메일을 파싱해 구글 캘린더로 넘긴 국내 사례</a>, <a href="https://rucian.kr/ai-automation-tools-compare-n8n-zapier-make-2026/">Zapier · Make · n8n 비교(2026)</a></p>
+</section>
+
+<section id="locker">
+  <div class="shead"><span class="kicker">사물함</span><h2>헬스장 PC 프로그램은 제가 열 수 없습니다</h2></div>
+  <p class="sintro">먼저 분명히 말씀드립니다. 저는 대표님 헬스장 컴퓨터에 접근할 수 없고, 그 프로그램을 원격으로 열 수도 없습니다. 대신 <strong>그 프로그램에서 데이터를 꺼내오는</strong> 방법이 넷 있습니다 — 위에서부터 시도해보세요.</p>
+
+  <ol class="steps">
+    <li>
+      <div><h4>프로그램에 "엑셀 내보내기"가 있는지 확인</h4>
+      <p>회원 목록이나 사물함 화면에서 <strong>내보내기 · 엑셀 · 다운로드</strong> 버튼을 찾아보세요. 대부분의 국내 헬스장 프로그램에는 있습니다. 있으면 여기서 끝입니다 — 내보낸 파일을 구글 드라이브 동기화 폴더에 저장하면 Notion까지 자동으로 넘길 수 있습니다. <strong>가장 먼저 확인해주실 항목입니다.</strong></p></div>
+    </li>
+    <li>
+      <div><h4>프로그램 회사에 데이터 제공을 문의</h4>
+      <p>"회원 데이터를 엑셀이나 API로 받고 싶다"고 고객센터에 문의하세요. 그 데이터는 <strong>대표님 소유</strong>입니다. 유료 옵션으로 제공하는 곳도 있고, 담당자가 직접 DB를 뽑아주는 경우도 있습니다.</p></div>
+    </li>
+    <li>
+      <div><h4>내보내기가 없다면 — 윈도우 자동화(RPA)</h4>
+      <p><strong>Power Automate Desktop</strong>은 윈도우 10·11에 기본 포함된 무료 도구입니다. "프로그램 실행 → 사물함 메뉴 클릭 → 화면 읽기 → 엑셀 저장"까지 사람이 하던 클릭을 그대로 녹화해 매일 자동 반복시킬 수 있습니다. 단, 이 자동화는 <strong>헬스장 PC에서만</strong> 돌아갑니다 — 그 PC가 켜져 있어야 합니다.</p></div>
+    </li>
+    <li>
+      <div><h4>당장은 — 지금 엑셀을 그대로 옮기기</h4>
+      <p>직원분이 만든 엑셀을 ④번 표에 <strong>복사·붙여넣기</strong> 하면 끝입니다. Notion은 엑셀 붙여넣기를 표로 인식합니다. 그 다음부터는 <strong>만료 D-day와 추가결제 예상액이 자동으로 계산</strong>되고, "D-14 이내 미안내" 목록이 매일 아침 대시보드에 뜹니다. 주 1회만 갱신해도 지금보다 훨씬 낫습니다.</p></div>
+    </li>
+  </ol>
+
+  <div class="callout warn" style="margin-top:22px">
+    <h4>여기가 돈이 새는 지점입니다</h4>
+    <p>12개월 헬스권에 6개월 사물함만 결제한 회원 한 명당, 월 사물함료가 1만원이면 <strong>6만원</strong>이 미수금입니다. 그런 회원이 30명이면 180만원입니다. 지금은 이 목록이 엑셀 파일 안에 잠들어 있어서 누가 열어보지 않으면 아무 일도 일어나지 않습니다. 4번 방법으로 하루 만에 옮겨두는 것만으로도 <strong>이번 달부터</strong> 회수가 시작됩니다.</p>
+  </div>
+</section>
+
+<section id="sms">
+  <div class="shead"><span class="kicker">문자 발송</span><h2>모아둔 연락처를 실제로 쓰는 법</h2></div>
+  <div class="grid2" style="margin-top:26px">
+    <div class="card">
+      <h4>지금 바로 되는 방식</h4>
+      <ol class="tight">
+        <li>①번 표에서 조건으로 거릅니다 — <em>수신동의 O · 발송제외 X · 미등록 · 최근 3개월 유입</em></li>
+        <li>Notion에서 <strong>CSV로 내보내기</strong></li>
+        <li><a href="https://smartsms.aligo.in/">알리고</a>나 <a href="https://www.ppurio.com/">뿌리오</a> 웹에 업로드해 발송</li>
+        <li>발송 결과를 ①번 표 메모에 기록</li>
+      </ol>
+      <p style="font-size:13px;color:var(--muted)">추가 개발 없이 오늘부터 가능합니다. 건당 문자 요금(대략 10~20원)만 듭니다.</p>
+    </div>
+    <div class="card">
+      <h4>나중에 자동화한다면</h4>
+      <p style="font-size:13.5px;color:var(--ink-2)">알리고·뿌리오 모두 <a href="https://smartsms.aligo.in/smsapi.html">발송 API</a>를 제공합니다. Make로 연결하면 "사물함 만료 D-7이 되면 안내 문자 자동 발송" 같은 것도 가능합니다.</p>
+      <div class="callout stop" style="margin-top:12px">
+        <h4 style="font-size:13.5px">자동 발송은 특히 조심하세요</h4>
+        <p style="font-size:13px">사람이 한 번 훑고 보내는 것과 조건 맞으면 무조건 나가는 건 다릅니다. 이미 결제한 회원에게 독촉 문자가 나가거나 밤 10시에 발송되면 신뢰를 잃습니다. <strong>자동으로 명단만 만들고 발송 버튼은 사람이 누르는</strong> 방식을 권합니다.</p>
+      </div>
+    </div>
+  </div>
+  <div class="callout stop" style="margin-top:16px">
+    <h4>광고 문자 3원칙 — 위반 시 과태료 대상입니다</h4>
+    <ul class="tight">
+      <li>사전 수신동의를 받은 번호에만 발송 (단순 문의 번호는 동의 아님)</li>
+      <li>문자 맨 앞에 <code>(광고)</code>, 맨 뒤에 <strong>무료 수신거부 번호</strong> 표기</li>
+      <li>오후 9시 ~ 오전 8시 발송 금지 (별도 야간 수신동의가 있으면 예외)</li>
+    </ul>
+  </div>
+</section>
+
+<section id="rollout">
+  <div class="shead"><span class="kicker">도입 순서</span><h2>3주에 나눠서</h2></div>
+  <p class="sintro">한 번에 다 켜면 직원들이 어느 것도 안 씁니다. 순서대로, 앞 단계가 습관이 된 뒤 다음을 붙입니다.</p>
+  <ol class="steps">
+    <li><div><h4>1주차 — 데스크가 쓰는 것부터</h4>
+      <p>①연락처 · ②방문예약자 · ③체험PT 세 표와 대시보드를 만듭니다. 직원 교육은 <strong>10분</strong>이면 됩니다. 폰에 Notion 앱을 깔고 홈 화면에 바로가기를 걸어두는 것까지가 이 주의 일입니다. 이 주가 끝나면 "어제 몇 명 왔고 몇 명 등록했나"에 즉시 답할 수 있습니다.</p></div></li>
+    <li><div><h4>2주차 — 정산</h4>
+      <p>트레이너 수만큼 구글 시트를 만들고, 총괄 시트에 <code>IMPORTRANGE</code>를 걸고, 승인 스크립트를 붙입니다. 이번 달 정산부터 바로 적용해보고 트레이너 피드백을 받습니다. <strong>첫 달은 기존 종이 방식과 병행</strong>하며 숫자가 맞는지 대조하세요.</p></div></li>
+    <li><div><h4>3주차 — 나머지와 자동화</h4>
+      <p>④사물함 엑셀을 옮기고, ⑤목표·실적 표를 만들어 첫 주간보고를 이 시스템으로 돌려봅니다. 네이버 문진 링크와 문자 발송 흐름도 이때 붙입니다. 여기까지 오면 <strong>매주 취합에 쓰던 시간이 없어집니다.</strong></p></div></li>
+  </ol>
+</section>
+
+<section id="cost">
+  <div class="shead"><span class="kicker">비용</span><h2>대부분 0원에서 시작합니다</h2></div>
+  <div class="tw" style="margin-top:26px">
+    <table style="min-width:640px">
+      <thead><tr><th style="width:24%">항목</th><th style="width:20%">비용</th><th>메모</th></tr></thead>
+      <tbody>
+        <tr><td>구글 스프레드시트</td><td><span class="chip ok">0원</span></td><td>정산 전부. 개인 구글 계정으로 충분</td></tr>
+        <tr><td>Google Apps Script</td><td><span class="chip ok">0원</span></td><td>승인일 자동기록</td></tr>
+        <tr><td>Notion</td><td><span class="chip ok">0원</span>부터</td><td>대표님 혼자 만들고 직원은 게스트로 초대하면 무료 범위에서 시작 가능. 인원이 늘면 유료 전환 필요 — <strong>가입 시점 요금은 직접 확인 필요</strong></td></tr>
+        <tr><td>Power Automate Desktop</td><td><span class="chip ok">0원</span></td><td>윈도우 기본 포함. 사물함 자동화가 필요할 때만</td></tr>
+        <tr><td>문자 발송</td><td>건당 10~20원</td><td>선불 충전. 이미 쓰고 계시면 추가 비용 없음</td></tr>
+        <tr><td>Make / Zapier</td><td>0 ~ 3만원</td><td><strong>3주차 이후 선택</strong>. 무료 플랜으로 충분한 경우 많음</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p class="tcap">요금제는 수시로 바뀝니다. 위 금액은 규모 감을 잡는 용도이고, 실제 결제 전에 각 서비스 요금 페이지를 확인해주세요.</p>
+</section>
+
+<section id="decide">
+  <div class="shead"><span class="kicker">결정할 것</span><h2>이것만 알려주시면 바로 만듭니다</h2></div>
+  <p class="sintro">아래 여섯 가지만 정해지면 실제 구축에 들어갈 수 있습니다. 전부 아니어도 됩니다 — 아는 것만 주시면 나머지는 기본값으로 만들고 나중에 바꾸면 됩니다.</p>
+  <div class="stack">
+    <div class="tw">
+      <table style="min-width:600px">
+        <thead><tr><th style="width:30%">항목</th><th style="width:24%">기본값</th><th>왜 필요한가</th></tr></thead>
+        <tbody>
+          <tr><td><strong>트레이너 인원과 이름</strong></td><td>3명</td><td>정산 시트를 인원수만큼 만들고 권한을 나눠야 함</td></tr>
+          <tr><td><strong>유입경로 선택지</strong></td><td>네이버예약 / 전화 / 워크인 / 지인소개 / 인스타 / 당근 / 전단</td><td>세 표에서 똑같이 써야 통계가 합쳐짐. 실제로 쓰는 경로만 남기는 게 좋습니다</td></tr>
+          <tr><td><strong>사물함 월 요금</strong></td><td>10,000원</td><td>추가결제 예상액 자동 계산에 들어감</td></tr>
+          <tr><td><strong>회원관리 프로그램 이름</strong></td><td>—</td><td>엑셀 내보내기 기능이 있는지 함께 찾아보기 위해</td></tr>
+          <tr><td><strong>주간 목표 항목</strong></td><td>신규등록 · 체험PT · 매출</td><td>주간보고 표의 열이 됨</td></tr>
+          <tr><td><strong>Notion 구축 승인</strong></td><td>—</td><td>워크스페이스에 실제로 만들어도 될지</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="callout">
+      <h4>다음 단계</h4>
+      <p>승인해주시면 Notion에 <strong>운영 허브</strong> 페이지와 표 다섯 개, 대시보드를 실제로 만들어 드립니다. 정산은 구글 시트 구조와 수식·스크립트를 그대로 옮길 수 있는 형태로 정리해 드리고요. 이 설계안에서 <strong>바꾸고 싶은 부분</strong>이 있으면 그것부터 말씀해주세요 — 만들기 전에 고치는 게 훨씬 쌉니다.</p>
+    </div>
+  </div>
+</section>
+
+</div>
