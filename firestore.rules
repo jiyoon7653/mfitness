@@ -1,0 +1,25 @@
+rules_version = '2';
+
+// 익명 로그인을 마친 세션만 읽고 쓸 수 있습니다.
+// 페이지가 자동으로 익명 로그인을 하므로, 링크를 아는 사람은 결국 접근할 수 있습니다.
+// 진짜로 사람 단위 통제가 필요해지면 README 의 "보안 한 단계 올리기"를 참고하세요.
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    // 운영 보드
+    match /visitors/{doc}      { allow read, write: if signedIn(); }
+    match /inquiryCalls/{doc}  { allow read, write: if signedIn(); }
+    match /worklogs/{doc}      { allow read, write: if signedIn(); }
+    match /lockers/{doc}       { allow read, write: if signedIn(); }
+    match /settings/{doc}      { allow read, write: if signedIn(); }
+
+    // 급여 정산 (문서 하나에 전체 상태 저장)
+    match /payroll/{doc}       { allow read, write: if signedIn(); }
+
+    // 그 외 경로는 모두 차단
+    match /{document=**}       { allow read, write: if false; }
+  }
+}

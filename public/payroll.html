@@ -1,0 +1,945 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>M휘트니스 급여 정산</title>
+<style id="sync-style">
+  #sync-badge{position:fixed;right:14px;bottom:14px;z-index:9999;max-width:min(340px,calc(100vw - 28px));
+    padding:8px 12px;border-radius:999px;border:1px solid var(--border,#DBDFE6);background:var(--surface,#fff);
+    color:var(--ink-muted,#5B6472);font:500 12px/1.4 'Noto Sans KR',Arial,sans-serif;
+    box-shadow:0 6px 18px rgba(0,0,0,.12);display:flex;gap:7px;align-items:center;}
+  #sync-badge::before{content:'';width:7px;height:7px;border-radius:50%;background:currentColor;flex:none;}
+  #sync-badge.saved{color:var(--success,#3F8F5F);}
+  #sync-badge.saving{color:var(--warn,#C77D22);}
+  #sync-badge.error{color:var(--danger,#C1443A);border-color:var(--danger,#C1443A);}
+  #sync-badge.remote{color:var(--warn,#C77D22);border-color:var(--warn,#C77D22);cursor:pointer;}
+  @media print{#sync-badge{display:none;}}
+</style>
+</head>
+<body>
+<link id="app-font-link" rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Sora:wght@600;700&family=Noto+Sans+KR:wght@400;500;700&family=JetBrains+Mono:wght@500;600&display=swap">
+<style id="app-style">
+  :root{
+    --bg:#F3F4F6; --surface:#FFFFFF; --surface-2:#ECEEF2; --ink:#1B2430; --ink-muted:#5B6472;
+    --border:#DBDFE6; --accent:#2F6F5E; --accent-strong:#1F5346; --accent-bg:#E7F0EC;
+    --warn:#C77D22; --warn-bg:#FBEEDD; --danger:#C1443A; --danger-bg:#FBEAE8; --success:#3F8F5F; --success-bg:#E9F5EE;
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --bg:#12161B; --surface:#1B2129; --surface-2:#222A33; --ink:#E9ECEF; --ink-muted:#9AA4B0;
+      --border:#2B333D; --accent:#4FBFA0; --accent-strong:#7ED9C0; --accent-bg:#17332B;
+      --warn:#E0A659; --warn-bg:#3A2C17; --danger:#E2685C; --danger-bg:#3A1E1C; --success:#6FCB94; --success-bg:#173328;
+    }
+  }
+  :root[data-theme="dark"]{
+    --bg:#12161B; --surface:#1B2129; --surface-2:#222A33; --ink:#E9ECEF; --ink-muted:#9AA4B0;
+    --border:#2B333D; --accent:#4FBFA0; --accent-strong:#7ED9C0; --accent-bg:#17332B;
+    --warn:#E0A659; --warn-bg:#3A2C17; --danger:#E2685C; --danger-bg:#3A1E1C; --success:#6FCB94; --success-bg:#173328;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{background:var(--bg);color:var(--ink);font-family:'Noto Sans KR',Arial,sans-serif;font-size:14px;line-height:1.5;}
+  #app-root{max-width:960px;margin:0 auto;padding:28px 20px 80px;}
+  h1,h2,h3{font-family:'Sora','Noto Sans KR',Arial,sans-serif;letter-spacing:-0.01em;text-wrap:balance;margin:0 0 4px;}
+  h1{font-size:22px;font-weight:700;}
+  h2{font-size:17px;font-weight:700;}
+  h3{font-size:14px;font-weight:700;color:var(--ink-muted);text-transform:uppercase;letter-spacing:.04em;}
+  .num{font-family:'JetBrains Mono',monospace;font-variant-numeric:tabular-nums;}
+  .muted{color:var(--ink-muted);}
+  .card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:20px;margin-bottom:16px;}
+  .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap;}
+  .row.between{justify-content:space-between;}
+  .col{display:flex;flex-direction:column;gap:6px;}
+  .grow{flex:1;}
+  label{font-size:12px;color:var(--ink-muted);font-weight:500;}
+  input,select{font:inherit;background:var(--surface-2);border:1px solid var(--border);color:var(--ink);border-radius:8px;padding:8px 10px;}
+  input:focus,select:focus{outline:2px solid var(--accent);outline-offset:1px;}
+  input[type="number"]{font-family:'JetBrains Mono',monospace;}
+  button{font:inherit;font-weight:600;border-radius:9px;padding:9px 16px;border:1px solid transparent;cursor:pointer;transition:filter .15s;}
+  button:hover{filter:brightness(1.05);}
+  button:focus-visible{outline:2px solid var(--accent);outline-offset:2px;}
+  .btn-primary{background:var(--accent);color:#fff;}
+  .btn-ghost{background:transparent;border-color:var(--border);color:var(--ink);}
+  .btn-danger{background:var(--danger-bg);color:var(--danger);}
+  .btn-sm{padding:5px 10px;font-size:12px;border-radius:7px;}
+  table{width:100%;border-collapse:collapse;}
+  th,td{padding:8px 8px;text-align:right;border-bottom:1px solid var(--border);font-size:13px;}
+  th:first-child,td:first-child{text-align:left;}
+  th{color:var(--ink-muted);font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:.03em;}
+  .table-wrap{overflow-x:auto;}
+  .pill{display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:999px;font-size:12px;font-weight:600;}
+  .pill-draft{background:var(--surface-2);color:var(--ink-muted);}
+  .pill-submitted{background:var(--warn-bg);color:var(--warn);}
+  .pill-confirmed{background:var(--success-bg);color:var(--success);}
+  .kv{display:grid;grid-template-columns:1fr auto;gap:8px 14px;align-items:center;}
+  .kv .k{color:var(--ink-muted);font-size:13px;}
+  .kv .v{font-family:'JetBrains Mono',monospace;font-weight:600;text-align:right;}
+  .divider{height:1px;background:var(--border);margin:14px 0;}
+  .tabs{display:flex;gap:4px;background:var(--surface-2);padding:4px;border-radius:11px;width:fit-content;}
+  .tab{padding:7px 16px;border-radius:8px;cursor:pointer;font-weight:600;font-size:13px;color:var(--ink-muted);}
+  .tab.active{background:var(--surface);color:var(--ink);box-shadow:0 1px 2px rgba(0,0,0,.08);}
+  .error{color:var(--danger);font-size:13px;}
+  .note{font-size:12px;color:var(--ink-muted);background:var(--surface-2);border-radius:9px;padding:10px 12px;}
+  a.linklike{color:var(--accent);cursor:pointer;font-weight:600;font-size:13px;}
+  .center{display:flex;align-items:center;justify-content:center;min-height:70vh;}
+  .login-card{width:100%;max-width:380px;}
+  .emp-pick{display:flex;flex-wrap:wrap;gap:8px;}
+  .emp-pick button{flex:1;min-width:90px;}
+  .emp-pick button.selected{background:var(--accent);color:#fff;}
+  ::placeholder{color:var(--ink-muted);opacity:.7;}
+</style>
+<div id="app-root"></div>
+<script id="app-state" type="application/json">
+{
+  "employees": [
+    {"id":"gobumsu","name":"고범수","role":"manager","pinHash":"03ac674216f3e15c761ee1a5e255f067953623c8b388b4459e13f978d7c846f4","active":true,"supportAmount":0,"deductionRate":3.3,"brackets":[[15000000,3],[20000000,5],[25000000,7],[30000000,10]]},
+    {"id":"leesaehan","name":"이새한","role":"trainer","pinHash":"03ac674216f3e15c761ee1a5e255f067953623c8b388b4459e13f978d7c846f4","active":true,"supportAmount":0,"deductionRate":3.3},
+    {"id":"choiminyoung","name":"최민영","role":"info","pinHash":"03ac674216f3e15c761ee1a5e255f067953623c8b388b4459e13f978d7c846f4","active":true,"hourlyWage":10320,"deductionRate":3.3,"schedule":"월~금 19:00~22:00(일 3시간), 주말·공휴일 휴무"}
+  ],
+  "adminPinHash": "888df25ae35772424a560c7152a1de794440e0ea5cfee62828333a456a506e05",
+  "months": {}
+}
+</script>
+<!-- Firebase SDK (compat 빌드) -->
+<script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
+<script src="firebase-config.js"></script>
+
+<script id="app-script">
+(function(){
+  "use strict";
+  // 아래 app-state 값은 서버(Firestore)에 데이터가 아직 없을 때 한 번만 쓰이는 초기값입니다.
+  // 실제 데이터는 Firestore 문서 payroll/state 에 누적됩니다.
+  var STATE = JSON.parse(document.getElementById('app-state').textContent);
+
+  var db = null, STATE_REF = null;
+  var CLIENT_ID = Math.random().toString(36).slice(2) + Date.now().toString(36);
+  var baseRev = 0;      // 지금 화면이 들고 있는 데이터의 서버 리비전
+  var booted = false;   // 첫 로딩 완료 여부
+
+  var UI = { session: null, adminTab: 'list', month: currentMonthKey(), openEmployeeId: null, err: '', pinChange: false };
+  var DRAFT = {}; // local unsaved edit buffers, keyed by employeeId
+
+  var ROLE_LABEL = { manager: '매니저', trainer: '트레이너', info: '인포 아르바이트' };
+  var CATEGORY_OPTS = ['신규','재등록','인계','지인','소개'];
+  // 고범수(매니저) 등록 분류별 수업료율 - 매출 금액과 무관하게 분류로만 결정
+  var CATEGORY_RATE = { '신규':0.45, '재등록':0.55, '인계':0.50, '지인':0.50, '소개':0.50 };
+  function categoryRate(cat){ return CATEGORY_RATE.hasOwnProperty(cat) ? CATEGORY_RATE[cat] : 1; }
+
+  // 이새한(트레이너) 당월 총매출 구간별 수업료율 - 700만원까지는 구간 요율, 초과분은 요율 고정(55%) + 초과분의 10% 별도 인센티브
+  function trainerRateForRevenue(rev){
+    if (rev <= 2990000) return 0.30;
+    if (rev <= 5000000) return 0.45;
+    return 0.55; // 500만~700만 및 700만 초과 구간 모두 기본 요율은 55%로 고정
+  }
+
+  function currentMonthKey(){
+    var d = new Date();
+    return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0');
+  }
+
+  function fmt(n){
+    n = Math.round(n||0);
+    return n.toLocaleString('ko-KR');
+  }
+  function won(n){ return fmt(n) + '원'; }
+
+  function esc(s){
+    return String(s==null?'':s).replace(/[&<>"']/g, function(c){
+      return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];
+    });
+  }
+
+  async function sha256(text){
+    var enc = new TextEncoder().encode(text);
+    var buf = await crypto.subtle.digest('SHA-256', enc);
+    return Array.from(new Uint8Array(buf)).map(function(b){return b.toString(16).padStart(2,'0');}).join('');
+  }
+
+  function findEmployee(id){
+    for (var i=0;i<STATE.employees.length;i++){ if (STATE.employees[i].id===id) return STATE.employees[i]; }
+    return null;
+  }
+
+  function ensureMonth(monthKey){
+    if (!STATE.months[monthKey]) STATE.months[monthKey] = {};
+    var m = STATE.months[monthKey];
+    STATE.employees.forEach(function(emp){
+      if (!m[emp.id]){
+        if (emp.role === 'info'){
+          m[emp.id] = { status:'draft', holidays:'', absentDays:0, submittedAt:null, confirmedAt:null, hourlyWage: emp.hourlyWage, deductionRate: emp.deductionRate };
+        } else {
+          m[emp.id] = { status:'draft', sessions:[], supportAmount: emp.supportAmount||0, deductionRate: emp.deductionRate||3.3, finalIncentive:null, submittedAt:null, confirmedAt:null };
+        }
+      }
+    });
+    return m;
+  }
+
+  function countWeekdays(year, month){ // month: 1-12
+    var days = new Date(year, month, 0).getDate();
+    var c = 0;
+    for (var d=1; d<=days; d++){
+      var wd = new Date(year, month-1, d).getDay();
+      if (wd>=1 && wd<=5) c++;
+    }
+    return c;
+  }
+
+  function pad2(n){ return (n<10?'0':'')+n; }
+
+  function parseDateList(str){
+    if (!str) return [];
+    return String(str).split(',').map(function(s){ return s.trim(); }).filter(Boolean);
+  }
+
+  // Mon-Fri 근무 주 단위로 그룹핑 (해당 월에 속하는 평일만 포함, 월 경계에 걸친 주는 부분 주로 표시)
+  function weeksOfMonth(year, month){
+    var totalDays = new Date(year, month, 0).getDate();
+    var weeks = [], currentKey = null, current = null;
+    for (var d=1; d<=totalDays; d++){
+      var dt = new Date(year, month-1, d);
+      var wd = dt.getDay();
+      if (wd>=1 && wd<=5){
+        var monday = new Date(dt); monday.setDate(dt.getDate()-(wd-1));
+        var key = monday.getFullYear()+'-'+pad2(monday.getMonth()+1)+'-'+pad2(monday.getDate());
+        if (key!==currentKey){ currentKey=key; current={key:key, dates:[]}; weeks.push(current); }
+        current.dates.push(year+'-'+pad2(month)+'-'+pad2(d));
+      }
+    }
+    return weeks;
+  }
+
+  function calcSessionRow(row){
+    var contract = Number(row.contractSessions)||0;
+    var totalPaid = Number(row.totalPaid)||0;
+    var prev = Number(row.prevDone)||0;
+    var thisMonth = Number(row.thisMonthDone)||0;
+    var unit = contract>0 ? Math.round(totalPaid/contract) : 0;
+    var remaining = contract - (prev+thisMonth);
+    var grossFee = unit*thisMonth; // 카테고리/구간 요율 적용 전 매출(100% 기준)
+    return {unit:unit, remaining:remaining, grossFee:grossFee};
+  }
+
+  // 고범수(매니저): 매출 금액과 무관하게 등록 분류(신규/재등록/인계/지인/소개)별 고정 요율로 수업료 산정.
+  // 기존 매출구간별 인센티브는 유지하되, 그 구간 판정은 카테고리 요율 적용 전 총매출(incentiveBase) 기준.
+  function calcManagerTotals(emp, monthData){
+    var totalFee = 0, grossRevenue = 0, incentiveBase = 0;
+    (monthData.sessions||[]).forEach(function(row){
+      var c = calcSessionRow(row);
+      var rate = categoryRate(row.category);
+      var payFee = Math.round(c.grossFee * rate);
+      totalFee += payFee;
+      grossRevenue += c.grossFee;
+      if (!row.personal) incentiveBase += c.grossFee;
+    });
+    var brackets = (emp.brackets||[]).slice().sort(function(a,b){return a[0]-b[0];});
+    var rate = 0;
+    brackets.forEach(function(b){ if (incentiveBase >= b[0]) rate = b[1]; });
+    var autoIncentive = Math.round(incentiveBase * rate/100);
+    var finalIncentive = (monthData.finalIncentive==null) ? autoIncentive : Number(monthData.finalIncentive);
+    var support = Number(monthData.supportAmount)||0;
+    var preTax = totalFee + finalIncentive + support;
+    var rate2 = monthData.deductionRate==null ? 3.3 : Number(monthData.deductionRate);
+    var deduction = Math.round(preTax*rate2/100);
+    var net = preTax - deduction;
+    return {totalFee:totalFee, grossRevenue:grossRevenue, incentiveBase:incentiveBase, rate:rate, autoIncentive:autoIncentive, finalIncentive:finalIncentive, support:support, preTax:preTax, deductionRate:rate2, deduction:deduction, net:net};
+  }
+
+  // 이새한(트레이너): 당월 총매출 합계 기준 구간 요율을 매출 전체에 일괄 적용.
+  // 700만원 초과분에 대해서는 요율은 55%로 고정하되, 초과분의 10%를 별도 인센티브로 추가 지급(100만원당 10만원).
+  function calcTrainerTotals(monthData){
+    var grossRevenue = 0;
+    (monthData.sessions||[]).forEach(function(row){ grossRevenue += calcSessionRow(row).grossFee; });
+    var rate = trainerRateForRevenue(grossRevenue);
+    var baseFee = Math.round(grossRevenue * rate);
+    var excess = Math.max(0, grossRevenue - 7000000);
+    var excessIncentive = Math.round(excess * 0.10);
+    var totalFee = baseFee + excessIncentive;
+    var support = Number(monthData.supportAmount)||0;
+    var preTax = totalFee + support;
+    var rateD = monthData.deductionRate==null ? 3.3 : Number(monthData.deductionRate);
+    var deduction = Math.round(preTax*rateD/100);
+    var net = preTax - deduction;
+    return {grossRevenue:grossRevenue, rate:rate, baseFee:baseFee, excess:excess, excessIncentive:excessIncentive, totalFee:totalFee, support:support, preTax:preTax, deductionRate:rateD, deduction:deduction, net:net};
+  }
+
+  // 최민영(인포): 월~금 19-22시(일 3시간) 고정 스케줄. 공휴일이 하루라도 포함된 주는 그 주의 주휴수당을 지급하지 않음.
+  function calcInfoTotals(monthKey, monthData){
+    var parts = monthKey.split('-').map(Number);
+    var year = parts[0], month = parts[1];
+    var weekdayCount = countWeekdays(year, month);
+    var holidays = parseDateList(monthData.holidays);
+    var holidaySet = {};
+    holidays.forEach(function(h){ holidaySet[h] = true; });
+    var absentDays = Number(monthData.absentDays)||0;
+    var actualDays = Math.max(0, weekdayCount - holidays.length - absentDays);
+    var wage = Number(monthData.hourlyWage)||0;
+    var basePay = actualDays*3*wage;
+    var baseRestWeeks = Math.floor(actualDays/5);
+    var weeks = weeksOfMonth(year, month);
+    var holidayWeeks = 0;
+    weeks.forEach(function(w){
+      if (w.dates.some(function(d){ return holidaySet[d]; })) holidayWeeks++;
+    });
+    var restWeeks = Math.max(0, baseRestWeeks - holidayWeeks);
+    var restPay = restWeeks*3*wage;
+    var preTax = basePay+restPay;
+    var rate = monthData.deductionRate==null ? 3.3 : Number(monthData.deductionRate);
+    var deduction = Math.round(preTax*rate/100);
+    var net = preTax-deduction;
+    return {weekdayCount:weekdayCount, holidayCount:holidays.length, holidayWeeks:holidayWeeks, actualDays:actualDays, basePay:basePay, restWeeks:restWeeks, restPay:restPay, preTax:preTax, deductionRate:rate, deduction:deduction, net:net};
+  }
+
+  // ---------- 저장 상태 표시 ----------
+  function setSync(kind, text){
+    var el = document.getElementById('sync-badge');
+    if (!el){
+      el = document.createElement('div');
+      el.id = 'sync-badge';
+      document.body.appendChild(el);
+    }
+    el.className = kind || '';
+    el.textContent = text;
+    el.onclick = kind === 'remote' ? function(){ location.reload(); } : null;
+  }
+
+  // ---------- Firestore 저장 ----------
+  // 문서 하나에 전체 상태를 JSON 문자열로 저장합니다.
+  // (직원별 요율표 brackets 가 중첩 배열이라 Firestore 필드로는 직접 저장할 수 없습니다.)
+  var CONFLICT = { conflict: true };
+
+  function saveState(){
+    if (!STATE_REF){
+      setSync('error', '서버에 연결되지 않아 저장하지 못했습니다.');
+      return Promise.resolve(false);
+    }
+    setSync('saving', '저장 중…');
+    var payload = JSON.stringify(STATE);
+    return db.runTransaction(function (tx){
+      return tx.get(STATE_REF).then(function (doc){
+        if (doc.exists){
+          var d = doc.data() || {};
+          // 내가 화면에 띄운 이후 다른 사람이 먼저 저장했다면 덮어쓰지 않습니다.
+          if (Number(d.rev) > baseRev && d.client !== CLIENT_ID) throw CONFLICT;
+        }
+        var rev = Date.now();
+        tx.set(STATE_REF, { data: payload, rev: rev, client: CLIENT_ID, updatedAt: rev });
+        return rev;
+      });
+    }).then(function (rev){
+      baseRev = rev;
+      setSync('saved', '저장됨 · ' + new Date(rev).toLocaleTimeString('ko-KR'));
+      return true;
+    }).catch(function (err){
+      if (err === CONFLICT){
+        setSync('remote', '다른 사람이 먼저 저장했습니다. 눌러서 새로고침 후 다시 입력해 주세요.');
+      } else {
+        setSync('error', '저장 실패: ' + ((err && err.message) || '알 수 없는 오류'));
+      }
+      return false;
+    });
+  }
+
+  function persist(){
+    render();
+    return saveState();
+  }
+
+  // ---------- 서버 연결 ----------
+  function connect(){
+    if (typeof firebase === 'undefined'){
+      setSync('error', 'Firebase 스크립트를 불러오지 못했습니다. 네트워크를 확인해 주세요.');
+      startOffline();
+      return;
+    }
+    if (!window.FIREBASE_CONFIG || !window.FIREBASE_CONFIG.projectId || /여기에/.test(window.FIREBASE_CONFIG.projectId)){
+      setSync('error', 'Firebase 설정이 비어 있습니다. firebase-config.js를 채워 주세요.');
+      startOffline();
+      return;
+    }
+
+    setSync('saving', '연결 중…');
+    firebase.initializeApp(window.FIREBASE_CONFIG);
+
+    firebase.auth().signInAnonymously().then(function (){
+      db = firebase.firestore();
+      STATE_REF = db.doc('payroll/state');
+
+      STATE_REF.onSnapshot(function (snap){
+        if (!snap.exists){
+          // 서버가 비어 있으면 지금 들고 있는 초기값으로 한 번 채웁니다.
+          if (!booted){ booted = true; UI.loginTab = 'employee'; render(); saveState(); }
+          return;
+        }
+        var d = snap.data() || {};
+        var incoming;
+        try { incoming = JSON.parse(d.data); } catch (e){ return; }
+
+        if (!booted){
+          booted = true;
+          STATE = incoming;
+          baseRev = Number(d.rev) || 0;
+          UI.loginTab = 'employee';
+          render();
+          setSync('saved', '최신 데이터를 불러왔습니다.');
+          return;
+        }
+        if (d.client === CLIENT_ID) return;          // 내가 방금 저장한 내용
+
+        if (UI.session){
+          // 누군가 입력 중인 화면을 덮어쓰지 않습니다. 새로고침은 본인이 결정.
+          setSync('remote', '다른 기기에서 변경됨 · 눌러서 새로고침');
+        } else {
+          STATE = incoming;
+          baseRev = Number(d.rev) || 0;
+          render();
+          setSync('saved', '최신 데이터를 불러왔습니다.');
+        }
+      }, function (err){
+        setSync('error', '동기화 오류: ' + ((err && err.message) || '알 수 없는 오류'));
+      });
+    }).catch(function (err){
+      setSync('error', '서버 연결 실패: ' + ((err && err.message) || '알 수 없는 오류'));
+      startOffline();
+    });
+  }
+
+  // 서버에 붙지 못했을 때: 화면은 뜨지만 저장은 되지 않는다는 것을 분명히 알립니다.
+  function startOffline(){
+    if (booted) return;
+    booted = true;
+    UI.loginTab = 'employee';
+    render();
+  }
+
+  // ---------- render ----------
+  function render(){
+    var root = document.getElementById('app-root');
+    if (!UI.session) { root.innerHTML = renderLogin(); bindLogin(); return; }
+    if (UI.session.type === 'admin') { root.innerHTML = renderAdmin(); bindAdmin(); return; }
+    root.innerHTML = renderEmployee(); bindEmployee();
+  }
+
+  function renderLogin(){
+    var active = STATE.employees.filter(function(e){return e.active;});
+    return '' +
+    '<div class="center"><div class="card login-card">' +
+      '<h1>M휘트니스 급여 정산</h1>' +
+      '<p class="muted" style="margin-top:0">본인 이름과 PIN으로 로그인하세요.</p>' +
+      '<div class="tabs" id="login-tabs" style="margin-bottom:16px">' +
+        '<div class="tab' + (UI.loginTab!=='admin'?' active':'') + '" data-tab="employee">직원</div>' +
+        '<div class="tab' + (UI.loginTab==='admin'?' active':'') + '" data-tab="admin">관리자</div>' +
+      '</div>' +
+      (UI.loginTab==='admin' ? renderAdminLogin() : renderEmployeeLogin(active)) +
+      (UI.err ? '<p class="error" style="margin-top:10px">'+esc(UI.err)+'</p>' : '') +
+    '</div></div>';
+  }
+
+  function renderEmployeeLogin(active){
+    return '' +
+      '<div class="col">' +
+        '<label>이름 선택</label>' +
+        '<div class="emp-pick">' + active.map(function(e){
+          return '<button type="button" class="btn-ghost' + (UI.pickedEmp===e.id?' selected':'') + '" data-emp="'+e.id+'">'+esc(e.name)+'</button>';
+        }).join('') + '</div>' +
+        '<label style="margin-top:10px">PIN</label>' +
+        '<input id="emp-pin" type="password" inputmode="numeric" placeholder="4자리 PIN">' +
+        '<button class="btn-primary" id="emp-login-btn" style="margin-top:10px">로그인</button>' +
+      '</div>';
+  }
+  function renderAdminLogin(){
+    return '' +
+      '<div class="col">' +
+        '<label>관리자 PIN</label>' +
+        '<input id="admin-pin" type="password" inputmode="numeric" placeholder="관리자 PIN">' +
+        '<button class="btn-primary" id="admin-login-btn" style="margin-top:10px">로그인</button>' +
+      '</div>';
+  }
+
+  function bindLogin(){
+    var tabs = document.getElementById('login-tabs');
+    tabs.querySelectorAll('.tab').forEach(function(t){
+      t.onclick = function(){ UI.loginTab = t.getAttribute('data-tab'); UI.err=''; render(); };
+    });
+    if (UI.loginTab==='admin'){
+      document.getElementById('admin-login-btn').onclick = async function(){
+        var pin = document.getElementById('admin-pin').value.trim();
+        var h = await sha256(pin);
+        if (h === STATE.adminPinHash){ UI.session = {type:'admin'}; UI.err=''; render(); }
+        else { UI.err = 'PIN이 올바르지 않습니다.'; render(); }
+      };
+    } else {
+      document.querySelectorAll('[data-emp]').forEach(function(b){
+        b.onclick = function(){ UI.pickedEmp = b.getAttribute('data-emp'); render(); };
+      });
+      document.getElementById('emp-login-btn').onclick = async function(){
+        if (!UI.pickedEmp){ UI.err='이름을 선택하세요.'; render(); return; }
+        var pin = document.getElementById('emp-pin').value.trim();
+        var emp = findEmployee(UI.pickedEmp);
+        var h = await sha256(pin);
+        if (emp && h === emp.pinHash){ UI.session = {type:'employee', id:emp.id}; UI.err=''; render(); }
+        else { UI.err = 'PIN이 올바르지 않습니다.'; render(); }
+      };
+    }
+  }
+
+  function logout(){ UI.session=null; UI.pickedEmp=null; UI.err=''; UI.pinChange=false; UI.loginTab='employee'; DRAFT={}; render(); }
+
+  function statusPill(status){
+    var label = status==='confirmed' ? '확정됨' : (status==='submitted' ? '제출됨' : '미제출');
+    var cls = status==='confirmed' ? 'pill-confirmed' : (status==='submitted' ? 'pill-submitted' : 'pill-draft');
+    return '<span class="pill '+cls+'">'+label+'</span>';
+  }
+
+  function monthPicker(id, value){
+    var opts = [];
+    var keys = Object.keys(STATE.months);
+    if (keys.indexOf(currentMonthKey())===-1) keys.push(currentMonthKey());
+    keys.sort().reverse().forEach(function(k){
+      opts.push('<option value="'+k+'"'+(k===value?' selected':'')+'>'+k+'</option>');
+    });
+    return '<select id="'+id+'">'+opts.join('')+'</select>';
+  }
+
+  // ---------- employee view ----------
+  function renderEmployee(){
+    var emp = findEmployee(UI.session.id);
+    ensureMonth(UI.month);
+    var m = STATE.months[UI.month][emp.id];
+    var html = '' +
+      '<div class="row between">' +
+        '<div><h1>'+esc(emp.name)+'님</h1><p class="muted" style="margin-top:0">'+ROLE_LABEL[emp.role]+'</p></div>' +
+        '<div class="row">' + monthPicker('emp-month', UI.month) +
+          '<button class="btn-ghost btn-sm" id="pin-change-toggle">PIN 변경</button>' +
+          '<button class="btn-ghost btn-sm" id="logout-btn">로그아웃</button>' +
+        '</div>' +
+      '</div>';
+
+    if (UI.pinChange) html += renderPinChangeCard(emp);
+
+    html += '<div class="card"><div class="row between"><h2>'+UI.month+' 정산</h2>'+statusPill(m.status)+'</div>';
+
+    if (emp.role === 'info'){
+      html += renderInfoForm(emp, m, UI.month);
+    } else {
+      html += renderSessionForm(emp, m);
+    }
+    html += '</div>';
+
+    html += renderEmployeeHistory(emp);
+    return html;
+  }
+
+  function renderPinChangeCard(emp){
+    return '<div class="card">' +
+      '<h3>PIN 변경</h3>' +
+      '<div class="row" style="margin-top:8px">' +
+        '<input id="pin-cur" type="password" placeholder="현재 PIN" style="width:120px">' +
+        '<input id="pin-new" type="password" placeholder="새 PIN" style="width:120px">' +
+        '<button class="btn-primary btn-sm" id="pin-save-btn">변경</button>' +
+      '</div>' +
+      (UI.pinErr ? '<p class="error">'+esc(UI.pinErr)+'</p>' : '') +
+    '</div>';
+  }
+
+  function renderSessionForm(emp, m){
+    var buf = DRAFT[emp.id] || (DRAFT[emp.id] = JSON.parse(JSON.stringify(m.sessions||[])));
+    var locked = m.status === 'confirmed';
+    var totals = emp.role==='manager' ? calcManagerTotals(emp, {sessions:buf}) : calcTrainerTotals({sessions:buf});
+    var trainerRate = emp.role==='trainer' ? totals.rate : null;
+    var rows = buf.map(function(row, i){
+      var c = calcSessionRow(row);
+      var rate = emp.role==='manager' ? categoryRate(row.category) : trainerRate;
+      var payFee = Math.round(c.grossFee * rate);
+      return '<tr>' +
+        '<td><input data-i="'+i+'" data-f="client" value="'+esc(row.client||'')+'" '+(locked?'disabled':'')+' style="width:90px"></td>' +
+        '<td><select data-i="'+i+'" data-f="category" '+(locked?'disabled':'')+'>' + CATEGORY_OPTS.map(function(c2){return '<option'+(row.category===c2?' selected':'')+'>'+c2+'</option>';}).join('') + '</select></td>' +
+        '<td><input data-i="'+i+'" data-f="contractSessions" type="number" value="'+(row.contractSessions||'')+'" '+(locked?'disabled':'')+' style="width:60px"></td>' +
+        '<td><input data-i="'+i+'" data-f="totalPaid" type="number" value="'+(row.totalPaid||'')+'" '+(locked?'disabled':'')+' style="width:100px"></td>' +
+        '<td class="num muted">'+fmt(c.unit)+'</td>' +
+        '<td><input data-i="'+i+'" data-f="prevDone" type="number" value="'+(row.prevDone||'')+'" '+(locked?'disabled':'')+' style="width:60px"></td>' +
+        '<td><input data-i="'+i+'" data-f="thisMonthDone" type="number" value="'+(row.thisMonthDone||'')+'" '+(locked?'disabled':'')+' style="width:60px"></td>' +
+        '<td class="num muted">'+fmt(c.remaining)+'</td>' +
+        '<td class="num muted">'+won(c.grossFee)+'</td>' +
+        '<td class="num muted">'+Math.round(rate*100)+'%</td>' +
+        '<td class="num">'+won(payFee)+'</td>' +
+        (emp.role==='manager' ? '<td><input data-i="'+i+'" data-f="personal" type="checkbox" '+(row.personal?'checked':'')+' '+(locked?'disabled':'')+'></td>' : '') +
+        (locked ? '' : '<td><button class="btn-danger btn-sm" data-del="'+i+'">삭제</button></td>') +
+      '</tr>';
+    }).join('');
+    return '' +
+      '<div class="table-wrap"><table><thead><tr>' +
+        '<th>고객명</th><th>분류</th><th>계약세션</th><th>총결제금액</th><th>단가</th><th>전월까지</th><th>금월횟수</th><th>잔여</th><th>매출</th><th>요율</th><th>수업료</th>' +
+        (emp.role==='manager'?'<th>개인매출</th>':'') + (locked?'':'<th></th>') +
+      '</tr></thead><tbody>' + rows + '</tbody></table></div>' +
+      (locked ? '' : '<button class="btn-ghost btn-sm" id="add-row-btn" style="margin-top:10px">+ 회원 추가</button>') +
+      '<div class="divider"></div>' +
+      (emp.role==='trainer' ? (
+        '<div class="kv"><div class="k">당월 총매출</div><div class="v">'+won(totals.grossRevenue)+'</div></div>' +
+        '<div class="kv"><div class="k">적용 구간 요율</div><div class="v">'+Math.round(totals.rate*100)+'%</div></div>' +
+        (totals.excess>0 ? '<div class="kv"><div class="k">700만원 초과분 인센티브 (10%)</div><div class="v">'+won(totals.excessIncentive)+'</div></div>' : '')
+      ) : '') +
+      '<div class="kv"><div class="k">이번 달 총수업료</div><div class="v">'+won(totals.totalFee)+'</div></div>' +
+      (locked ? renderConfirmedSummary(emp, m) : '') +
+      (locked ? '' : '<div class="row" style="margin-top:14px">' +
+        '<button class="btn-ghost" id="save-draft-btn">임시저장</button>' +
+        '<button class="btn-primary" id="submit-btn">제출하기</button>' +
+      '</div>');
+  }
+
+  function renderConfirmedSummary(emp, m){
+    var t = emp.role==='manager' ? calcManagerTotals(emp, m) : calcTrainerTotals(m);
+    var extra = emp.role==='manager' ? '<div class="kv"><div class="k">확정 인센티브</div><div class="v">'+won(t.finalIncentive)+'</div></div>' : '';
+    return '<div class="note" style="margin-top:10px">' +
+      extra +
+      '<div class="kv"><div class="k">영업지원금</div><div class="v">'+won(t.support)+'</div></div>' +
+      '<div class="kv"><div class="k">공제액 ('+t.deductionRate+'%)</div><div class="v">-'+won(t.deduction)+'</div></div>' +
+      '<div class="kv"><div class="k" style="font-weight:700">지급 급여</div><div class="v" style="color:var(--accent-strong);font-size:16px">'+won(t.net)+'</div></div>' +
+    '</div>';
+  }
+
+  function renderInfoForm(emp, m, monthKey){
+    var buf = DRAFT[emp.id] || (DRAFT[emp.id] = JSON.parse(JSON.stringify(m)));
+    var locked = m.status === 'confirmed';
+    var t = calcInfoTotals(monthKey, locked ? m : buf);
+    return '' +
+      '<p class="muted">근무조건: '+esc(emp.schedule||'')+'</p>' +
+      '<div class="row">' +
+        '<div class="col"><label>이번 달 공휴일 날짜 (쉼표로 구분, 예: 2026-09-07,2026-09-08)</label><input id="info-holiday" type="text" placeholder="YYYY-MM-DD,YYYY-MM-DD" value="'+esc(buf.holidays||'')+'" '+(locked?'disabled':'')+' style="width:280px"></div>' +
+        '<div class="col"><label>결근일수</label><input id="info-absent" type="number" value="'+(buf.absentDays||0)+'" '+(locked?'disabled':'')+' style="width:100px"></div>' +
+      '</div>' +
+      '<div class="divider"></div>' +
+      '<div class="kv"><div class="k">이번 달 평일 수</div><div class="v">'+t.weekdayCount+'일</div></div>' +
+      '<div class="kv"><div class="k">실근무일수</div><div class="v">'+t.actualDays+'일</div></div>' +
+      '<div class="kv"><div class="k">기본급 (일 3시간)</div><div class="v">'+won(t.basePay)+'</div></div>' +
+      (t.holidayWeeks>0 ? '<div class="kv"><div class="k">공휴일 포함으로 주휴수당 제외된 주</div><div class="v">'+t.holidayWeeks+'주</div></div>' : '') +
+      '<div class="kv"><div class="k">주휴수당 ('+t.restWeeks+'주)</div><div class="v">'+won(t.restPay)+'</div></div>' +
+      (locked ? renderInfoConfirmedSummary(t) : '') +
+      (locked ? '' : '<div class="row" style="margin-top:14px">' +
+        '<button class="btn-ghost" id="save-draft-btn">임시저장</button>' +
+        '<button class="btn-primary" id="submit-btn">제출하기</button>' +
+      '</div>');
+  }
+
+  function renderInfoConfirmedSummary(t){
+    return '<div class="note" style="margin-top:10px">' +
+      '<div class="kv"><div class="k">공제액 ('+t.deductionRate+'%)</div><div class="v">-'+won(t.deduction)+'</div></div>' +
+      '<div class="kv"><div class="k" style="font-weight:700">지급 급여</div><div class="v" style="color:var(--accent-strong);font-size:16px">'+won(t.net)+'</div></div>' +
+    '</div>';
+  }
+
+  function renderEmployeeHistory(emp){
+    var keys = Object.keys(STATE.months).filter(function(k){ return STATE.months[k][emp.id] && STATE.months[k][emp.id].status==='confirmed' && k!==UI.month; }).sort().reverse();
+    if (!keys.length) return '';
+    var rows = keys.map(function(k){
+      var m = STATE.months[k][emp.id];
+      var t = emp.role==='manager' ? calcManagerTotals(emp,m) : (emp.role==='trainer' ? calcTrainerTotals(m) : calcInfoTotals(k,m));
+      return '<tr><td>'+k+'</td><td class="num">'+won(t.net)+'</td></tr>';
+    }).join('');
+    return '<div class="card"><h3>지난 확정 내역</h3><table><tbody>'+rows+'</tbody></table></div>';
+  }
+
+  function collectRowsFromDom(){
+    var rows = document.querySelectorAll('#app-root tbody tr');
+    // fields already bound live via input events into DRAFT; nothing to do here
+  }
+
+  function bindEmployee(){
+    var emp = findEmployee(UI.session.id);
+    document.getElementById('logout-btn').onclick = logout;
+    document.getElementById('emp-month').onchange = function(e){ UI.month = e.target.value; DRAFT={}; ensureMonth(UI.month); render(); };
+    document.getElementById('pin-change-toggle').onclick = function(){ UI.pinChange=!UI.pinChange; UI.pinErr=''; render(); };
+    if (UI.pinChange){
+      document.getElementById('pin-save-btn').onclick = async function(){
+        var cur = document.getElementById('pin-cur').value.trim();
+        var next = document.getElementById('pin-new').value.trim();
+        var h = await sha256(cur);
+        if (h !== emp.pinHash){ UI.pinErr='현재 PIN이 올바르지 않습니다.'; render(); return; }
+        if (!next || next.length<4){ UI.pinErr='새 PIN은 4자리 이상으로 입력하세요.'; render(); return; }
+        emp.pinHash = await sha256(next);
+        UI.pinChange=false; UI.pinErr='';
+        persist();
+      };
+    }
+    ensureMonth(UI.month);
+    var m = STATE.months[UI.month][emp.id];
+    if (m.status==='confirmed') return;
+
+    if (emp.role==='info'){
+      var buf = DRAFT[emp.id];
+      var hEl = document.getElementById('info-holiday');
+      var aEl = document.getElementById('info-absent');
+      if (hEl) hEl.onchange = function(){ buf.holidays = hEl.value; refreshInfoKv(emp, buf); };
+      if (aEl) aEl.oninput = function(){ buf.absentDays = Number(aEl.value)||0; refreshInfoKv(emp, buf); };
+    } else {
+      var buf2 = DRAFT[emp.id];
+      document.querySelectorAll('#app-root tbody input, #app-root tbody select').forEach(function(el){
+        el.oninput = el.onchange = function(){
+          var i = Number(el.getAttribute('data-i'));
+          var f = el.getAttribute('data-f');
+          if (f==='personal') buf2[i][f] = el.checked;
+          else buf2[i][f] = el.value;
+          renderSoft();
+        };
+      });
+      document.querySelectorAll('[data-del]').forEach(function(b){
+        b.onclick = function(){ buf2.splice(Number(b.getAttribute('data-del')),1); render(); };
+      });
+      var addBtn = document.getElementById('add-row-btn');
+      if (addBtn) addBtn.onclick = function(){ buf2.push({client:'',category:'신규',contractSessions:'',totalPaid:'',prevDone:'',thisMonthDone:'',personal:false}); render(); };
+    }
+
+    var saveBtn = document.getElementById('save-draft-btn');
+    var submitBtn = document.getElementById('submit-btn');
+    if (saveBtn) saveBtn.onclick = function(){ commitDraft(emp, false); };
+    if (submitBtn) submitBtn.onclick = function(){ commitDraft(emp, true); };
+
+    function renderSoft(){ render(); } // re-render to recompute totals; buffer already updated
+  }
+
+  function refreshInfoKv(emp, buf){ render(); }
+
+  function commitDraft(emp, submit){
+    ensureMonth(UI.month);
+    var m = STATE.months[UI.month][emp.id];
+    if (emp.role==='info'){
+      var buf = DRAFT[emp.id] || m;
+      m.holidays = buf.holidays || '';
+      m.absentDays = Number(buf.absentDays)||0;
+    } else {
+      m.sessions = DRAFT[emp.id] || m.sessions || [];
+    }
+    if (submit){ m.status='submitted'; m.submittedAt = new Date().toISOString(); }
+    persist();
+  }
+
+  // ---------- admin view ----------
+  function renderAdmin(){
+    var html = '<div class="row between"><h1>관리자</h1>' +
+      '<div class="row">' + monthPicker('admin-month', UI.month) +
+        '<button class="btn-ghost btn-sm" id="admin-settings-btn">설정</button>' +
+        '<button class="btn-ghost btn-sm" id="logout-btn">로그아웃</button>' +
+      '</div></div>';
+    ensureMonth(UI.month);
+
+    if (UI.adminTab==='settings') { html += renderAdminSettings(); return html; }
+
+    if (UI.openEmployeeId){
+      html += renderAdminDetail(findEmployee(UI.openEmployeeId));
+      return html;
+    }
+
+    html += '<div class="card"><h2>'+UI.month+' 제출 현황</h2><div class="table-wrap"><table><thead><tr><th>직원</th><th>역할</th><th>상태</th><th>지급 예정/확정액</th><th></th></tr></thead><tbody>';
+    STATE.employees.forEach(function(emp){
+      var m = STATE.months[UI.month][emp.id];
+      var t = emp.role==='manager' ? calcManagerTotals(emp,m) : (emp.role==='trainer' ? calcTrainerTotals(m) : calcInfoTotals(UI.month,m));
+      var amountCell = m.status==='draft' ? '<span class="muted">—</span>' : won(t.net);
+      html += '<tr><td>'+esc(emp.name)+'</td><td>'+ROLE_LABEL[emp.role]+'</td><td>'+statusPill(m.status)+'</td><td class="num">'+amountCell+'</td>' +
+        '<td><button class="btn-ghost btn-sm" data-open="'+emp.id+'">열기</button></td></tr>';
+    });
+    html += '</tbody></table></div></div>';
+
+    html += renderAdminHistory();
+    return html;
+  }
+
+  function renderAdminHistory(){
+    var keys = Object.keys(STATE.months).sort().reverse();
+    var rows = [];
+    keys.forEach(function(k){
+      STATE.employees.forEach(function(emp){
+        var m = STATE.months[k][emp.id];
+        if (m && m.status==='confirmed'){
+          var t = emp.role==='manager' ? calcManagerTotals(emp,m) : (emp.role==='trainer' ? calcTrainerTotals(m) : calcInfoTotals(k,m));
+          rows.push('<tr><td>'+k+'</td><td>'+esc(emp.name)+'</td><td class="num">'+won(t.net)+'</td></tr>');
+        }
+      });
+    });
+    if (!rows.length) return '';
+    return '<div class="card"><h3>확정 이력</h3><div class="table-wrap"><table><thead><tr><th>월</th><th>직원</th><th>지급급여</th></tr></thead><tbody>'+rows.join('')+'</tbody></table></div></div>';
+  }
+
+  function renderAdminDetail(emp){
+    var m = STATE.months[UI.month][emp.id];
+    var locked = m.status==='confirmed';
+    var html = '<div class="card"><div class="row between"><h2>'+esc(emp.name)+' · '+UI.month+'</h2>'+statusPill(m.status)+'</div>';
+    html += '<button class="btn-ghost btn-sm" id="back-btn" style="margin:8px 0 14px">← 목록으로</button>';
+
+    if (emp.role !== 'info'){
+      var rowRate = emp.role==='trainer' ? calcTrainerTotals(m).rate : null;
+      var rows = (m.sessions||[]).map(function(row){
+        var c = calcSessionRow(row);
+        var rate = emp.role==='manager' ? categoryRate(row.category) : rowRate;
+        var payFee = Math.round(c.grossFee * rate);
+        return '<tr><td>'+esc(row.client)+'</td><td>'+esc(row.category)+'</td><td class="num">'+fmt(row.contractSessions)+'</td><td class="num">'+won(row.totalPaid)+'</td><td class="num">'+fmt(c.unit)+'</td><td class="num">'+fmt(row.thisMonthDone)+'</td><td class="num">'+won(c.grossFee)+'</td><td class="num">'+Math.round(rate*100)+'%</td><td class="num">'+won(payFee)+'</td>'+(emp.role==='manager'?'<td>'+(row.personal?'개인매출':'')+'</td>':'')+'</tr>';
+      }).join('');
+      html += '<div class="table-wrap"><table><thead><tr><th>고객명</th><th>분류</th><th>계약</th><th>총결제</th><th>단가</th><th>금월횟수</th><th>매출</th><th>요율</th><th>수업료</th>'+(emp.role==='manager'?'<th></th>':'')+'</tr></thead><tbody>'+(rows||'<tr><td colspan="10" class="muted">아직 입력된 세션이 없습니다.</td></tr>')+'</tbody></table></div>';
+    }
+
+    if (emp.role==='manager'){
+      var t = calcManagerTotals(emp, m);
+      html += '<div class="divider"></div>';
+      html += '<div class="kv"><div class="k">총매출 (요율 적용 전)</div><div class="v">'+won(t.grossRevenue)+'</div></div>';
+      html += '<div class="kv"><div class="k">총수업료 (분류별 요율 적용)</div><div class="v">'+won(t.totalFee)+'</div></div>';
+      html += '<div class="kv"><div class="k">인센티브 대상매출 (개인매출 제외)</div><div class="v">'+won(t.incentiveBase)+'</div></div>';
+      html += '<h3 style="margin-top:14px">매출 구간별 인센티브 요율</h3>';
+      html += renderBracketEditor(emp, locked);
+      html += '<div class="kv"><div class="k">자동계산 인센티브 (참고값, '+t.rate+'%)</div><div class="v">'+won(t.autoIncentive)+'</div></div>';
+      html += '<div class="col"><label>최종 확정 인센티브</label><input id="final-incentive" type="number" value="'+t.finalIncentive+'" '+(locked?'disabled':'')+' style="width:160px"></div>';
+      html += adminMoneyFields(m, locked);
+      html += '<div class="divider"></div>';
+      html += summaryKv(t.preTax, t.deductionRate, t.deduction, t.net);
+    } else if (emp.role==='trainer'){
+      var t2 = calcTrainerTotals(m);
+      html += '<div class="divider"></div>';
+      html += '<div class="kv"><div class="k">당월 총매출</div><div class="v">'+won(t2.grossRevenue)+'</div></div>';
+      html += '<div class="kv"><div class="k">적용 구간 요율</div><div class="v">'+Math.round(t2.rate*100)+'%</div></div>';
+      html += '<div class="kv"><div class="k">기본 수업료</div><div class="v">'+won(t2.baseFee)+'</div></div>';
+      if (t2.excess>0) html += '<div class="kv"><div class="k">700만원 초과분 인센티브 (10%)</div><div class="v">'+won(t2.excessIncentive)+'</div></div>';
+      html += '<div class="kv"><div class="k">총수업료</div><div class="v">'+won(t2.totalFee)+'</div></div>';
+      html += adminMoneyFields(m, locked);
+      html += '<div class="divider"></div>';
+      html += summaryKv(t2.preTax, t2.deductionRate, t2.deduction, t2.net);
+    } else {
+      var t3 = calcInfoTotals(UI.month, m);
+      html += '<div class="kv"><div class="k">이번 달 평일 수</div><div class="v">'+t3.weekdayCount+'일</div></div>';
+      html += '<div class="kv"><div class="k">공휴일 날짜</div><div class="v">'+(m.holidays?esc(m.holidays):'-')+'</div></div>';
+      html += '<div class="kv"><div class="k">결근일수</div><div class="v">'+(m.absentDays||0)+'일</div></div>';
+      html += '<div class="kv"><div class="k">실근무일수</div><div class="v">'+t3.actualDays+'일</div></div>';
+      html += '<div class="col" style="margin-top:8px"><label>시급</label><input id="hourly-wage" type="number" value="'+(m.hourlyWage!=null?m.hourlyWage:emp.hourlyWage)+'" '+(locked?'disabled':'')+' style="width:140px"></div>';
+      html += '<div class="kv"><div class="k">기본급</div><div class="v">'+won(t3.basePay)+'</div></div>';
+      if (t3.holidayWeeks>0) html += '<div class="kv"><div class="k">공휴일 포함으로 주휴수당 제외된 주</div><div class="v">'+t3.holidayWeeks+'주</div></div>';
+      html += '<div class="kv"><div class="k">주휴수당 ('+t3.restWeeks+'주)</div><div class="v">'+won(t3.restPay)+'</div></div>';
+      html += '<div class="col" style="margin-top:8px"><label>공제율(%)</label><input id="deduction-rate" type="number" step="0.1" value="'+t3.deductionRate+'" '+(locked?'disabled':'')+' style="width:100px"></div>';
+      html += '<div class="divider"></div>';
+      html += summaryKv(t3.preTax, t3.deductionRate, t3.deduction, t3.net);
+    }
+
+    if (!locked){
+      html += '<div class="row" style="margin-top:16px"><button class="btn-primary" id="confirm-btn">확정하기</button></div>';
+    } else {
+      html += '<div class="row" style="margin-top:16px"><button class="btn-ghost" id="reopen-btn">확정 취소(재오픈)</button></div>';
+    }
+    html += '</div>';
+    return html;
+  }
+
+  function renderBracketEditor(emp, locked){
+    var rows = (emp.brackets||[]).map(function(b,i){
+      return '<tr><td><input data-bi="'+i+'" data-bf="0" type="number" value="'+b[0]+'" '+(locked?'disabled':'')+' style="width:120px"></td>' +
+        '<td><input data-bi="'+i+'" data-bf="1" type="number" step="0.1" value="'+b[1]+'" '+(locked?'disabled':'')+' style="width:80px"></td></tr>';
+    }).join('');
+    return '<div class="table-wrap"><table><thead><tr><th>매출 구간(이상, 원)</th><th>요율(%)</th></tr></thead><tbody>'+rows+'</tbody></table></div>';
+  }
+
+  function adminMoneyFields(m, locked){
+    return '<div class="row" style="margin-top:10px">' +
+      '<div class="col"><label>영업지원금</label><input id="support-amount" type="number" value="'+(m.supportAmount||0)+'" '+(locked?'disabled':'')+' style="width:140px"></div>' +
+      '<div class="col"><label>공제율(%)</label><input id="deduction-rate" type="number" step="0.1" value="'+(m.deductionRate==null?3.3:m.deductionRate)+'" '+(locked?'disabled':'')+' style="width:100px"></div>' +
+    '</div>';
+  }
+
+  function summaryKv(preTax, rate, deduction, net){
+    return '<div class="kv"><div class="k">공제 전 합계</div><div class="v">'+won(preTax)+'</div></div>' +
+      '<div class="kv"><div class="k">공제액 ('+rate+'%)</div><div class="v">-'+won(deduction)+'</div></div>' +
+      '<div class="kv"><div class="k" style="font-weight:700">지급 급여</div><div class="v" style="color:var(--accent-strong);font-size:17px">'+won(net)+'</div></div>';
+  }
+
+  function renderAdminSettings(){
+    var html = '<div class="card"><div class="row between"><h2>설정</h2><button class="btn-ghost btn-sm" id="back-btn">← 목록으로</button></div>';
+    html += '<div class="col"><label>관리자 PIN 변경</label><div class="row"><input id="admin-pin-cur" type="password" placeholder="현재 PIN" style="width:120px"><input id="admin-pin-new" type="password" placeholder="새 PIN" style="width:120px"><button class="btn-primary btn-sm" id="admin-pin-save">변경</button></div>' + (UI.pinErr?'<p class="error">'+esc(UI.pinErr)+'</p>':'') + '</div>';
+    html += '<div class="divider"></div>';
+    STATE.employees.forEach(function(emp){
+      html += '<div class="row between" style="padding:8px 0;border-bottom:1px solid var(--border)">' +
+        '<div><strong>'+esc(emp.name)+'</strong> <span class="muted">'+ROLE_LABEL[emp.role]+'</span></div>' +
+        '<button class="btn-ghost btn-sm" data-reset-pin="'+emp.id+'">PIN 초기화(1234)</button>' +
+      '</div>';
+    });
+    html += '</div>';
+    return html;
+  }
+
+  function bindAdmin(){
+    document.getElementById('logout-btn').onclick = logout;
+    var monthSel = document.getElementById('admin-month');
+    if (monthSel) monthSel.onchange = function(e){ UI.month=e.target.value; UI.openEmployeeId=null; render(); };
+    var settingsBtn = document.getElementById('admin-settings-btn');
+    if (settingsBtn) settingsBtn.onclick = function(){ UI.adminTab='settings'; UI.openEmployeeId=null; render(); };
+    var backBtn = document.getElementById('back-btn');
+    if (backBtn) backBtn.onclick = function(){ UI.adminTab='list'; UI.openEmployeeId=null; UI.pinErr=''; render(); };
+
+    if (UI.adminTab==='settings'){
+      document.getElementById('admin-pin-save').onclick = async function(){
+        var cur = document.getElementById('admin-pin-cur').value.trim();
+        var next = document.getElementById('admin-pin-new').value.trim();
+        var h = await sha256(cur);
+        if (h !== STATE.adminPinHash){ UI.pinErr='현재 PIN이 올바르지 않습니다.'; render(); return; }
+        if (!next || next.length<4){ UI.pinErr='새 PIN은 4자리 이상.'; render(); return; }
+        STATE.adminPinHash = await sha256(next);
+        UI.pinErr=''; persist();
+      };
+      document.querySelectorAll('[data-reset-pin]').forEach(function(b){
+        b.onclick = async function(){
+          var emp = findEmployee(b.getAttribute('data-reset-pin'));
+          emp.pinHash = await sha256('1234');
+          persist();
+        };
+      });
+      return;
+    }
+
+    document.querySelectorAll('[data-open]').forEach(function(b){
+      b.onclick = function(){ UI.openEmployeeId = b.getAttribute('data-open'); render(); };
+    });
+
+    if (!UI.openEmployeeId) return;
+    var emp = findEmployee(UI.openEmployeeId);
+    var m = STATE.months[UI.month][emp.id];
+    if (m.status==='confirmed'){
+      var reopenBtn = document.getElementById('reopen-btn');
+      if (reopenBtn) reopenBtn.onclick = function(){ m.status='submitted'; m.confirmedAt=null; persist(); };
+      return;
+    }
+
+    if (emp.role==='manager'){
+      document.querySelectorAll('[data-bi]').forEach(function(el){
+        el.onchange = function(){
+          var i = Number(el.getAttribute('data-bi')), f = Number(el.getAttribute('data-bf'));
+          emp.brackets[i][f] = Number(el.value);
+          render();
+        };
+      });
+      var fi = document.getElementById('final-incentive');
+      if (fi) fi.oninput = function(){ m.finalIncentive = Number(fi.value); render(); };
+    }
+    if (emp.role !== 'info'){
+      var sa = document.getElementById('support-amount');
+      var dr = document.getElementById('deduction-rate');
+      if (sa) sa.oninput = function(){ m.supportAmount = Number(sa.value); render(); };
+      if (dr) dr.oninput = function(){ m.deductionRate = Number(dr.value); render(); };
+    } else {
+      var hw = document.getElementById('hourly-wage');
+      var dr2 = document.getElementById('deduction-rate');
+      if (hw) hw.oninput = function(){ m.hourlyWage = Number(hw.value); render(); };
+      if (dr2) dr2.oninput = function(){ m.deductionRate = Number(dr2.value); render(); };
+    }
+    var confirmBtn = document.getElementById('confirm-btn');
+    if (confirmBtn) confirmBtn.onclick = function(){
+      m.status='confirmed'; m.confirmedAt = new Date().toISOString();
+      if (emp.role==='manager' && m.finalIncentive==null) m.finalIncentive = calcManagerTotals(emp,m).autoIncentive;
+      persist();
+    };
+  }
+
+  UI.loginTab = 'employee';
+  document.getElementById('app-root').innerHTML =
+    '<div class="center"><div class="card login-card"><p class="muted">데이터를 불러오는 중…</p></div></div>';
+  connect();
+})();
+</script>
+
+</body></html>
