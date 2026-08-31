@@ -1501,20 +1501,39 @@
     renderOverview();
   }
 
+  // firebase-config.js 를 어떤 형태로 채웠든 설정값을 찾아냅니다.
+  function findFirebaseConfig() {
+    if (window.FIREBASE_CONFIG && window.FIREBASE_CONFIG.projectId) return window.FIREBASE_CONFIG;
+    if (window.firebaseConfig && window.firebaseConfig.projectId) return window.firebaseConfig;
+    try {
+      if (typeof firebaseConfig !== 'undefined' && firebaseConfig && firebaseConfig.projectId) return firebaseConfig;
+    } catch (e) {}
+    return null;
+  }
+
+  function configProblem() {
+    if (findFirebaseConfig()) return null;
+    if (!window.__CONFIG_FILE_LOADED) {
+      return 'firebase-config.js 파일을 찾지 못했습니다. index.html 과 같은 폴더에 함께 올렸는지, 파일 이름이 정확한지 확인해 주세요.';
+    }
+    return 'firebase-config.js 안의 값이 아직 비어 있습니다. Firebase 콘솔 → 프로젝트 설정 → 내 앱 의 값을 따옴표 안에 넣고 파일을 다시 올려 주세요.';
+  }
+
   function init() {
     if (typeof firebase === 'undefined') {
       setConn('error', 'Firebase 스크립트를 불러오지 못했습니다. 네트워크 상태를 확인해 주세요.');
       renderAll();
       return;
     }
-    if (!window.FIREBASE_CONFIG || !window.FIREBASE_CONFIG.projectId || /여기에/.test(window.FIREBASE_CONFIG.projectId)) {
-      setConn('error', 'Firebase 설정이 비어 있습니다. firebase-config.js를 채워 주세요.');
+    var problem = configProblem();
+    if (problem) {
+      setConn('error', problem);
       renderAll();
       return;
     }
 
     setConn('', '연결 중…');
-    firebase.initializeApp(window.FIREBASE_CONFIG);
+    firebase.initializeApp(findFirebaseConfig());
 
     // 익명 로그인: 브라우저마다 자동으로 계정이 하나 생기고, DB 규칙이 이 로그인을 요구합니다.
     firebase.auth().signInAnonymously().then(function () {

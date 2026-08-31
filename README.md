@@ -30,7 +30,7 @@ Claude 아티팩트로 쓰던 두 화면을 **Firebase Hosting + Firestore** 로
 ### 1-4. 웹 앱 등록하고 설정값 복사
 1. **프로젝트 설정(톱니바퀴) → 내 앱 → 웹(`</>`)** 선택, 닉네임 아무거나 입력
 2. 화면에 나오는 `firebaseConfig` 값을 복사
-3. `public/firebase-config.js` 를 열어 그 값으로 **전부 교체**
+3. `public/firebase-config.js` 를 메모장으로 열어 **따옴표 안만** 채우고 저장
 
 ```js
 window.FIREBASE_CONFIG = {
@@ -44,6 +44,11 @@ window.FIREBASE_CONFIG = {
 ```
 
 이 값들은 비밀번호가 아닙니다. 공개돼도 괜찮고, 실제 통제는 `firestore.rules` 가 합니다.
+
+콘솔 화면의 코드를 통째로 복사해 붙여넣어도 됩니다 (`const firebaseConfig = { ... };` 형태 그대로 인식합니다).
+다만 `import` 로 시작하는 줄이 섞여 있으면 그 줄은 지워야 합니다.
+
+값이 비었거나 파일이 같이 안 올라가면, 화면 아래쪽에 둘 중 무엇이 문제인지 구분해서 표시됩니다.
 
 ---
 
