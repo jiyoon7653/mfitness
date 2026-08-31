@@ -172,7 +172,7 @@
         if (emp.role === 'info'){
           m[emp.id] = { status:'draft', holidays:'', absentDays:0, submittedAt:null, confirmedAt:null, hourlyWage: emp.hourlyWage, deductionRate: emp.deductionRate };
         } else {
-          m[emp.id] = { status:'draft', sessions:[], supportAmount: emp.supportAmount||0, deductionRate: emp.deductionRate||3.3, finalIncentive:null, submittedAt:null, confirmedAt:null };
+          m[emp.id] = { status:'draft', sessions:[], monthlyRevenue:null, supportAmount: emp.supportAmount||0, deductionRate: emp.deductionRate||3.3, finalIncentive:null, submittedAt:null, confirmedAt:null };
         }
       }
     });
@@ -227,15 +227,20 @@
   // 고범수(매니저): 매출 금액과 무관하게 등록 분류(신규/재등록/인계/지인/소개)별 고정 요율로 수업료 산정.
   // 기존 매출구간별 인센티브는 유지하되, 그 구간 판정은 카테고리 요율 적용 전 총매출(incentiveBase) 기준.
   function calcManagerTotals(emp, monthData){
-    var totalFee = 0, grossRevenue = 0, incentiveBase = 0;
+    var totalFee = 0, grossRevenue = 0, sessionBase = 0;
     (monthData.sessions||[]).forEach(function(row){
       var c = calcSessionRow(row);
       var rate = categoryRate(row.category);
       var payFee = Math.round(c.grossFee * rate);
       totalFee += payFee;
       grossRevenue += c.grossFee;
-      if (!row.personal) incentiveBase += c.grossFee;
+      if (!row.personal) sessionBase += c.grossFee;
     });
+    // 당월 총매출을 직접 입력했으면 그 금액으로 구간을 판정하고,
+    // 비워두면 위 표에서 개인매출을 뺀 합계를 그대로 씁니다.
+    var manual = monthData.monthlyRevenue;
+    var manualRevenue = (manual===null || manual===undefined || manual==='' || isNaN(Number(manual))) ? null : Number(manual);
+    var incentiveBase = manualRevenue===null ? sessionBase : manualRevenue;
     var brackets = (emp.brackets||[]).slice().sort(function(a,b){return a[0]-b[0];});
     var rate = 0;
     brackets.forEach(function(b){ if (incentiveBase >= b[0]) rate = b[1]; });
@@ -246,7 +251,7 @@
     var rate2 = monthData.deductionRate==null ? 3.3 : Number(monthData.deductionRate);
     var deduction = Math.round(preTax*rate2/100);
     var net = preTax - deduction;
-    return {totalFee:totalFee, grossRevenue:grossRevenue, incentiveBase:incentiveBase, rate:rate, autoIncentive:autoIncentive, finalIncentive:finalIncentive, support:support, preTax:preTax, deductionRate:rate2, deduction:deduction, net:net};
+    return {totalFee:totalFee, grossRevenue:grossRevenue, incentiveBase:incentiveBase, sessionBase:sessionBase, manualRevenue:manualRevenue, rate:rate, autoIncentive:autoIncentive, finalIncentive:finalIncentive, support:support, preTax:preTax, deductionRate:rate2, deduction:deduction, net:net};
   }
 
   // 이새한(트레이너): 당월 총매출 합계 기준 구간 요율을 매출 전체에 일괄 적용.
@@ -435,7 +440,100 @@
     render();
   }
 
+  // ---------- 입력 중 부분 갱신 ----------
+  // 숫자 칸은 커서 위치를 읽을 수 없어, 입력 중에 화면을 통째로 다시 그리면 커서가 맨 앞으로 튑니다.
+  // 그래서 입력 중에는 계산 결과 숫자만 제자리에서 바꿔 씁니다.
+  function setText(id, text){ var el = document.getElementById(id); if (el) el.textContent = text; }
+  function setHtml(id, html){ var el = document.getElementById(id); if (el) el.innerHTML = html; }
+  function showRow(id, on){ var el = document.getElementById(id); if (el) el.style.display = on ? '' : 'none'; }
+  function setCell(i, name, text){
+    var el = document.querySelector('[data-calc="'+name+'"][data-i="'+i+'"]');
+    if (el) el.textContent = text;
+  }
+
+  function managerPreview(m, sessions){
+    return { sessions: sessions, monthlyRevenue: m.monthlyRevenue, finalIncentive: m.finalIncentive,
+             supportAmount: m.supportAmount, deductionRate: m.deductionRate };
+  }
+
+  function refreshSessionTotals(emp, m){
+    var buf = DRAFT[emp.id] || m.sessions || [];
+    var totals = emp.role==='manager' ? calcManagerTotals(emp, managerPreview(m, buf)) : calcTrainerTotals({sessions:buf});
+    var trainerRate = emp.role==='trainer' ? totals.rate : null;
+    buf.forEach(function(row, i){
+      var c = calcSessionRow(row);
+      var rate = emp.role==='manager' ? categoryRate(row.category) : trainerRate;
+      setCell(i, 'unit', fmt(c.unit));
+      setCell(i, 'remaining', fmt(c.remaining));
+      setCell(i, 'gross', won(c.grossFee));
+      setCell(i, 'rate', Math.round(rate*100)+'%');
+      setCell(i, 'fee', won(Math.round(c.grossFee*rate)));
+    });
+    setText('v-total-fee', won(totals.totalFee));
+    if (emp.role==='trainer'){
+      setText('v-tr-gross', won(totals.grossRevenue));
+      setText('v-tr-rate', Math.round(totals.rate*100)+'%');
+      showRow('kv-tr-excess', totals.excess > 0);
+      setText('v-tr-excess', won(totals.excessIncentive));
+    }
+    if (emp.role==='manager'){
+      setText('v-mg-hint', '비워두면 위 표에서 개인매출을 뺀 합계('+won(totals.sessionBase)+')로 구간을 판정합니다.');
+      setHtml('v-mg-base', won(totals.incentiveBase)+' <span class="muted">'+(totals.manualRevenue===null?'(표 합계)':'(직접 입력)')+'</span>');
+      setText('v-mg-rate', totals.rate+'%');
+      setText('v-mg-amt', won(totals.autoIncentive));
+    }
+  }
+
+  function refreshInfoTotals(emp, buf, monthKey){
+    var t = calcInfoTotals(monthKey, buf);
+    setText('v-if-weekday', t.weekdayCount+'일');
+    setText('v-if-actual', t.actualDays+'일');
+    setText('v-if-base', won(t.basePay));
+    showRow('kv-if-hw', t.holidayWeeks > 0);
+    setText('v-if-hw', t.holidayWeeks+'주');
+    setText('k-if-rest', '주휴수당 ('+t.restWeeks+'주)');
+    setText('v-if-rest', won(t.restPay));
+  }
+
+  function refreshAdminTotals(emp, m){
+    var t = emp.role==='manager' ? calcManagerTotals(emp, m)
+          : (emp.role==='trainer' ? calcTrainerTotals(m) : calcInfoTotals(UI.month, m));
+    if (emp.role==='manager'){
+      setHtml('v-ad-base', won(t.incentiveBase)+' <span class="muted">'+(t.manualRevenue===null?'(표 합계, 개인매출 제외)':'(직접 입력)')+'</span>');
+      setText('k-ad-auto', '자동계산 인센티브 (참고값, '+t.rate+'%)');
+      setText('v-ad-auto', won(t.autoIncentive));
+    }
+    if (emp.role==='info'){
+      setText('v-ad-if-base', won(t.basePay));
+      setText('v-ad-if-rest', won(t.restPay));
+    }
+    setText('v-sum-pre', won(t.preTax));
+    setText('k-sum-ded', '공제액 ('+t.deductionRate+'%)');
+    setText('v-sum-ded', '-'+won(t.deduction));
+    setText('v-sum-net', won(t.net));
+  }
+
   // ---------- render ----------
+  // 입력 중에 화면을 다시 그려도 커서가 빠지지 않게, 보고 있던 칸으로 포커스를 되돌립니다.
+  function renderKeepFocus(){
+    var el = document.activeElement;
+    var byId = el && el.id ? el.id : null;
+    var di = el && el.getAttribute ? el.getAttribute('data-i') : null;
+    var df = el && el.getAttribute ? el.getAttribute('data-f') : null;
+    var start = null, end = null;
+    try { start = el.selectionStart; end = el.selectionEnd; } catch (e) {}
+
+    render();
+
+    var next = null;
+    if (byId) next = document.getElementById(byId);
+    else if (di !== null && df !== null) next = document.querySelector('[data-i="'+di+'"][data-f="'+df+'"]');
+    if (next){
+      try { next.focus(); } catch (e) {}
+      try { if (start !== null) next.setSelectionRange(start, end); } catch (e) {}
+    }
+  }
+
   function render(){
     var root = document.getElementById('app-root');
     if (!UI.session) { root.innerHTML = renderLogin(); bindLogin(); return; }
@@ -514,12 +612,52 @@
     return '<span class="pill '+cls+'">'+label+'</span>';
   }
 
-  function monthPicker(id, value){
-    var opts = [];
-    var keys = Object.keys(STATE.months);
-    if (keys.indexOf(currentMonthKey())===-1) keys.push(currentMonthKey());
-    keys.sort().reverse().forEach(function(k){
-      opts.push('<option value="'+k+'"'+(k===value?' selected':'')+'>'+k+'</option>');
+  // 해당 월에 실제로 입력된 내용이 있는지 (빈 껍데기 기록과 구분)
+  function monthHasContent(k, empId){
+    var mm = STATE.months[k];
+    if (!mm) return false;
+    if (empId){
+      var r = mm[empId];
+      if (!r) return false;
+      if (r.status && r.status !== 'draft') return true;
+      if (r.sessions && r.sessions.length) return true;
+      if (r.holidays) return true;
+      if (Number(r.absentDays) > 0) return true;
+      if (r.monthlyRevenue) return true;
+      return false;
+    }
+    for (var i=0;i<STATE.employees.length;i++){
+      if (monthHasContent(k, STATE.employees[i].id)) return true;
+    }
+    return false;
+  }
+
+  function monthStatusLabel(k, empId){
+    if (!monthHasContent(k, empId)) return '';
+    if (empId){
+      var r = (STATE.months[k]||{})[empId] || {};
+      if (r.status === 'confirmed') return ' · 확정';
+      if (r.status === 'submitted') return ' · 제출';
+      return ' · 작성중';
+    }
+    return ' · 기록';
+  }
+
+  // 지난 24개월 + 이번 달, 그리고 그 밖에 기록이 남아 있는 달까지 모두 선택할 수 있습니다.
+  function selectableMonths(){
+    var d = new Date(), keys = {};
+    for (var i=0; i<24; i++){
+      keys[d.getFullYear()+'-'+pad2(d.getMonth()+1)] = true;
+      d.setMonth(d.getMonth()-1, 1);
+    }
+    keys[currentMonthKey()] = true;
+    Object.keys(STATE.months).forEach(function(k){ keys[k] = true; });
+    return Object.keys(keys).sort().reverse();
+  }
+
+  function monthPicker(id, value, empId){
+    var opts = selectableMonths().map(function(k){
+      return '<option value="'+k+'"'+(k===value?' selected':'')+'>'+k+monthStatusLabel(k, empId)+'</option>';
     });
     return '<select id="'+id+'">'+opts.join('')+'</select>';
   }
@@ -532,7 +670,7 @@
     var html = '' +
       '<div class="row between">' +
         '<div><h1>'+esc(emp.name)+'님</h1><p class="muted" style="margin-top:0">'+ROLE_LABEL[emp.role]+'</p></div>' +
-        '<div class="row">' + monthPicker('emp-month', UI.month) +
+        '<div class="row">' + monthPicker('emp-month', UI.month, emp.id) +
           '<button class="btn-ghost btn-sm" id="pin-change-toggle">PIN 변경</button>' +
           '<button class="btn-ghost btn-sm" id="logout-btn">로그아웃</button>' +
         '</div>' +
@@ -568,7 +706,7 @@
   function renderSessionForm(emp, m){
     var buf = DRAFT[emp.id] || (DRAFT[emp.id] = JSON.parse(JSON.stringify(m.sessions||[])));
     var locked = m.status === 'confirmed';
-    var totals = emp.role==='manager' ? calcManagerTotals(emp, {sessions:buf}) : calcTrainerTotals({sessions:buf});
+    var totals = emp.role==='manager' ? calcManagerTotals(emp, managerPreview(m, buf)) : calcTrainerTotals({sessions:buf});
     var trainerRate = emp.role==='trainer' ? totals.rate : null;
     var rows = buf.map(function(row, i){
       var c = calcSessionRow(row);
@@ -579,13 +717,13 @@
         '<td><select data-i="'+i+'" data-f="category" '+(locked?'disabled':'')+'>' + CATEGORY_OPTS.map(function(c2){return '<option'+(row.category===c2?' selected':'')+'>'+c2+'</option>';}).join('') + '</select></td>' +
         '<td><input data-i="'+i+'" data-f="contractSessions" type="number" value="'+(row.contractSessions||'')+'" '+(locked?'disabled':'')+' style="width:60px"></td>' +
         '<td><input data-i="'+i+'" data-f="totalPaid" type="number" value="'+(row.totalPaid||'')+'" '+(locked?'disabled':'')+' style="width:100px"></td>' +
-        '<td class="num muted">'+fmt(c.unit)+'</td>' +
+        '<td class="num muted" data-calc="unit" data-i="'+i+'">'+fmt(c.unit)+'</td>' +
         '<td><input data-i="'+i+'" data-f="prevDone" type="number" value="'+(row.prevDone||'')+'" '+(locked?'disabled':'')+' style="width:60px"></td>' +
         '<td><input data-i="'+i+'" data-f="thisMonthDone" type="number" value="'+(row.thisMonthDone||'')+'" '+(locked?'disabled':'')+' style="width:60px"></td>' +
-        '<td class="num muted">'+fmt(c.remaining)+'</td>' +
-        '<td class="num muted">'+won(c.grossFee)+'</td>' +
-        '<td class="num muted">'+Math.round(rate*100)+'%</td>' +
-        '<td class="num">'+won(payFee)+'</td>' +
+        '<td class="num muted" data-calc="remaining" data-i="'+i+'">'+fmt(c.remaining)+'</td>' +
+        '<td class="num muted" data-calc="gross" data-i="'+i+'">'+won(c.grossFee)+'</td>' +
+        '<td class="num muted" data-calc="rate" data-i="'+i+'">'+Math.round(rate*100)+'%</td>' +
+        '<td class="num" data-calc="fee" data-i="'+i+'">'+won(payFee)+'</td>' +
         (emp.role==='manager' ? '<td><input data-i="'+i+'" data-f="personal" type="checkbox" '+(row.personal?'checked':'')+' '+(locked?'disabled':'')+'></td>' : '') +
         (locked ? '' : '<td><button class="btn-danger btn-sm" data-del="'+i+'">삭제</button></td>') +
       '</tr>';
@@ -598,11 +736,21 @@
       (locked ? '' : '<button class="btn-ghost btn-sm" id="add-row-btn" style="margin-top:10px">+ 회원 추가</button>') +
       '<div class="divider"></div>' +
       (emp.role==='trainer' ? (
-        '<div class="kv"><div class="k">당월 총매출</div><div class="v">'+won(totals.grossRevenue)+'</div></div>' +
-        '<div class="kv"><div class="k">적용 구간 요율</div><div class="v">'+Math.round(totals.rate*100)+'%</div></div>' +
-        (totals.excess>0 ? '<div class="kv"><div class="k">700만원 초과분 인센티브 (10%)</div><div class="v">'+won(totals.excessIncentive)+'</div></div>' : '')
+        '<div class="kv"><div class="k">당월 총매출</div><div class="v" id="v-tr-gross">'+won(totals.grossRevenue)+'</div></div>' +
+        '<div class="kv"><div class="k">적용 구간 요율</div><div class="v" id="v-tr-rate">'+Math.round(totals.rate*100)+'%</div></div>' +
+        '<div class="kv" id="kv-tr-excess"'+(totals.excess>0?'':' style="display:none"')+'><div class="k">700만원 초과분 인센티브 (10%)</div><div class="v" id="v-tr-excess">'+won(totals.excessIncentive)+'</div></div>'
       ) : '') +
-      '<div class="kv"><div class="k">이번 달 총수업료</div><div class="v">'+won(totals.totalFee)+'</div></div>' +
+      '<div class="kv"><div class="k">이번 달 총수업료</div><div class="v" id="v-total-fee">'+won(totals.totalFee)+'</div></div>' +
+      (emp.role==='manager' ? (
+        '<div class="col" style="margin-top:14px">' +
+          '<label for="monthly-revenue">당월 총매출 (매출구간 인센티브 기준)</label>' +
+          '<input id="monthly-revenue" type="number" inputmode="numeric" value="'+(totals.manualRevenue===null?'':totals.manualRevenue)+'" '+(locked?'disabled':'')+' placeholder="예: 25000000" style="width:200px">' +
+          '<p class="muted" id="v-mg-hint" style="margin:4px 0 0">비워두면 위 표에서 개인매출을 뺀 합계('+won(totals.sessionBase)+')로 구간을 판정합니다.</p>' +
+        '</div>' +
+        '<div class="kv"><div class="k">인센티브 기준 매출</div><div class="v" id="v-mg-base">'+won(totals.incentiveBase)+' <span class="muted">'+(totals.manualRevenue===null?'(표 합계)':'(직접 입력)')+'</span></div></div>' +
+        '<div class="kv"><div class="k">적용 구간 요율</div><div class="v" id="v-mg-rate">'+totals.rate+'%</div></div>' +
+        '<div class="kv"><div class="k">매출구간 인센티브</div><div class="v" id="v-mg-amt">'+won(totals.autoIncentive)+'</div></div>'
+      ) : '') +
       (locked ? renderConfirmedSummary(emp, m) : '') +
       (locked ? '' : '<div class="row" style="margin-top:14px">' +
         '<button class="btn-ghost" id="save-draft-btn">임시저장</button>' +
@@ -632,11 +780,11 @@
         '<div class="col"><label>결근일수</label><input id="info-absent" type="number" value="'+(buf.absentDays||0)+'" '+(locked?'disabled':'')+' style="width:100px"></div>' +
       '</div>' +
       '<div class="divider"></div>' +
-      '<div class="kv"><div class="k">이번 달 평일 수</div><div class="v">'+t.weekdayCount+'일</div></div>' +
-      '<div class="kv"><div class="k">실근무일수</div><div class="v">'+t.actualDays+'일</div></div>' +
-      '<div class="kv"><div class="k">기본급 (일 3시간)</div><div class="v">'+won(t.basePay)+'</div></div>' +
-      (t.holidayWeeks>0 ? '<div class="kv"><div class="k">공휴일 포함으로 주휴수당 제외된 주</div><div class="v">'+t.holidayWeeks+'주</div></div>' : '') +
-      '<div class="kv"><div class="k">주휴수당 ('+t.restWeeks+'주)</div><div class="v">'+won(t.restPay)+'</div></div>' +
+      '<div class="kv"><div class="k">이번 달 평일 수</div><div class="v" id="v-if-weekday">'+t.weekdayCount+'일</div></div>' +
+      '<div class="kv"><div class="k">실근무일수</div><div class="v" id="v-if-actual">'+t.actualDays+'일</div></div>' +
+      '<div class="kv"><div class="k">기본급 (일 3시간)</div><div class="v" id="v-if-base">'+won(t.basePay)+'</div></div>' +
+      '<div class="kv" id="kv-if-hw"'+(t.holidayWeeks>0?'':' style="display:none"')+'><div class="k">공휴일 포함으로 주휴수당 제외된 주</div><div class="v" id="v-if-hw">'+t.holidayWeeks+'주</div></div>' +
+      '<div class="kv"><div class="k" id="k-if-rest">주휴수당 ('+t.restWeeks+'주)</div><div class="v" id="v-if-rest">'+won(t.restPay)+'</div></div>' +
       (locked ? renderInfoConfirmedSummary(t) : '') +
       (locked ? '' : '<div class="row" style="margin-top:14px">' +
         '<button class="btn-ghost" id="save-draft-btn">임시저장</button>' +
@@ -652,14 +800,19 @@
   }
 
   function renderEmployeeHistory(emp){
-    var keys = Object.keys(STATE.months).filter(function(k){ return STATE.months[k][emp.id] && STATE.months[k][emp.id].status==='confirmed' && k!==UI.month; }).sort().reverse();
+    var keys = Object.keys(STATE.months).filter(function(k){
+      return k !== UI.month && monthHasContent(k, emp.id);
+    }).sort().reverse();
     if (!keys.length) return '';
     var rows = keys.map(function(k){
       var m = STATE.months[k][emp.id];
       var t = emp.role==='manager' ? calcManagerTotals(emp,m) : (emp.role==='trainer' ? calcTrainerTotals(m) : calcInfoTotals(k,m));
-      return '<tr><td>'+k+'</td><td class="num">'+won(t.net)+'</td></tr>';
+      var amount = m.status==='draft' ? '<span class="muted">작성중</span>' : won(t.net);
+      return '<tr><td>'+k+'</td><td>'+statusPill(m.status)+'</td><td class="num">'+amount+'</td>' +
+        '<td><button class="btn-ghost btn-sm" data-open-month="'+k+'">열기</button></td></tr>';
     }).join('');
-    return '<div class="card"><h3>지난 확정 내역</h3><table><tbody>'+rows+'</tbody></table></div>';
+    return '<div class="card"><h3>지난 기록</h3><p class="muted" style="margin-top:0">지난 달을 열어서 확인하거나, 확정 전이면 이어서 작성할 수 있습니다.</p>' +
+      '<div class="table-wrap"><table><tbody>'+rows+'</tbody></table></div></div>';
   }
 
   function collectRowsFromDom(){
@@ -669,7 +822,16 @@
 
   function bindEmployee(){
     var emp = findEmployee(UI.session.id);
+    var mRec = STATE.months[UI.month][emp.id];
     document.getElementById('logout-btn').onclick = logout;
+    document.querySelectorAll('[data-open-month]').forEach(function(b){
+      b.onclick = function(){ UI.month = b.getAttribute('data-open-month'); DRAFT={}; ensureMonth(UI.month); render(); };
+    });
+    var mr = document.getElementById('monthly-revenue');
+    if (mr) mr.oninput = function(){
+      mRec.monthlyRevenue = mr.value === '' ? null : Number(mr.value);
+      refreshSessionTotals(emp, mRec);
+    };
     document.getElementById('emp-month').onchange = function(e){ UI.month = e.target.value; DRAFT={}; ensureMonth(UI.month); render(); };
     document.getElementById('pin-change-toggle').onclick = function(){ UI.pinChange=!UI.pinChange; UI.pinErr=''; render(); };
     if (UI.pinChange){
@@ -692,8 +854,8 @@
       var buf = DRAFT[emp.id];
       var hEl = document.getElementById('info-holiday');
       var aEl = document.getElementById('info-absent');
-      if (hEl) hEl.onchange = function(){ buf.holidays = hEl.value; refreshInfoKv(emp, buf); };
-      if (aEl) aEl.oninput = function(){ buf.absentDays = Number(aEl.value)||0; refreshInfoKv(emp, buf); };
+      if (hEl) hEl.oninput = function(){ buf.holidays = hEl.value; refreshInfoTotals(emp, buf, UI.month); };
+      if (aEl) aEl.oninput = function(){ buf.absentDays = Number(aEl.value)||0; refreshInfoTotals(emp, buf, UI.month); };
     } else {
       var buf2 = DRAFT[emp.id];
       document.querySelectorAll('#app-root tbody input, #app-root tbody select').forEach(function(el){
@@ -702,7 +864,7 @@
           var f = el.getAttribute('data-f');
           if (f==='personal') buf2[i][f] = el.checked;
           else buf2[i][f] = el.value;
-          renderSoft();
+          refreshSessionTotals(emp, m);
         };
       });
       document.querySelectorAll('[data-del]').forEach(function(b){
@@ -716,11 +878,7 @@
     var submitBtn = document.getElementById('submit-btn');
     if (saveBtn) saveBtn.onclick = function(){ commitDraft(emp, false); };
     if (submitBtn) submitBtn.onclick = function(){ commitDraft(emp, true); };
-
-    function renderSoft(){ render(); } // re-render to recompute totals; buffer already updated
   }
-
-  function refreshInfoKv(emp, buf){ render(); }
 
   function commitDraft(emp, submit){
     ensureMonth(UI.month);
@@ -804,10 +962,11 @@
       html += '<div class="divider"></div>';
       html += '<div class="kv"><div class="k">총매출 (요율 적용 전)</div><div class="v">'+won(t.grossRevenue)+'</div></div>';
       html += '<div class="kv"><div class="k">총수업료 (분류별 요율 적용)</div><div class="v">'+won(t.totalFee)+'</div></div>';
-      html += '<div class="kv"><div class="k">인센티브 대상매출 (개인매출 제외)</div><div class="v">'+won(t.incentiveBase)+'</div></div>';
+      html += '<div class="kv"><div class="k">인센티브 기준 매출</div><div class="v" id="v-ad-base">'+won(t.incentiveBase)+' <span class="muted">'+(t.manualRevenue===null?'(표 합계, 개인매출 제외)':'(직접 입력)')+'</span></div></div>';
+      html += '<div class="col"><label>당월 총매출 (매출구간 인센티브 기준)</label><input id="admin-monthly-revenue" type="number" value="'+(t.manualRevenue===null?'':t.manualRevenue)+'" '+(locked?'disabled':'')+' placeholder="비워두면 표 합계 사용" style="width:200px"></div>';
       html += '<h3 style="margin-top:14px">매출 구간별 인센티브 요율</h3>';
       html += renderBracketEditor(emp, locked);
-      html += '<div class="kv"><div class="k">자동계산 인센티브 (참고값, '+t.rate+'%)</div><div class="v">'+won(t.autoIncentive)+'</div></div>';
+      html += '<div class="kv"><div class="k" id="k-ad-auto">자동계산 인센티브 (참고값, '+t.rate+'%)</div><div class="v" id="v-ad-auto">'+won(t.autoIncentive)+'</div></div>';
       html += '<div class="col"><label>최종 확정 인센티브</label><input id="final-incentive" type="number" value="'+t.finalIncentive+'" '+(locked?'disabled':'')+' style="width:160px"></div>';
       html += adminMoneyFields(m, locked);
       html += '<div class="divider"></div>';
@@ -830,9 +989,9 @@
       html += '<div class="kv"><div class="k">결근일수</div><div class="v">'+(m.absentDays||0)+'일</div></div>';
       html += '<div class="kv"><div class="k">실근무일수</div><div class="v">'+t3.actualDays+'일</div></div>';
       html += '<div class="col" style="margin-top:8px"><label>시급</label><input id="hourly-wage" type="number" value="'+(m.hourlyWage!=null?m.hourlyWage:emp.hourlyWage)+'" '+(locked?'disabled':'')+' style="width:140px"></div>';
-      html += '<div class="kv"><div class="k">기본급</div><div class="v">'+won(t3.basePay)+'</div></div>';
+      html += '<div class="kv"><div class="k">기본급</div><div class="v" id="v-ad-if-base">'+won(t3.basePay)+'</div></div>';
       if (t3.holidayWeeks>0) html += '<div class="kv"><div class="k">공휴일 포함으로 주휴수당 제외된 주</div><div class="v">'+t3.holidayWeeks+'주</div></div>';
-      html += '<div class="kv"><div class="k">주휴수당 ('+t3.restWeeks+'주)</div><div class="v">'+won(t3.restPay)+'</div></div>';
+      html += '<div class="kv"><div class="k">주휴수당 ('+t3.restWeeks+'주)</div><div class="v" id="v-ad-if-rest">'+won(t3.restPay)+'</div></div>';
       html += '<div class="col" style="margin-top:8px"><label>공제율(%)</label><input id="deduction-rate" type="number" step="0.1" value="'+t3.deductionRate+'" '+(locked?'disabled':'')+' style="width:100px"></div>';
       html += '<div class="divider"></div>';
       html += summaryKv(t3.preTax, t3.deductionRate, t3.deduction, t3.net);
@@ -863,9 +1022,9 @@
   }
 
   function summaryKv(preTax, rate, deduction, net){
-    return '<div class="kv"><div class="k">공제 전 합계</div><div class="v">'+won(preTax)+'</div></div>' +
-      '<div class="kv"><div class="k">공제액 ('+rate+'%)</div><div class="v">-'+won(deduction)+'</div></div>' +
-      '<div class="kv"><div class="k" style="font-weight:700">지급 급여</div><div class="v" style="color:var(--accent-strong);font-size:17px">'+won(net)+'</div></div>';
+    return '<div class="kv"><div class="k">공제 전 합계</div><div class="v" id="v-sum-pre">'+won(preTax)+'</div></div>' +
+      '<div class="kv"><div class="k" id="k-sum-ded">공제액 ('+rate+'%)</div><div class="v" id="v-sum-ded">-'+won(deduction)+'</div></div>' +
+      '<div class="kv"><div class="k" style="font-weight:700">지급 급여</div><div class="v" id="v-sum-net" style="color:var(--accent-strong);font-size:17px">'+won(net)+'</div></div>';
   }
 
   function renderAdminSettings(){
@@ -929,22 +1088,27 @@
         el.onchange = function(){
           var i = Number(el.getAttribute('data-bi')), f = Number(el.getAttribute('data-bf'));
           emp.brackets[i][f] = Number(el.value);
-          render();
+          renderKeepFocus();
         };
       });
+      var amr = document.getElementById('admin-monthly-revenue');
+      if (amr) amr.oninput = function(){
+        m.monthlyRevenue = amr.value === '' ? null : Number(amr.value);
+        refreshAdminTotals(emp, m);
+      };
       var fi = document.getElementById('final-incentive');
-      if (fi) fi.oninput = function(){ m.finalIncentive = Number(fi.value); render(); };
+      if (fi) fi.oninput = function(){ m.finalIncentive = fi.value === '' ? null : Number(fi.value); refreshAdminTotals(emp, m); };
     }
     if (emp.role !== 'info'){
       var sa = document.getElementById('support-amount');
       var dr = document.getElementById('deduction-rate');
-      if (sa) sa.oninput = function(){ m.supportAmount = Number(sa.value); render(); };
-      if (dr) dr.oninput = function(){ m.deductionRate = Number(dr.value); render(); };
+      if (sa) sa.oninput = function(){ m.supportAmount = Number(sa.value)||0; refreshAdminTotals(emp, m); };
+      if (dr) dr.oninput = function(){ m.deductionRate = Number(dr.value)||0; refreshAdminTotals(emp, m); };
     } else {
       var hw = document.getElementById('hourly-wage');
       var dr2 = document.getElementById('deduction-rate');
-      if (hw) hw.oninput = function(){ m.hourlyWage = Number(hw.value); render(); };
-      if (dr2) dr2.oninput = function(){ m.deductionRate = Number(dr2.value); render(); };
+      if (hw) hw.oninput = function(){ m.hourlyWage = Number(hw.value)||0; refreshAdminTotals(emp, m); };
+      if (dr2) dr2.oninput = function(){ m.deductionRate = Number(dr2.value)||0; refreshAdminTotals(emp, m); };
     }
     var confirmBtn = document.getElementById('confirm-btn');
     if (confirmBtn) confirmBtn.onclick = function(){
