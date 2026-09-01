@@ -120,6 +120,12 @@
   var baseRev = 0;      // 지금 화면이 들고 있는 데이터의 서버 리비전
   var booted = false;   // 첫 로딩 완료 여부
 
+  // 운영 보드(index.html)가 쓰는 worklogs 컬렉션을 읽기 전용으로 구독해,
+  // 월별 "센터 전체 총매출"(모든 카테고리 합계)을 계산해 둡니다.
+  // 매니저 인센티브는 이 값을 기준으로 하며, 개인 수업료와는 무관합니다.
+  var centerRevenueByMonth = {}; // { 'YYYY-MM': 금액 }
+  function centerRevenueOf(monthKey){ return centerRevenueByMonth[monthKey] || 0; }
+
   var UI = { session: null, adminTab: 'list', month: currentMonthKey(), openEmployeeId: null, err: '', pinChange: false };
   var DRAFT = {}; // local unsaved edit buffers, keyed by employeeId
 
@@ -132,8 +138,9 @@
   // 이새한(트레이너) 당월 총매출 구간별 수업료율 - 700만원까지는 구간 요율, 초과분은 요율 고정(55%) + 초과분의 10% 별도 인센티브
   function trainerRateForRevenue(rev){
     if (rev <= 2990000) return 0.30;
-    if (rev <= 5000000) return 0.45;
-    return 0.55; // 500만~700만 및 700만 초과 구간 모두 기본 요율은 55%로 고정
+    if (rev <= 3990000) return 0.45;
+    if (rev <= 4990000) return 0.50;
+    return 0.55; // 500만~699만 및 700만 초과 구간 모두 요율은 55%로 고정, 700만 초과분만 별도 10% 인센티브
   }
 
   function currentMonthKey(){
@@ -172,7 +179,8 @@
         if (emp.role === 'info'){
           m[emp.id] = { status:'draft', holidays:'', absentDays:0, submittedAt:null, confirmedAt:null, hourlyWage: emp.hourlyWage, deductionRate: emp.deductionRate };
         } else {
-          m[emp.id] = { status:'draft', sessions:[], monthlyRevenue:null, supportAmount: emp.supportAmount||0, deductionRate: emp.deductionRate||3.3, finalIncentive:null, submittedAt:null, confirmedAt:null };
+          m[emp.id] = { status:'draft', sessions:[], supportAmount: emp.supportAmount||0, deductionRate: emp.deductionRate||3.3, finalIncentive:null, submittedAt:null, confirmedAt:null };
+          if (emp.role === 'manager') m[emp.id].baseSalary = emp.baseSalary || 0;
         }
       }
     });
@@ -224,41 +232,39 @@
     return {unit:unit, remaining:remaining, grossFee:grossFee};
   }
 
-  // 고범수(매니저): 매출 금액과 무관하게 등록 분류(신규/재등록/인계/지인/소개)별 고정 요율로 수업료 산정.
-  // 기존 매출구간별 인센티브는 유지하되, 그 구간 판정은 카테고리 요율 적용 전 총매출(incentiveBase) 기준.
-  function calcManagerTotals(emp, monthData){
-    var totalFee = 0, grossRevenue = 0, sessionBase = 0;
+  // 고범수(매니저): 개인 수업료는 매출 금액과 무관하게 등록 분류(신규/재등록/인계/지인/소개)별 고정 요율로 산정.
+  // 매출구간 인센티브는 이와 완전히 별개로, 개인 실적이 아니라 "센터 전체" 그 달 총매출(운영 보드 worklogs 합계)을
+  // 기준으로 구간을 판정합니다 — 매니저 개인이 등록한 세션과는 무관합니다.
+  function calcManagerTotals(emp, monthData, monthKey){
+    var totalFee = 0, grossRevenue = 0;
     (monthData.sessions||[]).forEach(function(row){
       var c = calcSessionRow(row);
       var rate = categoryRate(row.category);
       var payFee = Math.round(c.grossFee * rate);
       totalFee += payFee;
       grossRevenue += c.grossFee;
-      if (!row.personal) sessionBase += c.grossFee;
     });
-    // 당월 총매출을 직접 입력했으면 그 금액으로 구간을 판정하고,
-    // 비워두면 위 표에서 개인매출을 뺀 합계를 그대로 씁니다.
-    var manual = monthData.monthlyRevenue;
-    var manualRevenue = (manual===null || manual===undefined || manual==='' || isNaN(Number(manual))) ? null : Number(manual);
-    var incentiveBase = manualRevenue===null ? sessionBase : manualRevenue;
+    var incentiveBase = centerRevenueOf(monthKey);
     var brackets = (emp.brackets||[]).slice().sort(function(a,b){return a[0]-b[0];});
     var rate = 0;
     brackets.forEach(function(b){ if (incentiveBase >= b[0]) rate = b[1]; });
     var autoIncentive = Math.round(incentiveBase * rate/100);
     var finalIncentive = (monthData.finalIncentive==null) ? autoIncentive : Number(monthData.finalIncentive);
+    var baseSalary = Number(monthData.baseSalary)||0;
     var support = Number(monthData.supportAmount)||0;
-    var preTax = totalFee + finalIncentive + support;
+    var preTax = baseSalary + totalFee + finalIncentive + support;
     var rate2 = monthData.deductionRate==null ? 3.3 : Number(monthData.deductionRate);
     var deduction = Math.round(preTax*rate2/100);
     var net = preTax - deduction;
-    return {totalFee:totalFee, grossRevenue:grossRevenue, incentiveBase:incentiveBase, sessionBase:sessionBase, manualRevenue:manualRevenue, rate:rate, autoIncentive:autoIncentive, finalIncentive:finalIncentive, support:support, preTax:preTax, deductionRate:rate2, deduction:deduction, net:net};
+    return {totalFee:totalFee, grossRevenue:grossRevenue, incentiveBase:incentiveBase, rate:rate, autoIncentive:autoIncentive, finalIncentive:finalIncentive, baseSalary:baseSalary, support:support, preTax:preTax, deductionRate:rate2, deduction:deduction, net:net};
   }
 
   // 이새한(트레이너): 당월 총매출 합계 기준 구간 요율을 매출 전체에 일괄 적용.
+  // 총매출은 회원별 진행 페이스(단가×이번달횟수)가 아니라, 그달 실제로 결제받은 금액(totalPaid)의 합계입니다.
   // 700만원 초과분에 대해서는 요율은 55%로 고정하되, 초과분의 10%를 별도 인센티브로 추가 지급(100만원당 10만원).
   function calcTrainerTotals(monthData){
     var grossRevenue = 0;
-    (monthData.sessions||[]).forEach(function(row){ grossRevenue += calcSessionRow(row).grossFee; });
+    (monthData.sessions||[]).forEach(function(row){ grossRevenue += Number(row.totalPaid)||0; });
     var rate = trainerRateForRevenue(grossRevenue);
     var baseFee = Math.round(grossRevenue * rate);
     var excess = Math.max(0, grossRevenue - 7000000);
@@ -393,6 +399,22 @@
       db = firebase.firestore();
       STATE_REF = db.doc('payroll/state');
 
+      // 운영 보드의 그 달 업무일지를 전부 읽어 카테고리 구분 없이 합산합니다.
+      db.collection('worklogs').onSnapshot(function (snap){
+        var sums = {};
+        snap.forEach(function (doc){
+          var d = doc.data() || {};
+          if (!d.date) return;
+          var mk = d.date.slice(0, 7);
+          var sales = d.sales || {};
+          var t = 0;
+          Object.keys(sales).forEach(function (k){ t += Number(sales[k]) || 0; });
+          sums[mk] = (sums[mk] || 0) + t;
+        });
+        centerRevenueByMonth = sums;
+        if (booted) render();
+      }, function (){ /* 운영 보드 데이터를 못 읽어도 급여 화면 자체는 동작해야 합니다 */ });
+
       STATE_REF.onSnapshot(function (snap){
         if (!snap.exists){
           // 서버가 비어 있으면 지금 들고 있는 초기값으로 한 번 채웁니다.
@@ -452,13 +474,13 @@
   }
 
   function managerPreview(m, sessions){
-    return { sessions: sessions, monthlyRevenue: m.monthlyRevenue, finalIncentive: m.finalIncentive,
+    return { sessions: sessions, finalIncentive: m.finalIncentive, baseSalary: m.baseSalary,
              supportAmount: m.supportAmount, deductionRate: m.deductionRate };
   }
 
   function refreshSessionTotals(emp, m){
     var buf = DRAFT[emp.id] || m.sessions || [];
-    var totals = emp.role==='manager' ? calcManagerTotals(emp, managerPreview(m, buf)) : calcTrainerTotals({sessions:buf});
+    var totals = emp.role==='manager' ? calcManagerTotals(emp, managerPreview(m, buf), UI.month) : calcTrainerTotals({sessions:buf});
     var trainerRate = emp.role==='trainer' ? totals.rate : null;
     buf.forEach(function(row, i){
       var c = calcSessionRow(row);
@@ -477,8 +499,8 @@
       setText('v-tr-excess', won(totals.excessIncentive));
     }
     if (emp.role==='manager'){
-      setText('v-mg-hint', '비워두면 위 표에서 개인매출을 뺀 합계('+won(totals.sessionBase)+')로 구간을 판정합니다.');
-      setHtml('v-mg-base', won(totals.incentiveBase)+' <span class="muted">'+(totals.manualRevenue===null?'(표 합계)':'(직접 입력)')+'</span>');
+      setText('v-mg-base-salary', won(totals.baseSalary));
+      setText('v-mg-base', won(totals.incentiveBase));
       setText('v-mg-rate', totals.rate+'%');
       setText('v-mg-amt', won(totals.autoIncentive));
     }
@@ -496,11 +518,12 @@
   }
 
   function refreshAdminTotals(emp, m){
-    var t = emp.role==='manager' ? calcManagerTotals(emp, m)
+    var t = emp.role==='manager' ? calcManagerTotals(emp, m, UI.month)
           : (emp.role==='trainer' ? calcTrainerTotals(m) : calcInfoTotals(UI.month, m));
     if (emp.role==='manager'){
-      setHtml('v-ad-base', won(t.incentiveBase)+' <span class="muted">'+(t.manualRevenue===null?'(표 합계, 개인매출 제외)':'(직접 입력)')+'</span>');
-      setText('k-ad-auto', '자동계산 인센티브 (참고값, '+t.rate+'%)');
+      setText('v-ad-base-salary', won(t.baseSalary));
+      setText('v-ad-base', won(t.incentiveBase));
+      setText('k-ad-auto', '자동계산 총매출 인센티브 (참고값, '+t.rate+'%)');
       setText('v-ad-auto', won(t.autoIncentive));
     }
     if (emp.role==='info'){
@@ -623,7 +646,7 @@
       if (r.sessions && r.sessions.length) return true;
       if (r.holidays) return true;
       if (Number(r.absentDays) > 0) return true;
-      if (r.monthlyRevenue) return true;
+      if (r.baseSalary) return true;
       return false;
     }
     for (var i=0;i<STATE.employees.length;i++){
@@ -706,7 +729,7 @@
   function renderSessionForm(emp, m){
     var buf = DRAFT[emp.id] || (DRAFT[emp.id] = JSON.parse(JSON.stringify(m.sessions||[])));
     var locked = m.status === 'confirmed';
-    var totals = emp.role==='manager' ? calcManagerTotals(emp, managerPreview(m, buf)) : calcTrainerTotals({sessions:buf});
+    var totals = emp.role==='manager' ? calcManagerTotals(emp, managerPreview(m, buf), UI.month) : calcTrainerTotals({sessions:buf});
     var trainerRate = emp.role==='trainer' ? totals.rate : null;
     var rows = buf.map(function(row, i){
       var c = calcSessionRow(row);
@@ -742,12 +765,8 @@
       ) : '') +
       '<div class="kv"><div class="k">이번 달 총수업료</div><div class="v" id="v-total-fee">'+won(totals.totalFee)+'</div></div>' +
       (emp.role==='manager' ? (
-        '<div class="col" style="margin-top:14px">' +
-          '<label for="monthly-revenue">당월 총매출 (매출구간 인센티브 기준)</label>' +
-          '<input id="monthly-revenue" type="number" inputmode="numeric" value="'+(totals.manualRevenue===null?'':totals.manualRevenue)+'" '+(locked?'disabled':'')+' placeholder="예: 25000000" style="width:200px">' +
-          '<p class="muted" id="v-mg-hint" style="margin:4px 0 0">비워두면 위 표에서 개인매출을 뺀 합계('+won(totals.sessionBase)+')로 구간을 판정합니다.</p>' +
-        '</div>' +
-        '<div class="kv"><div class="k">인센티브 기준 매출</div><div class="v" id="v-mg-base">'+won(totals.incentiveBase)+' <span class="muted">'+(totals.manualRevenue===null?'(표 합계)':'(직접 입력)')+'</span></div></div>' +
+        '<div class="kv"><div class="k">기본급</div><div class="v" id="v-mg-base-salary">'+won(totals.baseSalary)+'</div></div>' +
+        '<div class="kv"><div class="k">센터 총매출 (이번 달, 운영 보드 기준 · 개인 실적과 무관)</div><div class="v" id="v-mg-base">'+won(totals.incentiveBase)+'</div></div>' +
         '<div class="kv"><div class="k">적용 구간 요율</div><div class="v" id="v-mg-rate">'+totals.rate+'%</div></div>' +
         '<div class="kv"><div class="k">매출구간 인센티브</div><div class="v" id="v-mg-amt">'+won(totals.autoIncentive)+'</div></div>'
       ) : '') +
@@ -759,8 +778,11 @@
   }
 
   function renderConfirmedSummary(emp, m){
-    var t = emp.role==='manager' ? calcManagerTotals(emp, m) : calcTrainerTotals(m);
-    var extra = emp.role==='manager' ? '<div class="kv"><div class="k">확정 인센티브</div><div class="v">'+won(t.finalIncentive)+'</div></div>' : '';
+    var t = emp.role==='manager' ? calcManagerTotals(emp, m, UI.month) : calcTrainerTotals(m);
+    var extra = emp.role==='manager' ? (
+      '<div class="kv"><div class="k">기본급</div><div class="v">'+won(t.baseSalary)+'</div></div>' +
+      '<div class="kv"><div class="k">확정 총매출 인센티브</div><div class="v">'+won(t.finalIncentive)+'</div></div>'
+    ) : '';
     return '<div class="note" style="margin-top:10px">' +
       extra +
       '<div class="kv"><div class="k">영업지원금</div><div class="v">'+won(t.support)+'</div></div>' +
@@ -806,7 +828,7 @@
     if (!keys.length) return '';
     var rows = keys.map(function(k){
       var m = STATE.months[k][emp.id];
-      var t = emp.role==='manager' ? calcManagerTotals(emp,m) : (emp.role==='trainer' ? calcTrainerTotals(m) : calcInfoTotals(k,m));
+      var t = emp.role==='manager' ? calcManagerTotals(emp,m,k) : (emp.role==='trainer' ? calcTrainerTotals(m) : calcInfoTotals(k,m));
       var amount = m.status==='draft' ? '<span class="muted">작성중</span>' : won(t.net);
       return '<tr><td>'+k+'</td><td>'+statusPill(m.status)+'</td><td class="num">'+amount+'</td>' +
         '<td><button class="btn-ghost btn-sm" data-open-month="'+k+'">열기</button></td></tr>';
@@ -827,11 +849,6 @@
     document.querySelectorAll('[data-open-month]').forEach(function(b){
       b.onclick = function(){ UI.month = b.getAttribute('data-open-month'); DRAFT={}; ensureMonth(UI.month); render(); };
     });
-    var mr = document.getElementById('monthly-revenue');
-    if (mr) mr.oninput = function(){
-      mRec.monthlyRevenue = mr.value === '' ? null : Number(mr.value);
-      refreshSessionTotals(emp, mRec);
-    };
     document.getElementById('emp-month').onchange = function(e){ UI.month = e.target.value; DRAFT={}; ensureMonth(UI.month); render(); };
     document.getElementById('pin-change-toggle').onclick = function(){ UI.pinChange=!UI.pinChange; UI.pinErr=''; render(); };
     if (UI.pinChange){
@@ -913,7 +930,7 @@
     html += '<div class="card"><h2>'+UI.month+' 제출 현황</h2><div class="table-wrap"><table><thead><tr><th>직원</th><th>역할</th><th>상태</th><th>지급 예정/확정액</th><th></th></tr></thead><tbody>';
     STATE.employees.forEach(function(emp){
       var m = STATE.months[UI.month][emp.id];
-      var t = emp.role==='manager' ? calcManagerTotals(emp,m) : (emp.role==='trainer' ? calcTrainerTotals(m) : calcInfoTotals(UI.month,m));
+      var t = emp.role==='manager' ? calcManagerTotals(emp,m,UI.month) : (emp.role==='trainer' ? calcTrainerTotals(m) : calcInfoTotals(UI.month,m));
       var amountCell = m.status==='draft' ? '<span class="muted">—</span>' : won(t.net);
       html += '<tr><td>'+esc(emp.name)+'</td><td>'+ROLE_LABEL[emp.role]+'</td><td>'+statusPill(m.status)+'</td><td class="num">'+amountCell+'</td>' +
         '<td><button class="btn-ghost btn-sm" data-open="'+emp.id+'">열기</button></td></tr>';
@@ -931,7 +948,7 @@
       STATE.employees.forEach(function(emp){
         var m = STATE.months[k][emp.id];
         if (m && m.status==='confirmed'){
-          var t = emp.role==='manager' ? calcManagerTotals(emp,m) : (emp.role==='trainer' ? calcTrainerTotals(m) : calcInfoTotals(k,m));
+          var t = emp.role==='manager' ? calcManagerTotals(emp,m,k) : (emp.role==='trainer' ? calcTrainerTotals(m) : calcInfoTotals(k,m));
           rows.push('<tr><td>'+k+'</td><td>'+esc(emp.name)+'</td><td class="num">'+won(t.net)+'</td></tr>');
         }
       });
@@ -958,28 +975,29 @@
     }
 
     if (emp.role==='manager'){
-      var t = calcManagerTotals(emp, m);
+      var t = calcManagerTotals(emp, m, UI.month);
       html += '<div class="divider"></div>';
-      html += '<div class="kv"><div class="k">총매출 (요율 적용 전)</div><div class="v">'+won(t.grossRevenue)+'</div></div>';
-      html += '<div class="kv"><div class="k">총수업료 (분류별 요율 적용)</div><div class="v">'+won(t.totalFee)+'</div></div>';
-      html += '<div class="kv"><div class="k">인센티브 기준 매출</div><div class="v" id="v-ad-base">'+won(t.incentiveBase)+' <span class="muted">'+(t.manualRevenue===null?'(표 합계, 개인매출 제외)':'(직접 입력)')+'</span></div></div>';
-      html += '<div class="col"><label>당월 총매출 (매출구간 인센티브 기준)</label><input id="admin-monthly-revenue" type="number" value="'+(t.manualRevenue===null?'':t.manualRevenue)+'" '+(locked?'disabled':'')+' placeholder="비워두면 표 합계 사용" style="width:200px"></div>';
+      html += '<div class="kv"><div class="k">기본급</div><div class="v" id="v-ad-base-salary">'+won(t.baseSalary)+'</div></div>';
+      html += '<div class="kv"><div class="k">개인 세션 매출 (요율 적용 전)</div><div class="v">'+won(t.grossRevenue)+'</div></div>';
+      html += '<div class="kv"><div class="k">수업료 (분류별 요율 적용)</div><div class="v">'+won(t.totalFee)+'</div></div>';
+      html += '<div class="kv"><div class="k">센터 총매출 (이번 달, 운영 보드 전체 · 개인 실적과 무관)</div><div class="v" id="v-ad-base">'+won(t.incentiveBase)+'</div></div>';
       html += '<h3 style="margin-top:14px">매출 구간별 인센티브 요율</h3>';
       html += renderBracketEditor(emp, locked);
-      html += '<div class="kv"><div class="k" id="k-ad-auto">자동계산 인센티브 (참고값, '+t.rate+'%)</div><div class="v" id="v-ad-auto">'+won(t.autoIncentive)+'</div></div>';
-      html += '<div class="col"><label>최종 확정 인센티브</label><input id="final-incentive" type="number" value="'+t.finalIncentive+'" '+(locked?'disabled':'')+' style="width:160px"></div>';
-      html += adminMoneyFields(m, locked);
+      html += '<div class="kv"><div class="k" id="k-ad-auto">자동계산 총매출 인센티브 (참고값, '+t.rate+'%)</div><div class="v" id="v-ad-auto">'+won(t.autoIncentive)+'</div></div>';
+      html += '<div class="col"><label>최종 확정 총매출 인센티브</label><input id="final-incentive" type="number" value="'+t.finalIncentive+'" '+(locked?'disabled':'')+' style="width:160px"></div>';
+      html += adminMoneyFields(m, locked, 'manager');
       html += '<div class="divider"></div>';
+      html += '<p class="muted" style="margin:0 0 4px">공제 전 합계 = 기본급 + 수업료 + 총매출 인센티브 + 영업지원금</p>';
       html += summaryKv(t.preTax, t.deductionRate, t.deduction, t.net);
     } else if (emp.role==='trainer'){
       var t2 = calcTrainerTotals(m);
       html += '<div class="divider"></div>';
-      html += '<div class="kv"><div class="k">당월 총매출</div><div class="v">'+won(t2.grossRevenue)+'</div></div>';
+      html += '<div class="kv"><div class="k">당월 총매출 (총 결제금액 합계)</div><div class="v">'+won(t2.grossRevenue)+'</div></div>';
       html += '<div class="kv"><div class="k">적용 구간 요율</div><div class="v">'+Math.round(t2.rate*100)+'%</div></div>';
       html += '<div class="kv"><div class="k">기본 수업료</div><div class="v">'+won(t2.baseFee)+'</div></div>';
       if (t2.excess>0) html += '<div class="kv"><div class="k">700만원 초과분 인센티브 (10%)</div><div class="v">'+won(t2.excessIncentive)+'</div></div>';
       html += '<div class="kv"><div class="k">총수업료</div><div class="v">'+won(t2.totalFee)+'</div></div>';
-      html += adminMoneyFields(m, locked);
+      html += adminMoneyFields(m, locked, 'trainer');
       html += '<div class="divider"></div>';
       html += summaryKv(t2.preTax, t2.deductionRate, t2.deduction, t2.net);
     } else {
@@ -1014,8 +1032,12 @@
     return '<div class="table-wrap"><table><thead><tr><th>매출 구간(이상, 원)</th><th>요율(%)</th></tr></thead><tbody>'+rows+'</tbody></table></div>';
   }
 
-  function adminMoneyFields(m, locked){
+  function adminMoneyFields(m, locked, role){
+    var baseSalaryField = role === 'manager'
+      ? '<div class="col"><label>기본급</label><input id="base-salary" type="number" value="'+(m.baseSalary||0)+'" '+(locked?'disabled':'')+' style="width:140px"></div>'
+      : '';
     return '<div class="row" style="margin-top:10px">' +
+      baseSalaryField +
       '<div class="col"><label>영업지원금</label><input id="support-amount" type="number" value="'+(m.supportAmount||0)+'" '+(locked?'disabled':'')+' style="width:140px"></div>' +
       '<div class="col"><label>공제율(%)</label><input id="deduction-rate" type="number" step="0.1" value="'+(m.deductionRate==null?3.3:m.deductionRate)+'" '+(locked?'disabled':'')+' style="width:100px"></div>' +
     '</div>';
@@ -1091,13 +1113,10 @@
           renderKeepFocus();
         };
       });
-      var amr = document.getElementById('admin-monthly-revenue');
-      if (amr) amr.oninput = function(){
-        m.monthlyRevenue = amr.value === '' ? null : Number(amr.value);
-        refreshAdminTotals(emp, m);
-      };
       var fi = document.getElementById('final-incentive');
       if (fi) fi.oninput = function(){ m.finalIncentive = fi.value === '' ? null : Number(fi.value); refreshAdminTotals(emp, m); };
+      var bs = document.getElementById('base-salary');
+      if (bs) bs.oninput = function(){ m.baseSalary = Number(bs.value)||0; refreshAdminTotals(emp, m); };
     }
     if (emp.role !== 'info'){
       var sa = document.getElementById('support-amount');
@@ -1113,7 +1132,7 @@
     var confirmBtn = document.getElementById('confirm-btn');
     if (confirmBtn) confirmBtn.onclick = function(){
       m.status='confirmed'; m.confirmedAt = new Date().toISOString();
-      if (emp.role==='manager' && m.finalIncentive==null) m.finalIncentive = calcManagerTotals(emp,m).autoIncentive;
+      if (emp.role==='manager' && m.finalIncentive==null) m.finalIncentive = calcManagerTotals(emp,m,UI.month).autoIncentive;
       persist();
     };
   }

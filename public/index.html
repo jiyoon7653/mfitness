@@ -380,7 +380,6 @@
       <div class="stat-tile"><span class="stat-tile-label">총 유입 건수 (누적)</span><span class="stat-tile-value" id="vTotalIn">–</span></div>
       <div class="stat-tile"><span class="stat-tile-label">등록 완료 건수 (누적)</span><span class="stat-tile-value c-good" id="vTotalDone">–</span></div>
       <div class="stat-tile"><span class="stat-tile-label">전체 등록 전환율</span><span class="stat-tile-value" id="vConvRate">–</span></div>
-      <div class="stat-tile"><span class="stat-tile-label">총 매출액 (누적)</span><span class="stat-tile-value c-good" id="vTotalRevenue">–</span></div>
     </div>
 
     <div class="layout">
@@ -409,7 +408,6 @@
 
           <div class="field-row" id="regFields" hidden>
             <label>등록 상품<input type="text" id="vProduct" placeholder="예: 3개월 회원권" autocomplete="off"></label>
-            <label>결제 금액(원)<input type="number" id="vAmount" min="0" step="1000" placeholder="0"></label>
           </div>
 
           <label>미등록 사유 / 특이사항<textarea id="vNote" rows="2" placeholder="선택 입력"></textarea></label>
@@ -433,7 +431,7 @@
           <table>
             <thead><tr>
               <th>일자</th><th>유입경로</th><th>상담분류</th><th>고객명</th><th>연락처</th>
-              <th>최종결과</th><th>등록상품</th><th>결제금액</th><th>담당자</th><th></th>
+              <th>최종결과</th><th>등록상품</th><th>담당자</th><th></th>
             </tr></thead>
             <tbody id="visitorBody"></tbody>
           </table>
@@ -887,6 +885,7 @@
       var tab = btn.getAttribute('data-tab');
       tabButtons.forEach(function (b) { b.classList.toggle('active', b === btn); });
       document.querySelectorAll('.tab-panel').forEach(function (p) { p.hidden = (p.id !== 'tab-' + tab); });
+      if (tab !== 'worklog') lockWorklogTab();
     });
   });
 
@@ -946,11 +945,18 @@
   $('wDate').value = todayStr();
 
   // ---- 매출·업무일지 잠금 ----
+  // 한 번 풀어도 다른 탭으로 이동했다가 다시 들어오면 매번 새로 잠깁니다.
+  // (예전에는 sessionStorage에 풀림 상태를 저장해서, 창을 안 닫는 한 계속 열려 있었습니다.)
   var worklogUnlocked = false;
-  try { worklogUnlocked = sessionStorage.getItem('mfitness_worklog_unlocked') === '1'; } catch (e) {}
   function applyWorklogLock() {
     $('worklogLock').hidden = worklogUnlocked;
     $('worklogContent').hidden = !worklogUnlocked;
+  }
+  function lockWorklogTab() {
+    worklogUnlocked = false;
+    $('worklogPasswordInput').value = '';
+    $('worklogLockStatus').textContent = '';
+    applyWorklogLock();
   }
   applyWorklogLock();
   $('worklogUnlockForm').addEventListener('submit', function (ev) {
@@ -958,7 +964,6 @@
     var val = $('worklogPasswordInput').value;
     if (val && val === WORKLOG_PASSWORD) {
       worklogUnlocked = true;
-      try { sessionStorage.setItem('mfitness_worklog_unlocked', '1'); } catch (e) {}
       $('worklogPasswordInput').value = '';
       $('worklogLockStatus').textContent = '';
       applyWorklogLock();
@@ -1101,7 +1106,7 @@
     var payload = {
       date: date, customer: customer, phone: $('vPhone').value.trim(),
       channel: channel, consultType: consultChips.get(), result: resultChips.get(),
-      product: $('vProduct').value.trim(), amount: Number($('vAmount').value) || 0,
+      product: $('vProduct').value.trim(),
       note: $('vNote').value.trim(), staff: $('vStaff').value.trim(), createdAt: Date.now()
     };
     $('visitorSubmitBtn').disabled = true;
@@ -1109,7 +1114,7 @@
     db.collection('visitors').add(payload).then(function () {
       setFormStatus('visitorStatus', '등록되었습니다. 이어서 입력할 수 있습니다.', 'success');
       flashPanel($('visitorForm'));
-      $('vCustomer').value = ''; $('vPhone').value = ''; $('vProduct').value = ''; $('vAmount').value = ''; $('vNote').value = '';
+      $('vCustomer').value = ''; $('vPhone').value = ''; $('vProduct').value = ''; $('vNote').value = '';
       resultChips.set('상담/예약 대기'); $('regFields').hidden = true;
       $('vCustomer').focus();
     }).catch(function (err) {
@@ -1147,10 +1152,10 @@
 
   function startEditVisitor(id) { editingVisitorId = id; renderVisitors(); }
   function cancelEditVisitor() { editingVisitorId = null; renderVisitors(); }
-  function saveEditVisitor(id, resultVal, productVal, amountVal) {
+  function saveEditVisitor(id, resultVal, productVal) {
     if (!db) return;
     db.collection('visitors').doc(id).update({
-      result: resultVal, product: productVal, amount: Number(amountVal) || 0
+      result: resultVal, product: productVal
     }).then(function () { editingVisitorId = null; renderVisitors(); }).catch(function () { /* keep editing on failure */ });
   }
 
@@ -1189,7 +1194,6 @@
 
       var tdResult = document.createElement('td'); tdResult.className = 'nowrap';
       var tdProduct = document.createElement('td');
-      var tdAmount = document.createElement('td'); tdAmount.className = 'num';
       var tdStaff = document.createElement('td'); tdStaff.className = 'nowrap'; tdStaff.textContent = e.staff || '-';
       var tdAction = document.createElement('td'); tdAction.className = 'nowrap';
 
@@ -1203,12 +1207,8 @@
         var pInput = document.createElement('input'); pInput.type = 'text'; pInput.value = e.product || '';
         tdProduct.appendChild(pInput);
 
-        tdAmount.classList.add('small-input');
-        var aInput = document.createElement('input'); aInput.type = 'number'; aInput.min = '0'; aInput.step = '1000'; aInput.value = e.amount || 0;
-        tdAmount.appendChild(aInput);
-
         var saveBtn = document.createElement('button'); saveBtn.type = 'button'; saveBtn.className = 'link-btn'; saveBtn.textContent = '저장';
-        saveBtn.addEventListener('click', function () { saveEditVisitor(e._id, sel.value, pInput.value.trim(), aInput.value); });
+        saveBtn.addEventListener('click', function () { saveEditVisitor(e._id, sel.value, pInput.value.trim()); });
         var cancelBtn = document.createElement('button'); cancelBtn.type = 'button'; cancelBtn.className = 'link-btn'; cancelBtn.textContent = '취소';
         cancelBtn.addEventListener('click', cancelEditVisitor);
         tdAction.appendChild(saveBtn); tdAction.appendChild(cancelBtn);
@@ -1220,7 +1220,6 @@
         tdResult.appendChild(badge);
 
         tdProduct.textContent = e.product || '-';
-        tdAmount.textContent = e.amount ? won(e.amount) : '-';
 
         var editBtn = document.createElement('button'); editBtn.type = 'button'; editBtn.className = 'link-btn'; editBtn.textContent = '수정';
         editBtn.addEventListener('click', function () { startEditVisitor(e._id); });
@@ -1228,18 +1227,16 @@
         tdAction.appendChild(deleteBtn('visitors', e._id, (e.date || '') + ' ' + (e.customer || '방문자 기록')));
       }
 
-      tr.appendChild(tdResult); tr.appendChild(tdProduct); tr.appendChild(tdAmount); tr.appendChild(tdStaff); tr.appendChild(tdAction);
+      tr.appendChild(tdResult); tr.appendChild(tdProduct); tr.appendChild(tdStaff); tr.appendChild(tdAction);
       body.appendChild(tr);
     });
 
     // dashboard (all-time)
     var totalIn = visitors.length;
     var totalDone = visitors.filter(function (e) { return e.result === '등록완료'; }).length;
-    var totalRevenue = visitors.reduce(function (s, e) { return s + (Number(e.amount) || 0); }, 0);
     $('vTotalIn').textContent = totalIn.toLocaleString('ko-KR');
     $('vTotalDone').textContent = totalDone.toLocaleString('ko-KR');
     $('vConvRate').textContent = totalIn ? Math.round((totalDone / totalIn) * 1000) / 10 + '%' : '–';
-    $('vTotalRevenue').textContent = won(totalRevenue);
 
     var chBody = $('channelPerfBody'); chBody.innerHTML = '';
     CHANNELS.forEach(function (ch, i) {
