@@ -228,21 +228,25 @@
     var thisMonth = Number(row.thisMonthDone)||0;
     var unit = contract>0 ? Math.round(totalPaid/contract) : 0;
     var remaining = contract - (prev+thisMonth);
-    var grossFee = unit*thisMonth; // 카테고리/구간 요율 적용 전 매출(100% 기준)
+    var grossFee = unit*thisMonth; // 카테고리/구간 요율 적용 전 매출(100% 기준) — 트레이너 표시용
     return {unit:unit, remaining:remaining, grossFee:grossFee};
   }
 
-  // 고범수(매니저): 개인 수업료는 매출 금액과 무관하게 등록 분류(신규/재등록/인계/지인/소개)별 고정 요율로 산정.
+  // 매니저 행의 수업료 계산 기준 매출: 단가×진행횟수로 역산하지 않고, 그 달 실제
+  // 결제받은 금액(totalPaid)을 그대로 씁니다. 트레이너는 기존 방식(calcSessionRow)을 그대로 씁니다.
+  function rowFeeBasis(emp, row, c){
+    return emp.role === 'manager' ? (Number(row.totalPaid)||0) : c.grossFee;
+  }
+
+  // 고범수(매니저): 개인 수업료는 매출 금액과 무관하게 등록 분류(신규/재등록/인계/지인/소개)별 고정 요율로 산정,
+  // 그 달 실제 결제받은 금액(totalPaid) 기준으로 계산합니다 — 단가×진행횟수 역산이나 개인매출 구분은 필요 없습니다.
   // 매출구간 인센티브는 이와 완전히 별개로, 개인 실적이 아니라 "센터 전체" 그 달 총매출(운영 보드 worklogs 합계)을
   // 기준으로 구간을 판정합니다 — 매니저 개인이 등록한 세션과는 무관합니다.
   function calcManagerTotals(emp, monthData, monthKey){
-    var totalFee = 0, grossRevenue = 0;
+    var totalFee = 0;
     (monthData.sessions||[]).forEach(function(row){
-      var c = calcSessionRow(row);
       var rate = categoryRate(row.category);
-      var payFee = Math.round(c.grossFee * rate);
-      totalFee += payFee;
-      grossRevenue += c.grossFee;
+      totalFee += Math.round((Number(row.totalPaid)||0) * rate);
     });
     // 인센티브 요율은 부가세가 포함된 센터 총매출(incentiveBase) 기준으로 판정·적용합니다.
     // 다만 그렇게 나온 금액에는 부가세 10%가 포함돼 있으므로, 실제 급여로 정산해주는
@@ -260,7 +264,7 @@
     var rate2 = monthData.deductionRate==null ? 3.3 : Number(monthData.deductionRate);
     var deduction = Math.round(preTax*rate2/100);
     var net = preTax - deduction;
-    return {totalFee:totalFee, grossRevenue:grossRevenue, incentiveBase:incentiveBase, rate:rate, autoIncentive:autoIncentive, autoIncentiveNet:autoIncentiveNet, finalIncentive:finalIncentive, baseSalary:baseSalary, support:support, preTax:preTax, deductionRate:rate2, deduction:deduction, net:net};
+    return {totalFee:totalFee, incentiveBase:incentiveBase, rate:rate, autoIncentive:autoIncentive, autoIncentiveNet:autoIncentiveNet, finalIncentive:finalIncentive, baseSalary:baseSalary, support:support, preTax:preTax, deductionRate:rate2, deduction:deduction, net:net};
   }
 
   // 이새한(트레이너): 당월 총매출 합계 기준 구간 요율을 매출 전체에 일괄 적용.
@@ -489,11 +493,12 @@
     buf.forEach(function(row, i){
       var c = calcSessionRow(row);
       var rate = emp.role==='manager' ? categoryRate(row.category) : trainerRate;
+      var gross = rowFeeBasis(emp, row, c);
       setCell(i, 'unit', fmt(c.unit));
       setCell(i, 'remaining', fmt(c.remaining));
-      setCell(i, 'gross', won(c.grossFee));
+      setCell(i, 'gross', won(gross));
       setCell(i, 'rate', Math.round(rate*100)+'%');
-      setCell(i, 'fee', won(Math.round(c.grossFee*rate)));
+      setCell(i, 'fee', won(Math.round(gross*rate)));
     });
     setText('v-total-fee', won(totals.totalFee));
     if (emp.role==='trainer'){
@@ -503,7 +508,6 @@
       setText('v-tr-excess', won(totals.excessIncentive));
     }
     if (emp.role==='manager'){
-      setText('v-mg-base-salary', won(totals.baseSalary));
       setText('v-mg-base', won(totals.incentiveBase));
       setText('v-mg-rate', totals.rate+'%');
       setText('v-mg-amt-gross', won(totals.autoIncentive));
@@ -749,15 +753,15 @@
     '</div>';
   }
 
-  function renderSessionForm(emp, m){
-    var buf = DRAFT[emp.id] || (DRAFT[emp.id] = JSON.parse(JSON.stringify(m.sessions||[])));
-    var locked = m.status === 'confirmed' || m.status === 'submitted';
-    var totals = emp.role==='manager' ? calcManagerTotals(emp, managerPreview(m, buf), UI.month) : calcTrainerTotals({sessions:buf});
-    var trainerRate = emp.role==='trainer' ? totals.rate : null;
-    var rows = buf.map(function(row, i){
+  // 매니저/트레이너 세션 표. 직원 화면(임시저장 전까지 buf 로 편집)과 관리자 화면
+  // (즉시 m.sessions 를 직접 편집) 양쪽에서 함께 씁니다.
+  function renderSessionTable(emp, rows, locked){
+    var trainerRate = emp.role==='trainer' ? calcTrainerTotals({sessions:rows}).rate : null;
+    var body = rows.map(function(row, i){
       var c = calcSessionRow(row);
       var rate = emp.role==='manager' ? categoryRate(row.category) : trainerRate;
-      var payFee = Math.round(c.grossFee * rate);
+      var gross = rowFeeBasis(emp, row, c);
+      var payFee = Math.round(gross * rate);
       return '<tr>' +
         '<td><input data-i="'+i+'" data-f="client" value="'+esc(row.client||'')+'" '+(locked?'disabled':'')+' style="width:90px"></td>' +
         '<td><select data-i="'+i+'" data-f="category" '+(locked?'disabled':'')+'>' + CATEGORY_OPTS.map(function(c2){return '<option'+(row.category===c2?' selected':'')+'>'+c2+'</option>';}).join('') + '</select></td>' +
@@ -767,20 +771,29 @@
         '<td><input data-i="'+i+'" data-f="prevDone" type="number" value="'+(row.prevDone||'')+'" '+(locked?'disabled':'')+' style="width:60px"></td>' +
         '<td><input data-i="'+i+'" data-f="thisMonthDone" type="number" value="'+(row.thisMonthDone||'')+'" '+(locked?'disabled':'')+' style="width:60px"></td>' +
         '<td class="num muted" data-calc="remaining" data-i="'+i+'">'+fmt(c.remaining)+'</td>' +
-        '<td class="num muted" data-calc="gross" data-i="'+i+'">'+won(c.grossFee)+'</td>' +
+        '<td class="num muted" data-calc="gross" data-i="'+i+'">'+won(gross)+'</td>' +
         '<td class="num muted" data-calc="rate" data-i="'+i+'">'+Math.round(rate*100)+'%</td>' +
         '<td class="num" data-calc="fee" data-i="'+i+'">'+won(payFee)+'</td>' +
-        (emp.role==='manager' ? '<td><input data-i="'+i+'" data-f="personal" type="checkbox" '+(row.personal?'checked':'')+' '+(locked?'disabled':'')+'></td>' : '') +
         (locked ? '' : '<td><button class="btn-danger btn-sm" data-del="'+i+'">삭제</button></td>') +
       '</tr>';
     }).join('');
+    return '<div class="table-wrap"><table><thead><tr>' +
+        '<th>고객명</th><th>분류</th><th>계약세션</th><th>총결제금액</th><th>단가</th><th>전월까지</th><th>금월횟수</th><th>잔여</th><th>매출</th><th>요율</th><th>수업료</th>' +
+        (locked?'':'<th></th>') +
+      '</tr></thead><tbody>' + (body || '<tr><td colspan="12" class="muted">아직 입력된 세션이 없습니다.</td></tr>') + '</tbody></table></div>' +
+      (locked ? '' : '<button class="btn-ghost btn-sm" id="add-row-btn" style="margin-top:10px">+ 회원 추가</button>');
+  }
+
+  function renderSessionForm(emp, m){
+    var buf = DRAFT[emp.id] || (DRAFT[emp.id] = JSON.parse(JSON.stringify(m.sessions||[])));
+    var locked = m.status === 'confirmed' || m.status === 'submitted';
+    var totals = emp.role==='manager' ? calcManagerTotals(emp, managerPreview(m, buf), UI.month) : calcTrainerTotals({sessions:buf});
     return '' +
       reopenNote(m) + submittedNote(m) +
-      '<div class="table-wrap"><table><thead><tr>' +
-        '<th>고객명</th><th>분류</th><th>계약세션</th><th>총결제금액</th><th>단가</th><th>전월까지</th><th>금월횟수</th><th>잔여</th><th>매출</th><th>요율</th><th>수업료</th>' +
-        (emp.role==='manager'?'<th>개인매출</th>':'') + (locked?'':'<th></th>') +
-      '</tr></thead><tbody>' + rows + '</tbody></table></div>' +
-      (locked ? '' : '<button class="btn-ghost btn-sm" id="add-row-btn" style="margin-top:10px">+ 회원 추가</button>') +
+      (emp.role==='manager' && !locked ? (
+        '<div class="col" style="margin-bottom:12px"><label for="mg-base-salary">기본급</label><input id="mg-base-salary" type="number" inputmode="numeric" value="'+(totals.baseSalary||'')+'" placeholder="0" style="width:160px"></div>'
+      ) : '') +
+      renderSessionTable(emp, buf, locked) +
       '<div class="divider"></div>' +
       (emp.role==='trainer' ? (
         '<div class="kv"><div class="k">당월 총매출</div><div class="v" id="v-tr-gross">'+won(totals.grossRevenue)+'</div></div>' +
@@ -789,7 +802,7 @@
       ) : '') +
       '<div class="kv"><div class="k">이번 달 총수업료</div><div class="v" id="v-total-fee">'+won(totals.totalFee)+'</div></div>' +
       (emp.role==='manager' ? (
-        '<div class="kv"><div class="k">기본급</div><div class="v" id="v-mg-base-salary">'+won(totals.baseSalary)+'</div></div>' +
+        (locked ? '<div class="kv"><div class="k">기본급</div><div class="v">'+won(totals.baseSalary)+'</div></div>' : '') +
         '<div class="kv"><div class="k">센터 총매출 (이번 달, 운영 보드 기준 · 개인 실적과 무관)</div><div class="v" id="v-mg-base">'+won(totals.incentiveBase)+'</div></div>' +
         '<div class="kv"><div class="k">적용 구간 요율</div><div class="v" id="v-mg-rate">'+totals.rate+'%</div></div>' +
         '<div class="kv"><div class="k">매출구간 인센티브 (부가세 포함, 참고값)</div><div class="v muted" id="v-mg-amt-gross">'+won(totals.autoIncentive)+'</div></div>' +
@@ -905,8 +918,7 @@
         el.oninput = el.onchange = function(){
           var i = Number(el.getAttribute('data-i'));
           var f = el.getAttribute('data-f');
-          if (f==='personal') buf2[i][f] = el.checked;
-          else buf2[i][f] = el.value;
+          buf2[i][f] = el.value;
           refreshSessionTotals(emp, m);
         };
       });
@@ -914,7 +926,11 @@
         b.onclick = function(){ buf2.splice(Number(b.getAttribute('data-del')),1); render(); };
       });
       var addBtn = document.getElementById('add-row-btn');
-      if (addBtn) addBtn.onclick = function(){ buf2.push({client:'',category:'신규',contractSessions:'',totalPaid:'',prevDone:'',thisMonthDone:'',personal:false}); render(); };
+      if (addBtn) addBtn.onclick = function(){ buf2.push({client:'',category:'신규',contractSessions:'',totalPaid:'',prevDone:'',thisMonthDone:''}); render(); };
+      if (emp.role==='manager'){
+        var mgBase = document.getElementById('mg-base-salary');
+        if (mgBase) mgBase.oninput = function(){ m.baseSalary = Number(mgBase.value)||0; refreshSessionTotals(emp, m); };
+      }
     }
 
     var saveBtn = document.getElementById('save-draft-btn');
@@ -1006,21 +1022,13 @@
     html += '<button class="btn-ghost btn-sm" id="back-btn" style="margin:8px 0 14px">← 목록으로</button>';
 
     if (emp.role !== 'info'){
-      var rowRate = emp.role==='trainer' ? calcTrainerTotals(m).rate : null;
-      var rows = (m.sessions||[]).map(function(row){
-        var c = calcSessionRow(row);
-        var rate = emp.role==='manager' ? categoryRate(row.category) : rowRate;
-        var payFee = Math.round(c.grossFee * rate);
-        return '<tr><td>'+esc(row.client)+'</td><td>'+esc(row.category)+'</td><td class="num">'+fmt(row.contractSessions)+'</td><td class="num">'+won(row.totalPaid)+'</td><td class="num">'+fmt(c.unit)+'</td><td class="num">'+fmt(row.thisMonthDone)+'</td><td class="num">'+won(c.grossFee)+'</td><td class="num">'+Math.round(rate*100)+'%</td><td class="num">'+won(payFee)+'</td>'+(emp.role==='manager'?'<td>'+(row.personal?'개인매출':'')+'</td>':'')+'</tr>';
-      }).join('');
-      html += '<div class="table-wrap"><table><thead><tr><th>고객명</th><th>분류</th><th>계약</th><th>총결제</th><th>단가</th><th>금월횟수</th><th>매출</th><th>요율</th><th>수업료</th>'+(emp.role==='manager'?'<th></th>':'')+'</tr></thead><tbody>'+(rows||'<tr><td colspan="10" class="muted">아직 입력된 세션이 없습니다.</td></tr>')+'</tbody></table></div>';
+      html += renderSessionTable(emp, m.sessions||[], locked);
     }
 
     if (emp.role==='manager'){
       var t = calcManagerTotals(emp, m, UI.month);
       html += '<div class="divider"></div>';
       html += '<div class="kv"><div class="k">기본급</div><div class="v" id="v-ad-base-salary">'+won(t.baseSalary)+'</div></div>';
-      html += '<div class="kv"><div class="k">개인 세션 매출 (요율 적용 전)</div><div class="v">'+won(t.grossRevenue)+'</div></div>';
       html += '<div class="kv"><div class="k">수업료 (분류별 요율 적용)</div><div class="v">'+won(t.totalFee)+'</div></div>';
       html += '<div class="kv"><div class="k">센터 총매출 (이번 달, 운영 보드 전체 · 개인 실적과 무관)</div><div class="v" id="v-ad-base">'+won(t.incentiveBase)+'</div></div>';
       html += '<h3 style="margin-top:14px">매출 구간별 인센티브 요율</h3>';
@@ -1082,9 +1090,12 @@
   function renderBracketEditor(emp, locked){
     var rows = (emp.brackets||[]).map(function(b,i){
       return '<tr><td><input data-bi="'+i+'" data-bf="0" type="number" value="'+b[0]+'" '+(locked?'disabled':'')+' style="width:120px"></td>' +
-        '<td><input data-bi="'+i+'" data-bf="1" type="number" step="0.1" value="'+b[1]+'" '+(locked?'disabled':'')+' style="width:80px"></td></tr>';
+        '<td><input data-bi="'+i+'" data-bf="1" type="number" step="0.1" value="'+b[1]+'" '+(locked?'disabled':'')+' style="width:80px"></td>' +
+        (locked ? '' : '<td><button class="btn-danger btn-sm" data-bdel="'+i+'">삭제</button></td>') +
+      '</tr>';
     }).join('');
-    return '<div class="table-wrap"><table><thead><tr><th>매출 구간(이상, 원)</th><th>요율(%)</th></tr></thead><tbody>'+rows+'</tbody></table></div>';
+    return '<div class="table-wrap"><table><thead><tr><th>매출 구간(이상, 원)</th><th>요율(%)</th>'+(locked?'':'<th></th>')+'</tr></thead><tbody>'+rows+'</tbody></table></div>' +
+      (locked ? '' : '<button class="btn-ghost btn-sm" id="add-bracket-btn" style="margin-top:6px">+ 구간 추가</button>');
   }
 
   function adminMoneyFields(m, locked, role){
@@ -1168,6 +1179,28 @@
       };
     }
 
+    // 관리자는 세션 표(직원이 입력한 내용 포함)까지 무엇이든 직접 고쳐서 확정 전에
+    // 바로잡을 수 있습니다 — 매출/계약/횟수 오타 정정, 행 추가·삭제 모두 가능.
+    if (emp.role !== 'info'){
+      m.sessions = m.sessions || [];
+      document.querySelectorAll('#app-root tbody input[data-f], #app-root tbody select[data-f]').forEach(function(el){
+        el.oninput = el.onchange = function(){
+          var i = Number(el.getAttribute('data-i'));
+          var f = el.getAttribute('data-f');
+          m.sessions[i][f] = el.value;
+          renderKeepFocus();
+        };
+      });
+      document.querySelectorAll('[data-del]').forEach(function(b){
+        b.onclick = function(){ m.sessions.splice(Number(b.getAttribute('data-del')),1); renderKeepFocus(); };
+      });
+      var addRowBtn = document.getElementById('add-row-btn');
+      if (addRowBtn) addRowBtn.onclick = function(){
+        m.sessions.push({client:'',category:'신규',contractSessions:'',totalPaid:'',prevDone:'',thisMonthDone:''});
+        renderKeepFocus();
+      };
+    }
+
     if (emp.role==='manager'){
       document.querySelectorAll('[data-bi]').forEach(function(el){
         el.onchange = function(){
@@ -1176,6 +1209,11 @@
           renderKeepFocus();
         };
       });
+      document.querySelectorAll('[data-bdel]').forEach(function(b){
+        b.onclick = function(){ emp.brackets.splice(Number(b.getAttribute('data-bdel')),1); renderKeepFocus(); };
+      });
+      var addBracketBtn = document.getElementById('add-bracket-btn');
+      if (addBracketBtn) addBracketBtn.onclick = function(){ emp.brackets.push([0,0]); renderKeepFocus(); };
       var fi = document.getElementById('final-incentive');
       if (fi) fi.oninput = function(){ m.finalIncentive = fi.value === '' ? null : Number(fi.value); refreshAdminTotals(emp, m); };
       var bs = document.getElementById('base-salary');
