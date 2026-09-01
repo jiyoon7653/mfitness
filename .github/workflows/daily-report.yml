@@ -1,0 +1,27 @@
+name: 일일 운영 리포트 (텔레그램)
+
+on:
+  schedule:
+    # 매일 13:00 UTC = 22:00 KST
+    - cron: '0 13 * * *'
+  workflow_dispatch:      # 수동 실행 버튼 (테스트용)
+    inputs:
+      dry_run:
+        description: '전송하지 않고 미리보기만 (1 = 미리보기)'
+        required: false
+        default: '0'
+
+jobs:
+  report:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: 일일 리포트 전송
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          DRY_RUN: ${{ github.event.inputs.dry_run }}
+        run: node scripts/daily-report.mjs
