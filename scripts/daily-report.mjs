@@ -186,6 +186,26 @@ function sumSales(worklogs) {
   });
   return { total, byCat };
 }
+// 같은 회원의 2·3회차 방문을 인원 1명으로 묶습니다 (보드 화면과 동일한 기준).
+function otCustomerKey(e) {
+  return (e.trainer || '') + '|' + ((e.phone && e.phone.trim()) || (e.customer || '').trim());
+}
+function otAchievement(sessions) {
+  const map = new Map();
+  for (const e of sessions) {
+    const key = otCustomerKey(e);
+    if (!map.has(key)) map.set(key, []);
+    map.get(key).push(e);
+  }
+  const groups = [...map.values()].map((entries) => {
+    const last = entries.slice().sort((a, b) => (Number(a.createdAt) || 0) - (Number(b.createdAt) || 0)).at(-1);
+    return { converted: last.converted };
+  });
+  const converted = groups.filter((g) => g.converted === '전환완료').length;
+  const decided = groups.filter((g) => g.converted && g.converted !== '미정').length;
+  return { achieved: groups.length, converted, decided };
+}
+
 function achievementLine(label, sales, target) {
   const pct = target > 0 ? Math.round((sales.total / target) * 100) : null;
   const suffix = pct === null ? '(목표 미설정)' : `(목표 ${won(target)} · ${pct}%)`;
@@ -193,14 +213,14 @@ function achievementLine(label, sales, target) {
 }
 
 function buildReport(today, data) {
-  const { visitors, calls, todayWorklogs, weekWorklogs, monthWorklogs, lockers, categories, todayOt, monthOt, otTarget } = data;
+  const { visitors, calls, todayWorklogs, weekWorklogs, monthWorklogs, lockers, categories, todayOt, weekOt, monthOt, otTarget, otWeekTarget } = data;
 
   const todaySales = sumSales(todayWorklogs);
   const weekSales = sumSales(weekWorklogs);
   const monthSales = sumSales(monthWorklogs);
   const catTotals = todaySales.byCat;
   const salesTotal = todaySales.total;
-  const otConvertedToday = todayOt.filter((e) => e.converted === '전환완료').length;
+  const todayOtStat = otAchievement(todayOt);
 
   // 방문/상담
   const registered = visitors.filter((v) => v.result === '등록완료').length;
@@ -231,7 +251,7 @@ function buildReport(today, data) {
   L.push(`👣 방문/상담  ${visitors.length}명 (등록완료 ${registered}명)`);
   L.push(`📞 문의전화   ${calls.length}건`);
   L.push(`🔒 사물함     신규 ${newLockers} · 정리대상 ${expiring}`);
-  L.push(`⏱️ OT 진행    ${todayOt.length}건 (전환 ${otConvertedToday}건)`);
+  L.push(`⏱️ OT 진행    ${todayOtStat.achieved}명 (전환 ${todayOtStat.converted}명)`);
 
   // 특이사항 / 업무 요약
   const notes = todayWorklogs.map((w) => w.issues).filter(Boolean);
@@ -247,10 +267,15 @@ function buildReport(today, data) {
   L.push(achievementLine('📅 이번 주 누계', weekSales, weekTarget));
   L.push(achievementLine('🗓️ 이번 달 누계', monthSales, monthTarget));
 
+  const weekOtStat = otAchievement(weekOt);
+  const monthOtStat = otAchievement(monthOt);
+  if (otWeekTarget > 0) {
+    const pct = Math.round((weekOtStat.achieved / otWeekTarget) * 100);
+    L.push(`🏋️ 이번 주 OT 달성률  *${pct}%* (${weekOtStat.achieved}/${otWeekTarget}명 · 전환 ${weekOtStat.converted}명)`);
+  }
   if (otTarget > 0) {
-    const otPct = Math.round((monthOt.length / otTarget) * 100);
-    const otConvertedMonth = monthOt.filter((e) => e.converted === '전환완료').length;
-    L.push(`🏋️ 이번 달 OT 달성률  *${otPct}%* (${monthOt.length}/${otTarget}건 · 전환 ${otConvertedMonth}건)`);
+    const pct = Math.round((monthOtStat.achieved / otTarget) * 100);
+    L.push(`🏋️ 이번 달 OT 달성률  *${pct}%* (${monthOtStat.achieved}/${otTarget}명 · 전환 ${monthOtStat.converted}명)`);
   }
 
   return L.join('\n');
@@ -294,11 +319,13 @@ async function main() {
   const todayWorklogs = monthWorklogs.filter((w) => w.date === today);
   const weekWorklogs = monthWorklogs.filter((w) => w.date >= week.start && w.date < week.end);
   const todayOt = monthOt.filter((e) => e.date === today);
+  const weekOt = monthOt.filter((e) => e.date >= week.start && e.date < week.end);
 
   const categories = catDoc && Array.isArray(catDoc.items) ? catDoc.items : [];
   const trainers = trainerDoc && Array.isArray(trainerDoc.items) ? trainerDoc.items : [];
   const otTarget = trainers.reduce((a, t) => a + (Number(t.target) || 0), 0);
-  const text = buildReport(today, { visitors, calls, todayWorklogs, weekWorklogs, monthWorklogs, lockers, categories, todayOt, monthOt, otTarget });
+  const otWeekTarget = trainers.reduce((a, t) => a + (Number(t.weekTarget) || 0), 0);
+  const text = buildReport(today, { visitors, calls, todayWorklogs, weekWorklogs, monthWorklogs, lockers, categories, todayOt, weekOt, monthOt, otTarget, otWeekTarget });
 
   if (process.env.DRY_RUN === '1') {
     console.log('--- DRY RUN (전송 안 함) ---\n' + text);

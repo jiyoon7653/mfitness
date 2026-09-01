@@ -165,6 +165,14 @@
   .meter-fill.warn { background: var(--warn); }
   .meter-fill.critical { background: var(--danger); }
 
+  .stat-cards { display: flex; flex-wrap: wrap; gap: 12px; margin: 14px 0 20px; }
+  .stat-card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; display: flex; flex-direction: column; gap: 8px; flex: 1 1 200px; min-width: 180px; }
+  .stat-card h3 { margin: 0; font-size: 13px; font-weight: 700; }
+  .ring-row { display: flex; gap: 14px; }
+  .ring-item { display: flex; flex-direction: column; align-items: center; gap: 3px; flex: 1; }
+  .ring-item .ring-cap { font-size: 11px; font-weight: 600; color: var(--text-muted); }
+  .ring-item .ring-num { font-size: 10.5px; color: var(--text-faint); text-align: center; line-height: 1.3; }
+
   .layout { display: grid; grid-template-columns: 340px 1fr; gap: 20px; align-items: start; }
 
   .panel {
@@ -273,8 +281,6 @@
   .worklog-detail-row .detail-line { display: flex; justify-content: space-between; max-width: 320px; padding: 2px 0; }
   tr.worklog-row { cursor: pointer; }
   tr.worklog-row:hover { background: var(--surface-2); }
-  .ot-editor-row { display: grid; grid-template-columns: 1fr 140px 40px; gap: 8px; align-items: center; margin-bottom: 8px; }
-  .ot-editor-head { display: grid; grid-template-columns: 1fr 140px 40px; gap: 8px; margin-bottom: 4px; font-size: 11px; color: var(--text-faint); }
   .icon-btn {
     border: 1px solid var(--border); background: var(--surface); border-radius: 8px;
     width: 36px; height: 36px; cursor: pointer; color: var(--danger); font-weight: 700; font-size: 15px;
@@ -541,16 +547,19 @@
       </section>
 
       <section class="panel">
-        <div class="channel-head" style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:14px;">
-          <h2 style="margin:0;">목표 대비 달성</h2>
-          <div class="chip-group" id="aggToggle">
-            <button type="button" class="chip active" data-agg="week">이번 주</button>
-            <button type="button" class="chip" data-agg="month">이번 달</button>
-          </div>
-        </div>
+        <h2 style="margin:0 0 4px;">목표 대비 달성</h2>
+        <p class="panel-sub">이번 달(고정 기간)과 이번 주(자동으로 이번 주로 갱신)를 함께 보여줍니다</p>
+        <div class="stat-cards" id="goalCards"></div>
         <div class="table-wrap">
           <table>
-            <thead><tr><th>카테고리</th><th>목표</th><th>달성</th><th>달성률</th><th>전기간</th></tr></thead>
+            <thead><tr>
+              <th rowspan="2">카테고리</th>
+              <th colspan="3" style="text-align:center;">이번 달</th>
+              <th colspan="3" style="text-align:center;">이번 주</th>
+            </tr><tr>
+              <th>목표</th><th>달성</th><th>달성률</th>
+              <th>목표</th><th>달성</th><th>달성률</th>
+            </tr></thead>
             <tbody id="goalBody"></tbody>
           </table>
         </div>
@@ -568,7 +577,7 @@
       <p class="panel-sub" style="margin:-6px 0 10px;">행을 클릭하면 카테고리별 매출 내역을 볼 수 있습니다</p>
       <div class="table-wrap">
         <table>
-          <thead><tr><th></th><th>날짜</th><th>당일 매출합계</th><th>OT</th><th>특이사항</th><th>핵심 업무 요약</th></tr></thead>
+          <thead><tr><th></th><th>날짜</th><th>당일 매출합계</th><th>특이사항</th><th>핵심 업무 요약</th></tr></thead>
           <tbody id="worklogBody"></tbody>
         </table>
         <p class="empty-state" id="worklogEmpty" hidden>아직 등록된 업무일지가 없습니다.</p>
@@ -601,24 +610,34 @@
 
   <!-- ===================== OT 관리 ===================== -->
   <section class="tab-panel" id="tab-ot" hidden>
-    <div class="kpi-row">
+    <p class="panel-sub">달성·전환 수치는 같은 사람을 여러 회차 봐도 <strong>인원 1명</strong>으로 셉니다. 회차별 방문 기록은 아래 목록에서 각각 확인할 수 있습니다.</p>
+    <div class="kpi-row cols-6">
       <div class="stat-tile"><span class="stat-tile-label">이번 달 OT 목표</span><span class="stat-tile-value" id="otGoalTotal">–</span></div>
-      <div class="stat-tile"><span class="stat-tile-label">이번 달 진행 건수</span><span class="stat-tile-value" id="otAchievedTotal">–</span></div>
+      <div class="stat-tile"><span class="stat-tile-label">이번 달 진행 인원</span><span class="stat-tile-value" id="otAchievedTotal">–</span></div>
       <div class="stat-tile">
-        <span class="stat-tile-label">달성률</span>
+        <span class="stat-tile-label">이번 달 달성률</span>
         <span class="stat-tile-value" id="otPctTotal">–</span>
         <div class="meter-track"><div class="meter-fill" id="otPctMeter"></div></div>
       </div>
-      <div class="stat-tile"><span class="stat-tile-label">전환율</span><span class="stat-tile-value" id="otConvPct">–</span><span class="goal-sub" id="otConvSub">–</span></div>
+      <div class="stat-tile"><span class="stat-tile-label">이번 주 OT 목표</span><span class="stat-tile-value" id="otWeekGoalTotal">–</span></div>
+      <div class="stat-tile"><span class="stat-tile-label">이번 주 진행 인원</span><span class="stat-tile-value" id="otWeekAchievedTotal">–</span></div>
+      <div class="stat-tile">
+        <span class="stat-tile-label">이번 주 달성률</span>
+        <span class="stat-tile-value" id="otWeekPctTotal">–</span>
+        <div class="meter-track"><div class="meter-fill" id="otWeekPctMeter"></div></div>
+      </div>
+    </div>
+    <div class="kpi-row cols-3" style="margin-top:-8px;">
+      <div class="stat-tile"><span class="stat-tile-label">전환율 (결정된 인원 중)</span><span class="stat-tile-value" id="otConvPct">–</span><span class="goal-sub" id="otConvSub">–</span></div>
     </div>
 
     <div class="list-header">
-      <h2 style="font-size:16px;">트레이너별 OT 월 목표</h2>
+      <h2 style="font-size:16px;">트레이너별 OT 월·주 목표</h2>
       <button type="button" class="link-btn" id="otTrainerEditBtn">트레이너·목표 수정</button>
     </div>
 
     <div class="panel" id="otTrainerEditPanel" hidden style="margin-bottom:20px;">
-      <div class="ot-editor-head"><span>트레이너명</span><span>월 목표(건)</span><span></span></div>
+      <div class="cat-editor-head"><span>트레이너명</span><span>월 목표(건)</span><span>주 목표(건)</span><span></span></div>
       <div id="otTrainerEditorRows"></div>
       <button type="button" class="submit-btn ghost small" id="otTrainerAddBtn" style="margin-bottom:12px;">+ 트레이너 추가</button>
       <div class="edit-inline">
@@ -628,9 +647,19 @@
       <p class="form-status" id="otTrainerStatus"></p>
     </div>
 
+    <div class="stat-cards" id="otCards"></div>
+
     <div class="table-wrap" style="margin-bottom:20px;">
       <table>
-        <thead><tr><th>트레이너</th><th>목표</th><th>진행</th><th>달성률</th><th>전환</th><th>전환율</th></tr></thead>
+        <thead><tr>
+          <th rowspan="2">트레이너</th>
+          <th colspan="3" style="text-align:center;">이번 달</th>
+          <th colspan="2" style="text-align:center;">이번 주</th>
+          <th rowspan="2">전환</th><th rowspan="2">전환율</th>
+        </tr><tr>
+          <th>목표</th><th>진행 인원</th><th>달성률</th>
+          <th>목표</th><th>진행 인원</th>
+        </tr></thead>
         <tbody id="otTrainerBody"></tbody>
       </table>
     </div>
@@ -638,7 +667,7 @@
     <div class="layout">
       <section class="panel">
         <h2>OT 진행 등록</h2>
-        <p class="panel-sub">트레이너별로 진행한 OT 인원을 한 건씩 기록하세요</p>
+        <p class="panel-sub">같은 회원의 2·3회차도 매번 새로 등록하세요 — 회차별로 따로 기록되고, 통계는 인원 기준으로 자동 합산됩니다</p>
         <form id="otForm">
           <label>날짜<input type="date" id="otDate" required></label>
           <div class="field-block"><span class="field-label">담당 트레이너</span><select id="otTrainerSelect" required></select></div>
@@ -647,9 +676,10 @@
             <div class="field-block"><span class="field-label">연락처</span><input type="tel" id="otPhone" placeholder="010-0000-0000"></div>
           </div>
           <div class="field-row">
+            <div class="field-block"><span class="field-label">회차</span><select id="otRound"></select></div>
             <div class="field-block"><span class="field-label">진행상황</span><select id="otStatus"></select></div>
-            <div class="field-block"><span class="field-label">전환여부</span><select id="otConverted"></select></div>
           </div>
+          <div class="field-block"><span class="field-label">전환여부</span><select id="otConverted"></select></div>
           <label>메모<textarea id="otNote" rows="2" placeholder="선택 입력"></textarea></label>
           <button type="submit" class="submit-btn" id="otSubmitBtn">등록하기</button>
           <p class="form-status" id="otFormStatus" aria-live="polite"></p>
@@ -667,7 +697,7 @@
         </div>
         <div class="table-wrap">
           <table>
-            <thead><tr><th>날짜</th><th>트레이너</th><th>고객명</th><th>연락처</th><th>진행상황</th><th>전환여부</th><th>메모</th></tr></thead>
+            <thead><tr><th>날짜</th><th>트레이너</th><th>고객명</th><th>연락처</th><th>회차</th><th>진행상황</th><th>전환여부</th><th>메모</th></tr></thead>
             <tbody id="otBody"></tbody>
           </table>
           <p class="empty-state" id="otEmpty" hidden>아직 등록된 OT 진행 내역이 없습니다.</p>
@@ -762,18 +792,18 @@
   var WORKLOG_PASSWORD = '5631';
 
   var DEFAULT_OT_TRAINERS = [
-    { name: '고범수 매니저', target: 10 },
-    { name: '이새한 트레이너', target: 20 }
+    { name: '고범수 매니저', target: 10, weekTarget: 3 },
+    { name: '이새한 트레이너', target: 20, weekTarget: 5 }
   ];
   var OT_STATUS = ['예약', '진행중', '완료', '노쇼/취소'];
   var OT_CONVERTED = ['미정', '전환완료', '미전환'];
+  var OT_ROUNDS = ['1회차', '2회차', '3회차', '4회차 이상'];
 
   var db = null;
   var visitors = [], calls = [], worklogs = [], lockers = [], otSessions = [];
   var categories = DEFAULT_CATEGORIES.slice();
   var otTrainers = DEFAULT_OT_TRAINERS.slice();
   var monthlyFocus = [];
-  var currentAgg = 'week';
   var editingVisitorId = null;
   var editingLockerId = null;
 
@@ -783,7 +813,6 @@
   function dateStrFromMs(ms) { var d = new Date(ms); return d.getFullYear() + '-' + pad2(d.getMonth() + 1) + '-' + pad2(d.getDate()); }
   function parseLocalDate(str) { var p = str.split('-'); return new Date(Number(p[0]), Number(p[1]) - 1, Number(p[2])); }
   function mondayOf(d) { var day = (d.getDay() + 6) % 7; var r = new Date(d.getFullYear(), d.getMonth(), d.getDate()); r.setDate(r.getDate() - day); return r; }
-  function daysInMonth(y, m) { return new Date(y, m + 1, 0).getDate(); }
   function won(v) { return Math.round(Number(v) || 0).toLocaleString('ko-KR') + '원'; }
 
   // ---- tabs ----
@@ -839,11 +868,6 @@
   });
   var lSectionChips = setupChips($('lSectionChips'), '여탈의실');
 
-  var aggChips = setupChips($('aggToggle'), 'week', function (v) {
-    currentAgg = v;
-    renderGoalTable();
-  });
-
   // filter dropdown population
   CHANNELS.forEach(function (c) { var o = document.createElement('option'); o.value = c; o.textContent = c; $('vFilterChannel').appendChild(o); });
   RESULTS.forEach(function (r) { var o = document.createElement('option'); o.value = r; o.textContent = r; $('vFilterResult').appendChild(o); });
@@ -891,6 +915,36 @@
     if (pct >= 100) fillEl.classList.add('good');
     else if (pct >= 70) fillEl.classList.add('warn');
     else fillEl.classList.add('critical');
+  }
+
+  // ---- 원형 달성률 게이지 (카테고리·트레이너별 "한눈에 보기" 카드용) ----
+  function ringSVG(pct) {
+    var p = pct === null ? 0 : Math.max(0, Math.min(100, pct));
+    var r = 24, c = 2 * Math.PI * r;
+    var offset = c - (p / 100) * c;
+    var color = pct === null ? 'var(--text-faint)' : (pct >= 100 ? 'var(--good)' : pct >= 70 ? 'var(--warn)' : 'var(--danger)');
+    return '<svg width="58" height="58" viewBox="0 0 58 58">' +
+      '<circle cx="29" cy="29" r="' + r + '" fill="none" stroke="var(--border)" stroke-width="6"></circle>' +
+      '<circle cx="29" cy="29" r="' + r + '" fill="none" stroke="' + color + '" stroke-width="6" stroke-linecap="round" ' +
+        'stroke-dasharray="' + c.toFixed(1) + '" stroke-dashoffset="' + offset.toFixed(1) + '" transform="rotate(-90 29 29)"></circle>' +
+      '<text x="29" y="34" text-anchor="middle" font-size="13" font-weight="700" fill="var(--text)">' + (pct === null ? '-' : pct + '%') + '</text>' +
+    '</svg>';
+  }
+  function ringItem(pct, cap, num) {
+    var div = document.createElement('div'); div.className = 'ring-item';
+    div.innerHTML = ringSVG(pct);
+    var capEl = document.createElement('div'); capEl.className = 'ring-cap'; capEl.textContent = cap;
+    div.appendChild(capEl);
+    if (num) { var numEl = document.createElement('div'); numEl.className = 'ring-num'; numEl.textContent = num; div.appendChild(numEl); }
+    return div;
+  }
+  function statCard(title, ringItems) {
+    var card = document.createElement('div'); card.className = 'stat-card';
+    var h = document.createElement('h3'); h.textContent = title; card.appendChild(h);
+    var row = document.createElement('div'); row.className = 'ring-row';
+    ringItems.forEach(function (ri) { row.appendChild(ri); });
+    card.appendChild(row);
+    return card;
   }
 
   function resultBadgeClass(r) {
@@ -1275,6 +1329,8 @@
   }
 
   // ============ OT 관리 ============
+  // 같은 회원이 2·3회차를 여러 번 방문해도 "진행 인원" 통계는 1명으로 셉니다.
+  // 회차별 기록 자체는 목록에 전부 남기고, 집계에서만 트레이너+연락처(또는 이름) 기준으로 묶습니다.
   function otMonthPrefix() { return todayStr().slice(0, 7); }
 
   function otTrainerFieldOptions(select, list, placeholder) {
@@ -1292,18 +1348,21 @@
 
   function renderOtFormFields() {
     otTrainerFieldOptions($('otTrainerSelect'), otTrainers.map(function (t) { return t.name; }), '트레이너 선택');
+    otTrainerFieldOptions($('otRound'), OT_ROUNDS);
     otTrainerFieldOptions($('otStatus'), OT_STATUS);
     otTrainerFieldOptions($('otConverted'), OT_CONVERTED);
   }
 
   function syncOtTrainerEditorToArray() {
-    var rows = $('otTrainerEditorRows').querySelectorAll('.ot-editor-row');
+    var rows = $('otTrainerEditorRows').querySelectorAll('.cat-editor-row');
     rows.forEach(function (row, i) {
       if (!otTrainers[i]) return;
       var nameEl = row.querySelector('[data-field="name"]');
       var targetEl = row.querySelector('[data-field="target"]');
+      var weekTargetEl = row.querySelector('[data-field="weekTarget"]');
       if (nameEl) otTrainers[i].name = nameEl.value;
       if (targetEl) otTrainers[i].target = Number(targetEl.value) || 0;
+      if (weekTargetEl) otTrainers[i].weekTarget = Number(weekTargetEl.value) || 0;
     });
   }
 
@@ -1311,30 +1370,33 @@
     var wrap = $('otTrainerEditorRows');
     wrap.innerHTML = '';
     otTrainers.forEach(function (t, i) {
-      var row = document.createElement('div'); row.className = 'ot-editor-row';
+      var row = document.createElement('div'); row.className = 'cat-editor-row';
       var nameInput = document.createElement('input'); nameInput.type = 'text'; nameInput.value = t.name; nameInput.placeholder = '트레이너명';
       nameInput.setAttribute('data-idx', i); nameInput.setAttribute('data-field', 'name');
       var targetInput = document.createElement('input'); targetInput.type = 'number'; targetInput.min = '0'; targetInput.step = '1'; targetInput.value = t.target; targetInput.placeholder = '월 목표(건)';
       targetInput.setAttribute('data-idx', i); targetInput.setAttribute('data-field', 'target');
+      var weekTargetInput = document.createElement('input'); weekTargetInput.type = 'number'; weekTargetInput.min = '0'; weekTargetInput.step = '1'; weekTargetInput.value = t.weekTarget || 0; weekTargetInput.placeholder = '주 목표(건)';
+      weekTargetInput.setAttribute('data-idx', i); weekTargetInput.setAttribute('data-field', 'weekTarget');
       var delBtn = document.createElement('button'); delBtn.type = 'button'; delBtn.className = 'icon-btn'; delBtn.textContent = '×';
       delBtn.addEventListener('click', function () { syncOtTrainerEditorToArray(); otTrainers.splice(i, 1); renderOtTrainerEditor(); });
-      row.appendChild(nameInput); row.appendChild(targetInput); row.appendChild(delBtn);
+      row.appendChild(nameInput); row.appendChild(targetInput); row.appendChild(weekTargetInput); row.appendChild(delBtn);
       wrap.appendChild(row);
     });
   }
 
   $('otTrainerEditBtn').addEventListener('click', function () { renderOtTrainerEditor(); $('otTrainerEditPanel').hidden = false; });
   $('otTrainerCancelBtn').addEventListener('click', function () { $('otTrainerEditPanel').hidden = true; });
-  $('otTrainerAddBtn').addEventListener('click', function () { syncOtTrainerEditorToArray(); otTrainers.push({ name: '새 트레이너', target: 0 }); renderOtTrainerEditor(); });
+  $('otTrainerAddBtn').addEventListener('click', function () { syncOtTrainerEditorToArray(); otTrainers.push({ name: '새 트레이너', target: 0, weekTarget: 0 }); renderOtTrainerEditor(); });
   $('otTrainerSaveBtn').addEventListener('click', function () {
     if (!db) { setFormStatus('otTrainerStatus', '데이터베이스에 연결되어 있지 않습니다.', 'error'); return; }
-    var rows = $('otTrainerEditorRows').querySelectorAll('.ot-editor-row');
+    var rows = $('otTrainerEditorRows').querySelectorAll('.cat-editor-row');
     var next = [];
     rows.forEach(function (row) {
       var nameEl = row.querySelector('[data-field="name"]');
       var targetEl = row.querySelector('[data-field="target"]');
+      var weekTargetEl = row.querySelector('[data-field="weekTarget"]');
       var name = nameEl.value.trim();
-      if (name) next.push({ name: name, target: Number(targetEl.value) || 0 });
+      if (name) next.push({ name: name, target: Number(targetEl.value) || 0, weekTarget: Number(weekTargetEl.value) || 0 });
     });
     if (next.length === 0) { setFormStatus('otTrainerStatus', '트레이너를 1명 이상 입력해 주세요.', 'error'); return; }
     $('otTrainerSaveBtn').disabled = true;
@@ -1352,6 +1414,7 @@
     if (!date || !trainer || !customer) { setFormStatus('otFormStatus', '날짜, 트레이너, 고객명은 필수입니다.', 'error'); return; }
     var payload = {
       date: date, trainer: trainer, customer: customer, phone: $('otPhone').value.trim(),
+      round: $('otRound').value || OT_ROUNDS[0],
       status: $('otStatus').value || OT_STATUS[0], converted: $('otConverted').value || OT_CONVERTED[0],
       note: $('otNote').value.trim(), createdAt: Date.now()
     };
@@ -1361,7 +1424,7 @@
       setFormStatus('otFormStatus', '등록되었습니다.', 'success');
       flashPanel($('otForm'));
       $('otCustomer').value = ''; $('otPhone').value = ''; $('otNote').value = '';
-      $('otStatus').value = OT_STATUS[0]; $('otConverted').value = OT_CONVERTED[0];
+      $('otRound').value = OT_ROUNDS[0]; $('otStatus').value = OT_STATUS[0]; $('otConverted').value = OT_CONVERTED[0];
     }).catch(function (err) { setFormStatus('otFormStatus', errMsg(err), 'error'); })
       .finally(function () { $('otSubmitBtn').disabled = false; });
   });
@@ -1406,6 +1469,7 @@
       var tdTrainer = document.createElement('td'); tdTrainer.className = 'nowrap'; tdTrainer.textContent = e.trainer || '-'; tr.appendChild(tdTrainer);
       var tdCustomer = document.createElement('td'); tdCustomer.textContent = e.customer || ''; tr.appendChild(tdCustomer);
       var tdPhone = document.createElement('td'); tdPhone.className = 'nowrap'; tdPhone.textContent = e.phone || '-'; tr.appendChild(tdPhone);
+      var tdRound = document.createElement('td'); tdRound.className = 'nowrap'; tdRound.textContent = e.round || OT_ROUNDS[0]; tr.appendChild(tdRound);
 
       var tdStatus = document.createElement('td'); tdStatus.className = 'nowrap small-input';
       var statusSel = document.createElement('select');
@@ -1424,56 +1488,98 @@
     });
   }
 
+  // 트레이너+연락처(없으면 이름)로 같은 사람의 여러 회차를 하나로 묶습니다.
+  function otCustomerKey(e) {
+    return (e.trainer || '') + '|' + ((e.phone && e.phone.trim()) || (e.customer || '').trim());
+  }
+  function groupOtByCustomer(sessions) {
+    var map = {}, order = [];
+    sessions.forEach(function (e) {
+      var key = otCustomerKey(e);
+      if (!map[key]) { map[key] = []; order.push(key); }
+      map[key].push(e);
+    });
+    return order.map(function (key) {
+      var entries = map[key].slice().sort(function (a, b) { return (Number(a.createdAt) || 0) - (Number(b.createdAt) || 0); });
+      var last = entries[entries.length - 1]; // 전환여부는 가장 최근 회차 기록을 기준으로 판단
+      return { key: key, trainer: last.trainer, customer: last.customer, phone: last.phone, converted: last.converted, rounds: entries.length };
+    });
+  }
+  function otAchievement(sessions) {
+    var groups = groupOtByCustomer(sessions);
+    var converted = groups.filter(function (g) { return g.converted === '전환완료'; }).length;
+    var decided = groups.filter(function (g) { return g.converted && g.converted !== '미정'; }).length;
+    return { achieved: groups.length, converted: converted, decided: decided, groups: groups };
+  }
+
+  function appendPctBadge(td, pct) {
+    if (pct === null) { td.textContent = '-'; return; }
+    var badge = document.createElement('span');
+    badge.className = 'badge ' + (pct >= 100 ? 'badge-good' : pct >= 70 ? 'badge-warn' : 'badge-danger');
+    badge.textContent = pct + '%';
+    td.appendChild(badge);
+  }
+
   function renderOtSummary() {
-    var prefix = otMonthPrefix();
-    var monthSessions = otSessions.filter(function (e) { return e.date && e.date.slice(0, 7) === prefix; });
+    var range = monthAndWeekRange();
+    var monthSessions = otSessions.filter(function (e) { return e.date && parseLocalDate(e.date) >= range.monthStart && parseLocalDate(e.date) < range.monthEnd; });
+    var weekSessions = otSessions.filter(function (e) { return e.date && parseLocalDate(e.date) >= range.weekStart && parseLocalDate(e.date) < range.weekEnd; });
+
+    var monthStat = otAchievement(monthSessions);
+    var weekStat = otAchievement(weekSessions);
 
     var goalTotal = otTrainers.reduce(function (s, t) { return s + (Number(t.target) || 0); }, 0);
-    var achievedTotal = monthSessions.length;
-    var convertedTotal = monthSessions.filter(function (e) { return e.converted === '전환완료'; }).length;
-    var decidedTotal = monthSessions.filter(function (e) { return e.converted && e.converted !== '미정'; }).length;
+    var weekGoalTotal = otTrainers.reduce(function (s, t) { return s + (Number(t.weekTarget) || 0); }, 0);
 
     $('otGoalTotal').textContent = goalTotal > 0 ? (goalTotal.toLocaleString('ko-KR') + '건') : '목표 미설정';
-    $('otAchievedTotal').textContent = achievedTotal.toLocaleString('ko-KR') + '건';
-    var pct = goalTotal > 0 ? Math.round((achievedTotal / goalTotal) * 100) : null;
+    $('otAchievedTotal').textContent = monthStat.achieved.toLocaleString('ko-KR') + '명';
+    var pct = pctOf(monthStat.achieved, goalTotal);
     $('otPctTotal').textContent = pct === null ? '–' : pct + '%';
     if (pct !== null) applyMeter($('otPctMeter'), pct);
-    var convPct = decidedTotal > 0 ? Math.round((convertedTotal / decidedTotal) * 100) : null;
+
+    $('otWeekGoalTotal').textContent = weekGoalTotal > 0 ? (weekGoalTotal.toLocaleString('ko-KR') + '건') : '목표 미설정';
+    $('otWeekAchievedTotal').textContent = weekStat.achieved.toLocaleString('ko-KR') + '명';
+    var weekPct = pctOf(weekStat.achieved, weekGoalTotal);
+    $('otWeekPctTotal').textContent = weekPct === null ? '–' : weekPct + '%';
+    if (weekPct !== null) applyMeter($('otWeekPctMeter'), weekPct);
+
+    var convPct = pctOf(monthStat.converted, monthStat.decided);
     $('otConvPct').textContent = convPct === null ? '–' : convPct + '%';
-    $('otConvSub').textContent = convertedTotal.toLocaleString('ko-KR') + '건 전환 / ' + decidedTotal.toLocaleString('ko-KR') + '건 결정';
+    $('otConvSub').textContent = monthStat.converted.toLocaleString('ko-KR') + '명 전환 / ' + monthStat.decided.toLocaleString('ko-KR') + '명 결정 (이번 달)';
 
     var body = $('otTrainerBody'); body.innerHTML = '';
+    var cardsWrap = $('otCards'); cardsWrap.innerHTML = '';
     otTrainers.forEach(function (t) {
-      var rows = monthSessions.filter(function (e) { return e.trainer === t.name; });
-      var achieved = rows.length;
-      var converted = rows.filter(function (e) { return e.converted === '전환완료'; }).length;
-      var decided = rows.filter(function (e) { return e.converted && e.converted !== '미정'; }).length;
-      var tRate = Number(t.target) > 0 ? Math.round((achieved / Number(t.target)) * 100) : null;
-      var cRate = decided > 0 ? Math.round((converted / decided) * 100) : null;
+      var mStat = otAchievement(monthSessions.filter(function (e) { return e.trainer === t.name; }));
+      var wStat = otAchievement(weekSessions.filter(function (e) { return e.trainer === t.name; }));
+      var tRate = pctOf(mStat.achieved, Number(t.target) || 0);
+      var wRate = pctOf(wStat.achieved, Number(t.weekTarget) || 0);
+      var cRate = pctOf(mStat.converted, mStat.decided);
 
       var tr = document.createElement('tr');
       var tdName = document.createElement('td'); tdName.textContent = t.name; tr.appendChild(tdName);
       var tdGoal = document.createElement('td'); tdGoal.className = 'num'; tdGoal.textContent = Number(t.target) > 0 ? (t.target + '건') : '-'; tr.appendChild(tdGoal);
-      var tdAch = document.createElement('td'); tdAch.className = 'num'; tdAch.textContent = achieved + '건'; tr.appendChild(tdAch);
+      var tdAch = document.createElement('td'); tdAch.className = 'num'; tdAch.textContent = mStat.achieved + '명'; tr.appendChild(tdAch);
+      var tdRate = document.createElement('td'); tdRate.className = 'num'; appendPctBadge(tdRate, tRate); tr.appendChild(tdRate);
 
-      var tdRate = document.createElement('td'); tdRate.className = 'num';
-      if (tRate !== null) {
-        var badge = document.createElement('span');
-        badge.className = 'badge ' + (tRate >= 100 ? 'badge-good' : tRate >= 70 ? 'badge-warn' : 'badge-danger');
-        badge.textContent = tRate + '%';
-        tdRate.appendChild(badge);
-      } else { tdRate.textContent = '-'; }
-      tr.appendChild(tdRate);
+      var tdWGoal = document.createElement('td'); tdWGoal.className = 'num'; tdWGoal.textContent = Number(t.weekTarget) > 0 ? (t.weekTarget + '건') : '-'; tr.appendChild(tdWGoal);
+      var tdWAch = document.createElement('td'); tdWAch.className = 'num'; tdWAch.textContent = wStat.achieved + '명'; tr.appendChild(tdWAch);
 
-      var tdConv = document.createElement('td'); tdConv.className = 'num'; tdConv.textContent = converted + '건'; tr.appendChild(tdConv);
+      var tdConv = document.createElement('td'); tdConv.className = 'num'; tdConv.textContent = mStat.converted + '명'; tr.appendChild(tdConv);
       var tdConvRate = document.createElement('td'); tdConvRate.className = 'num'; tdConvRate.textContent = cRate === null ? '-' : cRate + '%'; tr.appendChild(tdConvRate);
       body.appendChild(tr);
+
+      cardsWrap.appendChild(statCard(t.name, [
+        ringItem(tRate, '월', mStat.achieved + '명 / ' + (Number(t.target) > 0 ? t.target + '건' : '목표 미설정')),
+        ringItem(wRate, '주', wStat.achieved + '명 / ' + (Number(t.weekTarget) > 0 ? t.weekTarget + '건' : '목표 미설정')),
+      ]));
     });
 
-    // 개요 탭: 이번 달 OT 누적 타일도 실제 등록 건수 기준으로 표시
-    $('ovOtCount').textContent = achievedTotal.toLocaleString('ko-KR');
-    $('ovOtSub').textContent = goalTotal > 0 ? ('목표 ' + goalTotal + '건 · ' + pct + '%') : '건';
+    // 개요 탭: 이번 달 OT 누적 타일도 실제 등록 인원 기준으로 표시
+    $('ovOtCount').textContent = monthStat.achieved.toLocaleString('ko-KR');
+    $('ovOtSub').textContent = goalTotal > 0 ? ('목표 ' + goalTotal + '건 · ' + pct + '%') : '명';
   }
+
 
   // ============ MONTHLY FOCUS (프로모션·이벤트·중점사항) ============
   function focusBadgeClass(type) {
@@ -1643,14 +1749,14 @@
       var v = input ? Number(input.value) || 0 : 0;
       if (v) sales[c.name] = v;
     });
-    var payload = { date: date, sales: sales, otCount: Number($('wOt').value) || 0, issues: $('wIssues').value.trim(), summary: $('wSummary').value.trim(), createdAt: Date.now() };
+    var payload = { date: date, sales: sales, issues: $('wIssues').value.trim(), summary: $('wSummary').value.trim(), createdAt: Date.now() };
     $('worklogSubmitBtn').disabled = true;
     setFormStatus('worklogStatus', '등록 중…', '');
     db.collection('worklogs').add(payload).then(function () {
       setFormStatus('worklogStatus', '등록되었습니다.', 'success');
       flashPanel($('worklogForm'));
       categories.forEach(function (c, i) { var input = $('wSalesInput_' + i); if (input) input.value = ''; });
-      $('wOt').value = ''; $('wIssues').value = ''; $('wSummary').value = '';
+      $('wIssues').value = ''; $('wSummary').value = '';
     }).catch(function (err) { setFormStatus('worklogStatus', errMsg(err), 'error'); })
       .finally(function () { $('worklogSubmitBtn').disabled = false; });
   });
@@ -1693,13 +1799,12 @@
       var tdToggle = document.createElement('td'); tdToggle.className = 'nowrap'; tdToggle.textContent = '▸'; tr.appendChild(tdToggle);
       var tdDate = document.createElement('td'); tdDate.className = 'nowrap'; tdDate.textContent = e.date || ''; tr.appendChild(tdDate);
       var tdSum = document.createElement('td'); tdSum.className = 'num'; tdSum.textContent = won(worklogTotal(e)); tr.appendChild(tdSum);
-      var tdOt = document.createElement('td'); tdOt.className = 'num'; tdOt.textContent = (e.otCount || 0) + '건'; tr.appendChild(tdOt);
       var tdIssues = document.createElement('td'); tdIssues.textContent = e.issues || '-'; tr.appendChild(tdIssues);
       var tdSummary = document.createElement('td'); tdSummary.textContent = e.summary || '-'; tr.appendChild(tdSummary);
       body.appendChild(tr);
 
       var detailTr = document.createElement('tr'); detailTr.className = 'worklog-detail-row'; detailTr.hidden = true;
-      var detailTd = document.createElement('td'); detailTd.colSpan = 6;
+      var detailTd = document.createElement('td'); detailTd.colSpan = 5;
       var sales = e.sales || {};
       var salesKeys = Object.keys(sales);
       if (salesKeys.length) {
@@ -1721,16 +1826,13 @@
     });
   }
 
-  function periodRange(mode) {
+  // 이번 달(고정)과 이번 주(항상 "지금" 기준으로 자동 갱신) 범위를 함께 반환합니다.
+  function monthAndWeekRange() {
     var now = new Date();
-    if (mode === 'week') {
-      var s = mondayOf(now); var e = new Date(s); e.setDate(s.getDate() + 7);
-      var ps = new Date(s); ps.setDate(s.getDate() - 7); var pe = s;
-      return { start: s, end: e, prevStart: ps, prevEnd: pe, dim: daysInMonth(s.getFullYear(), s.getMonth()) };
-    }
-    var s2 = new Date(now.getFullYear(), now.getMonth(), 1); var e2 = new Date(now.getFullYear(), now.getMonth() + 1, 1);
-    var ps2 = new Date(now.getFullYear(), now.getMonth() - 1, 1); var pe2 = s2;
-    return { start: s2, end: e2, prevStart: ps2, prevEnd: pe2, dim: daysInMonth(s2.getFullYear(), s2.getMonth()) };
+    var monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+    var monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+    var weekStart = mondayOf(now); var weekEnd = new Date(weekStart); weekEnd.setDate(weekStart.getDate() + 7);
+    return { monthStart: monthStart, monthEnd: monthEnd, weekStart: weekStart, weekEnd: weekEnd };
   }
 
   function sumSalesInRange(catName, start, end) {
@@ -1745,51 +1847,49 @@
     return sum;
   }
 
+  function pctOf(achieved, target) { return target > 0 ? Math.round((achieved / target) * 100) : null; }
+
   function renderGoalTable() {
-    var range = periodRange(currentAgg);
+    var range = monthAndWeekRange();
     var body = $('goalBody'); body.innerHTML = '';
-    var totalTarget = 0, totalAchieved = 0, totalPrev = 0;
+    var cardsWrap = $('goalCards'); cardsWrap.innerHTML = '';
+    var totalMonthTarget = 0, totalMonthAch = 0, totalWeekTarget = 0, totalWeekAch = 0;
 
     categories.forEach(function (c) {
-      var target = currentAgg === 'week' ? (Number(c.weekTarget) || 0) : (Number(c.target) || 0);
-      var achieved = sumSalesInRange(c.name, range.start, range.end);
-      var prev = sumSalesInRange(c.name, range.prevStart, range.prevEnd);
-      totalTarget += target; totalAchieved += achieved; totalPrev += prev;
-      body.appendChild(goalRow(c.name, target, achieved, prev));
+      var monthTarget = Number(c.target) || 0, weekTarget = Number(c.weekTarget) || 0;
+      var monthAch = sumSalesInRange(c.name, range.monthStart, range.monthEnd);
+      var weekAch = sumSalesInRange(c.name, range.weekStart, range.weekEnd);
+      totalMonthTarget += monthTarget; totalMonthAch += monthAch;
+      totalWeekTarget += weekTarget; totalWeekAch += weekAch;
+      body.appendChild(goalRow(c.name, monthTarget, monthAch, weekTarget, weekAch));
+      cardsWrap.appendChild(statCard(c.name, [
+        ringItem(pctOf(monthAch, monthTarget), '월', won(monthAch) + ' / ' + (monthTarget > 0 ? won(monthTarget) : '목표 미설정')),
+        ringItem(pctOf(weekAch, weekTarget), '주', won(weekAch) + ' / ' + (weekTarget > 0 ? won(weekTarget) : '목표 미설정')),
+      ]));
     });
 
-    var totalTr = goalRow('합계', totalTarget, totalAchieved, totalPrev);
+    var totalTr = goalRow('합계', totalMonthTarget, totalMonthAch, totalWeekTarget, totalWeekAch);
     totalTr.style.fontWeight = '700';
     body.appendChild(totalTr);
   }
 
-  function goalRow(label, target, achieved, prev) {
+  function goalRow(label, monthTarget, monthAch, weekTarget, weekAch) {
     var tr = document.createElement('tr');
     var tdLabel = document.createElement('td'); tdLabel.textContent = label; tr.appendChild(tdLabel);
-    var tdTarget = document.createElement('td'); tdTarget.className = 'num'; tdTarget.textContent = target > 0 ? won(target) : '-'; tr.appendChild(tdTarget);
-    var tdAch = document.createElement('td'); tdAch.className = 'num'; tdAch.textContent = won(achieved); tr.appendChild(tdAch);
-
-    var tdPct = document.createElement('td'); tdPct.className = 'num';
-    if (target > 0) {
-      var pct = Math.round((achieved / target) * 100);
-      var badge = document.createElement('span');
-      badge.className = 'badge ' + (pct >= 100 ? 'badge-good' : pct >= 70 ? 'badge-warn' : 'badge-danger');
-      badge.textContent = pct + '%';
-      tdPct.appendChild(badge);
-    } else { tdPct.textContent = '-'; }
-    tr.appendChild(tdPct);
-
-    var tdDelta = document.createElement('td'); tdDelta.className = 'num';
-    if (prev === 0) {
-      if (achieved > 0) { tdDelta.textContent = '▲ 신규'; tdDelta.style.color = 'var(--good)'; }
-      else { tdDelta.textContent = '-'; tdDelta.style.color = 'var(--text-faint)'; }
-    } else {
-      var d = Math.round(((achieved - prev) / prev) * 100);
-      if (d > 0) { tdDelta.textContent = '▲ ' + d + '%'; tdDelta.style.color = 'var(--good)'; }
-      else if (d < 0) { tdDelta.textContent = '▼ ' + Math.abs(d) + '%'; tdDelta.style.color = 'var(--danger)'; }
-      else { tdDelta.textContent = '- 0%'; tdDelta.style.color = 'var(--text-faint)'; }
-    }
-    tr.appendChild(tdDelta);
+    [[monthTarget, monthAch], [weekTarget, weekAch]].forEach(function (pair) {
+      var target = pair[0], achieved = pair[1];
+      var tdTarget = document.createElement('td'); tdTarget.className = 'num'; tdTarget.textContent = target > 0 ? won(target) : '-'; tr.appendChild(tdTarget);
+      var tdAch = document.createElement('td'); tdAch.className = 'num'; tdAch.textContent = won(achieved); tr.appendChild(tdAch);
+      var tdPct = document.createElement('td'); tdPct.className = 'num';
+      var pct = pctOf(achieved, target);
+      if (pct !== null) {
+        var badge = document.createElement('span');
+        badge.className = 'badge ' + (pct >= 100 ? 'badge-good' : pct >= 70 ? 'badge-warn' : 'badge-danger');
+        badge.textContent = pct + '%';
+        tdPct.appendChild(badge);
+      } else { tdPct.textContent = '-'; }
+      tr.appendChild(tdPct);
+    });
     return tr;
   }
 
@@ -1946,7 +2046,7 @@
         if (snap.exists) {
           var data = snap.data();
           if (data && Array.isArray(data.items) && data.items.length) {
-            otTrainers = data.items.map(function (t) { return { name: t.name, target: Number(t.target) || 0 }; });
+            otTrainers = data.items.map(function (t) { return { name: t.name, target: Number(t.target) || 0, weekTarget: Number(t.weekTarget) || 0 }; });
           }
         }
         renderOtFormFields(); renderOtSummary();
