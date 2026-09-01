@@ -267,7 +267,12 @@
 
   .sub-heading { font-size: 14px; font-weight: 700; color: var(--text); margin: 0 0 12px; }
 
-  .cat-editor-row { display: grid; grid-template-columns: 1fr 160px 40px; gap: 8px; align-items: center; margin-bottom: 8px; }
+  .cat-editor-row { display: grid; grid-template-columns: 1fr 130px 130px 40px; gap: 8px; align-items: center; margin-bottom: 8px; }
+  .cat-editor-head { display: grid; grid-template-columns: 1fr 130px 130px 40px; gap: 8px; margin-bottom: 4px; font-size: 11px; color: var(--text-faint); }
+  .worklog-detail-row td { background: var(--surface-2); padding: 10px 14px; font-size: 12.5px; color: var(--text-muted); }
+  .worklog-detail-row .detail-line { display: flex; justify-content: space-between; max-width: 320px; padding: 2px 0; }
+  tr.worklog-row { cursor: pointer; }
+  tr.worklog-row:hover { background: var(--surface-2); }
   .icon-btn {
     border: 1px solid var(--border); background: var(--surface); border-radius: 8px;
     width: 36px; height: 36px; cursor: pointer; color: var(--danger); font-weight: 700; font-size: 15px;
@@ -317,12 +322,18 @@
 
   <!-- ===================== 개요 ===================== -->
   <section class="tab-panel" id="tab-overview">
-    <div class="kpi-row cols-3">
+    <div class="kpi-row">
       <div class="stat-tile">
         <span class="stat-tile-label">이번 달 매출 달성률</span>
         <span class="stat-tile-value" id="ovSalesPct">–</span>
         <div class="meter-track"><div class="meter-fill" id="ovSalesMeter"></div></div>
         <span class="goal-sub" id="ovSalesSub">–</span>
+      </div>
+      <div class="stat-tile">
+        <span class="stat-tile-label">이번 주 매출 달성률</span>
+        <span class="stat-tile-value" id="ovSalesWeekPct">–</span>
+        <div class="meter-track"><div class="meter-fill" id="ovSalesWeekMeter"></div></div>
+        <span class="goal-sub" id="ovSalesWeekSub">–</span>
       </div>
       <div class="stat-tile">
         <span class="stat-tile-label">등록 전환율 (누적)</span>
@@ -495,12 +506,18 @@
       <p class="form-status" id="catStatus"></p>
     </div>
 
-    <div class="kpi-row">
+    <div class="kpi-row cols-5">
       <div class="stat-tile">
         <span class="stat-tile-label">이번 달 매출 달성률</span>
         <span class="stat-tile-value" id="wSalesPct">–</span>
         <div class="meter-track"><div class="meter-fill" id="wSalesMeter"></div></div>
         <span class="goal-sub" id="wSalesSub">–</span>
+      </div>
+      <div class="stat-tile">
+        <span class="stat-tile-label">이번 주 매출 달성률</span>
+        <span class="stat-tile-value" id="wSalesWeekPct">–</span>
+        <div class="meter-track"><div class="meter-fill" id="wSalesWeekMeter"></div></div>
+        <span class="goal-sub" id="wSalesWeekSub">–</span>
       </div>
       <div class="stat-tile"><span class="stat-tile-label">오늘 매출</span><span class="stat-tile-value" id="wTodaySales">–</span></div>
       <div class="stat-tile"><span class="stat-tile-label">이번 주 매출</span><span class="stat-tile-value" id="wWeekSales">–</span></div>
@@ -542,11 +559,15 @@
     <section class="panel" style="margin-top:20px;">
       <div class="list-header">
         <h2>누적 업무일지</h2>
-        <div class="filters"><input type="text" id="wFilterSearch" placeholder="업무 요약·특이사항 검색"></div>
+        <div class="filters">
+          <select id="wFilterMonth"></select>
+          <input type="text" id="wFilterSearch" placeholder="업무 요약·특이사항 검색">
+        </div>
       </div>
+      <p class="panel-sub" style="margin:-6px 0 10px;">행을 클릭하면 카테고리별 매출 내역을 볼 수 있습니다</p>
       <div class="table-wrap">
         <table>
-          <thead><tr><th>날짜</th><th>당일 매출합계</th><th>OT</th><th>특이사항</th><th>핵심 업무 요약</th></tr></thead>
+          <thead><tr><th></th><th>날짜</th><th>당일 매출합계</th><th>OT</th><th>특이사항</th><th>핵심 업무 요약</th></tr></thead>
           <tbody id="worklogBody"></tbody>
         </table>
         <p class="empty-state" id="worklogEmpty" hidden>아직 등록된 업무일지가 없습니다.</p>
@@ -649,10 +670,10 @@
   var CONSULT_TYPES = ['네이버예약', '전화문의', '방문(워크인)', '기타 카톡/메시지'];
   var RESULTS = ['상담/예약 대기', '등록완료', '등록보류', '예약취소/노쇼'];
   var DEFAULT_CATEGORIES = [
-    { name: '고범수 매니저 (PT)', target: 3000000 },
-    { name: '이새한 트레이너 (PT)', target: 1000000 },
-    { name: '워크인 및 상담 (PT)', target: 3000000 },
-    { name: '퍼블릭 (헬스 회원권)', target: 13000000 }
+    { name: '고범수 매니저 (PT)', target: 3000000, weekTarget: 700000 },
+    { name: '이새한 트레이너 (PT)', target: 1000000, weekTarget: 230000 },
+    { name: '워크인 및 상담 (PT)', target: 3000000, weekTarget: 700000 },
+    { name: '퍼블릭 (헬스 회원권)', target: 13000000, weekTarget: 3000000 }
   ];
   var FOCUS_TYPES = ['프로모션', '이벤트', '중점사항'];
   var LOCKER_SECTIONS = ['여탈의실', '남탈의실'];
@@ -1272,30 +1293,37 @@
       if (!categories[i]) return;
       var nameEl = row.querySelector('[data-field="name"]');
       var targetEl = row.querySelector('[data-field="target"]');
+      var weekTargetEl = row.querySelector('[data-field="weekTarget"]');
       if (nameEl) categories[i].name = nameEl.value;
       if (targetEl) categories[i].target = Number(targetEl.value) || 0;
+      if (weekTargetEl) categories[i].weekTarget = Number(weekTargetEl.value) || 0;
     });
   }
 
   function renderCatEditor() {
     var wrap = $('catEditorRows');
     wrap.innerHTML = '';
+    var head = document.createElement('div'); head.className = 'cat-editor-head';
+    head.innerHTML = '<span>카테고리명</span><span>월 목표</span><span>주 목표</span><span></span>';
+    wrap.appendChild(head);
     categories.forEach(function (c, i) {
       var row = document.createElement('div'); row.className = 'cat-editor-row';
       var nameInput = document.createElement('input'); nameInput.type = 'text'; nameInput.value = c.name; nameInput.placeholder = '카테고리명';
       nameInput.setAttribute('data-idx', i); nameInput.setAttribute('data-field', 'name');
-      var targetInput = document.createElement('input'); targetInput.type = 'number'; targetInput.min = '0'; targetInput.step = '10000'; targetInput.value = c.target;
+      var targetInput = document.createElement('input'); targetInput.type = 'number'; targetInput.min = '0'; targetInput.step = '10000'; targetInput.value = c.target; targetInput.placeholder = '월 목표';
       targetInput.setAttribute('data-idx', i); targetInput.setAttribute('data-field', 'target');
+      var weekTargetInput = document.createElement('input'); weekTargetInput.type = 'number'; weekTargetInput.min = '0'; weekTargetInput.step = '10000'; weekTargetInput.value = c.weekTarget || 0; weekTargetInput.placeholder = '주 목표';
+      weekTargetInput.setAttribute('data-idx', i); weekTargetInput.setAttribute('data-field', 'weekTarget');
       var delBtn = document.createElement('button'); delBtn.type = 'button'; delBtn.className = 'icon-btn'; delBtn.textContent = '×';
       delBtn.addEventListener('click', function () { syncCatEditorToArray(); categories.splice(i, 1); renderCatEditor(); });
-      row.appendChild(nameInput); row.appendChild(targetInput); row.appendChild(delBtn);
+      row.appendChild(nameInput); row.appendChild(targetInput); row.appendChild(weekTargetInput); row.appendChild(delBtn);
       wrap.appendChild(row);
     });
   }
 
   $('catEditBtn').addEventListener('click', function () { renderCatEditor(); $('catEditPanel').hidden = false; });
   $('catCancelBtn').addEventListener('click', function () { $('catEditPanel').hidden = true; });
-  $('catAddBtn').addEventListener('click', function () { syncCatEditorToArray(); categories.push({ name: '새 카테고리', target: 0 }); renderCatEditor(); });
+  $('catAddBtn').addEventListener('click', function () { syncCatEditorToArray(); categories.push({ name: '새 카테고리', target: 0, weekTarget: 0 }); renderCatEditor(); });
   $('catSaveBtn').addEventListener('click', function () {
     if (!db) { setFormStatus('catStatus', '데이터베이스에 연결되어 있지 않습니다.', 'error'); return; }
     var rows = $('catEditorRows').querySelectorAll('.cat-editor-row');
@@ -1303,8 +1331,9 @@
     rows.forEach(function (row) {
       var nameEl = row.querySelector('[data-field="name"]');
       var targetEl = row.querySelector('[data-field="target"]');
+      var weekTargetEl = row.querySelector('[data-field="weekTarget"]');
       var name = nameEl.value.trim();
-      if (name) next.push({ name: name, target: Number(targetEl.value) || 0 });
+      if (name) next.push({ name: name, target: Number(targetEl.value) || 0, weekTarget: Number(weekTargetEl.value) || 0 });
     });
     if (next.length === 0) { setFormStatus('catStatus', '카테고리를 1개 이상 입력해 주세요.', 'error'); return; }
     $('catSaveBtn').disabled = true;
@@ -1338,6 +1367,7 @@
       .finally(function () { $('worklogSubmitBtn').disabled = false; });
   });
   $('wFilterSearch').addEventListener('input', renderWorklogList);
+  $('wFilterMonth').addEventListener('change', renderWorklogList);
 
   function worklogTotal(e) {
     var sum = 0;
@@ -1345,9 +1375,25 @@
     return sum;
   }
 
+  function populateWorklogMonthFilter() {
+    var sel = $('wFilterMonth');
+    var months = {};
+    worklogs.forEach(function (e) { if (e.date) months[e.date.slice(0, 7)] = true; });
+    months[todayStr().slice(0, 7)] = true;
+    var keys = Object.keys(months).sort().reverse();
+    var current = sel.value;
+    sel.innerHTML = '<option value="">전체 기간</option>' + keys.map(function (k) {
+      return '<option value="' + k + '">' + k + '</option>';
+    }).join('');
+    if (keys.indexOf(current) !== -1) sel.value = current;
+  }
+
   function renderWorklogList() {
+    populateWorklogMonthFilter();
     var q = $('wFilterSearch').value.trim().toLowerCase();
+    var month = $('wFilterMonth').value;
     var filtered = worklogs.filter(function (e) {
+      if (month && (!e.date || e.date.slice(0, 7) !== month)) return false;
       if (!q) return true;
       var hay = [e.summary, e.issues].filter(Boolean).join(' ').toLowerCase();
       return hay.indexOf(q) !== -1;
@@ -1355,13 +1401,35 @@
     var body = $('worklogBody'); body.innerHTML = '';
     $('worklogEmpty').hidden = filtered.length > 0;
     filtered.forEach(function (e) {
-      var tr = document.createElement('tr');
+      var tr = document.createElement('tr'); tr.className = 'worklog-row';
+      var tdToggle = document.createElement('td'); tdToggle.className = 'nowrap'; tdToggle.textContent = '▸'; tr.appendChild(tdToggle);
       var tdDate = document.createElement('td'); tdDate.className = 'nowrap'; tdDate.textContent = e.date || ''; tr.appendChild(tdDate);
       var tdSum = document.createElement('td'); tdSum.className = 'num'; tdSum.textContent = won(worklogTotal(e)); tr.appendChild(tdSum);
       var tdOt = document.createElement('td'); tdOt.className = 'num'; tdOt.textContent = (e.otCount || 0) + '건'; tr.appendChild(tdOt);
       var tdIssues = document.createElement('td'); tdIssues.textContent = e.issues || '-'; tr.appendChild(tdIssues);
       var tdSummary = document.createElement('td'); tdSummary.textContent = e.summary || '-'; tr.appendChild(tdSummary);
       body.appendChild(tr);
+
+      var detailTr = document.createElement('tr'); detailTr.className = 'worklog-detail-row'; detailTr.hidden = true;
+      var detailTd = document.createElement('td'); detailTd.colSpan = 6;
+      var sales = e.sales || {};
+      var salesKeys = Object.keys(sales);
+      if (salesKeys.length) {
+        salesKeys.forEach(function (k) {
+          var line = document.createElement('div'); line.className = 'detail-line';
+          var l = document.createElement('span'); l.textContent = k;
+          var v = document.createElement('span'); v.textContent = won(Number(sales[k]) || 0);
+          line.appendChild(l); line.appendChild(v); detailTd.appendChild(line);
+        });
+      } else {
+        var none = document.createElement('div'); none.textContent = '등록된 매출 내역이 없습니다.'; detailTd.appendChild(none);
+      }
+      detailTr.appendChild(detailTd); body.appendChild(detailTr);
+
+      tr.addEventListener('click', function () {
+        detailTr.hidden = !detailTr.hidden;
+        tdToggle.textContent = detailTr.hidden ? '▸' : '▾';
+      });
     });
   }
 
@@ -1395,7 +1463,7 @@
     var totalTarget = 0, totalAchieved = 0, totalPrev = 0;
 
     categories.forEach(function (c) {
-      var target = currentAgg === 'week' ? (c.target * 7 / range.dim) : c.target;
+      var target = currentAgg === 'week' ? (Number(c.weekTarget) || 0) : (Number(c.target) || 0);
       var achieved = sumSalesInRange(c.name, range.start, range.end);
       var prev = sumSalesInRange(c.name, range.prevStart, range.prevEnd);
       totalTarget += target; totalAchieved += achieved; totalPrev += prev;
@@ -1463,14 +1531,27 @@
     $('wTodaySales').textContent = won(sumSalesInRange(null, todayStart, todayEnd));
 
     var wkStart = mondayOf(now); var wkEnd = new Date(wkStart); wkEnd.setDate(wkStart.getDate() + 7);
-    $('wWeekSales').textContent = won(sumSalesInRange(null, wkStart, wkEnd));
+    var weekAchieved = sumSalesInRange(null, wkStart, wkEnd);
+    $('wWeekSales').textContent = won(weekAchieved);
+
+    var weekTarget = categories.reduce(function (s, c) { return s + (Number(c.weekTarget) || 0); }, 0);
+    var weekPctText, weekPctVal;
+    if (weekTarget > 0) {
+      weekPctVal = Math.round((weekAchieved / weekTarget) * 100);
+      weekPctText = weekPctVal + '%';
+    } else { weekPctVal = null; weekPctText = '–'; }
+    $('ovSalesWeekPct').textContent = weekPctText;
+    $('wSalesWeekPct').textContent = weekPctText;
+    if (weekPctVal !== null) { applyMeter($('ovSalesWeekMeter'), weekPctVal); applyMeter($('wSalesWeekMeter'), weekPctVal); }
+    $('ovSalesWeekSub').textContent = weekTarget > 0 ? '이번 주 목표 대비 달성률' : '목표 미설정';
+    $('wSalesWeekSub').textContent = won(weekAchieved) + ' / ' + (weekTarget > 0 ? won(weekTarget) : '목표 미설정');
 
     var otSum = worklogs.filter(function (e) { return e.date && e.date.slice(0, 7) === today.slice(0, 7); })
       .reduce(function (s, e) { return s + (Number(e.otCount) || 0); }, 0);
     $('wOtCount').textContent = otSum.toLocaleString('ko-KR') + '건';
     $('ovOtCount').textContent = otSum.toLocaleString('ko-KR');
 
-    var catSummary = categories.map(function (c) { return c.name + ' ' + won(c.target); }).join(' · ');
+    var catSummary = categories.map(function (c) { return c.name + ' 월 ' + won(c.target) + ' · 주 ' + won(c.weekTarget || 0); }).join(' / ');
     $('catSummaryText').textContent = categories.length ? catSummary : '설정된 카테고리가 없습니다.';
   }
 
@@ -1559,7 +1640,7 @@
         if (snap.exists) {
           var data = snap.data();
           if (data && Array.isArray(data.items) && data.items.length) {
-            categories = data.items.map(function (c) { return { name: c.name, target: Number(c.target) || 0 }; });
+            categories = data.items.map(function (c) { return { name: c.name, target: Number(c.target) || 0, weekTarget: Number(c.weekTarget) || 0 }; });
           }
         }
         renderSalesFields(); renderGoalTable(); renderWorklogSummary();

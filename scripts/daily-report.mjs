@@ -1,4 +1,4 @@
-// 매일 22:00(KST) 운영 보드 집계를 텔레그램으로 보냅니다.
+// 매일 23:00(KST) 운영 보드 집계를 텔레그램으로 보냅니다.
 // GitHub Actions에서 실행되며, Firebase에는 익명 로그인으로 접속해 읽기만 합니다.
 //
 // 필요한 환경변수(= GitHub Secrets):
@@ -28,10 +28,36 @@ function kstNow() {
 function ymd(d) {
   return d.toISOString().slice(0, 10);
 }
+// today는 이미 ymd(kstNow())로 뽑아낸 "KST 기준 날짜 문자열"입니다.
+// 여기서부터는 순수 달력 계산이라, Date를 UTC로만 다뤄서 실행 서버의 시간대(주로 UTC)에
+// 좌우되지 않게 합니다. 로컬 타임존 getter(getDay/getDate 등)를 쓰면 GitHub Actions가
+// UTC로 도는 특성상 자정 부근에서 요일/주 경계가 하루 밀릴 수 있습니다.
+function parseYMD(s) {
+  const [y, m, d] = s.split('-').map(Number);
+  return { y, m, d };
+}
+function dateFromYMD(s) {
+  const { y, m, d } = parseYMD(s);
+  return new Date(Date.UTC(y, m - 1, d));
+}
 function weekdayKo(dateStr) {
   const days = ['일', '월', '화', '수', '목', '금', '토'];
-  const d = new Date(dateStr + 'T00:00:00+09:00');
-  return days[d.getDay()];
+  return days[dateFromYMD(dateStr).getUTCDay()];
+}
+// 월요일 시작 기준 이번 주 범위. 보드 화면(mondayOf)과 동일한 기준입니다.
+function weekRange(today) {
+  const d = dateFromYMD(today);
+  const dow = (d.getUTCDay() + 6) % 7; // 월=0 ... 일=6
+  const start = new Date(d); start.setUTCDate(d.getUTCDate() - dow);
+  const end = new Date(start); end.setUTCDate(start.getUTCDate() + 7);
+  return { start: ymd(start), end: ymd(end) };
+}
+function monthRange(today) {
+  const { y, m } = parseYMD(today);
+  const start = `${y}-${String(m).padStart(2, '0')}-01`;
+  const nd = new Date(Date.UTC(y, m, 1)); // 다음 달 1일 (UTC)
+  const end = `${nd.getUTCFullYear()}-${String(nd.getUTCMonth() + 1).padStart(2, '0')}-01`;
+  return { start, end };
 }
 function won(n) {
   return (Math.round(n) || 0).toLocaleString('ko-KR') + '원';
@@ -94,6 +120,35 @@ async function queryByDate(projectId, token, collection, today) {
   return rows.filter((x) => x.document).map((x) => decodeDoc(x.document));
 }
 
+// date 필드가 [start, end) 범위인 문서만 가져오기. ISO(YYYY-MM-DD) 문자열은
+// 사전식 비교가 날짜 순서와 그대로 일치해서 범위 쿼리로 바로 씁니다.
+async function queryByDateRange(projectId, token, collection, start, end) {
+  const url = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents:runQuery`;
+  const body = {
+    structuredQuery: {
+      from: [{ collectionId: collection }],
+      where: {
+        compositeFilter: {
+          op: 'AND',
+          filters: [
+            { fieldFilter: { field: { fieldPath: 'date' }, op: 'GREATER_THAN_OR_EQUAL', value: { stringValue: start } } },
+            { fieldFilter: { field: { fieldPath: 'date' }, op: 'LESS_THAN', value: { stringValue: end } } },
+          ],
+        },
+      },
+      limit: 1000,
+    },
+  };
+  const r = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
+    body: JSON.stringify(body),
+  });
+  if (!r.ok) throw new Error(collection + ' 범위 조회 실패: ' + r.status + ' ' + (await r.text()));
+  const rows = await r.json();
+  return rows.filter((x) => x.document).map((x) => decodeDoc(x.document));
+}
+
 async function listAll(projectId, token, collection) {
   let docs = [], pageToken = '';
   do {
@@ -117,21 +172,35 @@ async function getDoc(projectId, token, path) {
 }
 
 // ---------- 집계 ----------
-function buildReport(today, data) {
-  const { visitors, calls, worklogs, lockers, categories } = data;
-
-  // 매출: 오늘 업무일지의 sales 맵 합산 + 카테고리별
-  const catTotals = {};
-  let salesTotal = 0;
+// 업무일지 목록의 sales 맵을 합산합니다 (오늘/이번 주/이번 달 공통으로 재사용).
+function sumSales(worklogs) {
+  const byCat = {};
+  let total = 0;
   worklogs.forEach((w) => {
     const s = w.sales || {};
     for (const k of Object.keys(s)) {
       const v = Number(s[k]) || 0;
-      catTotals[k] = (catTotals[k] || 0) + v;
-      salesTotal += v;
+      byCat[k] = (byCat[k] || 0) + v;
+      total += v;
     }
   });
-  const otToday = worklogs.reduce((a, w) => a + (Number(w.otCount) || 0), 0);
+  return { total, byCat };
+}
+function achievementLine(label, sales, target) {
+  const pct = target > 0 ? Math.round((sales.total / target) * 100) : null;
+  const suffix = pct === null ? '(목표 미설정)' : `(목표 ${won(target)} · ${pct}%)`;
+  return `${label}  *${won(sales.total)}* ${suffix}`;
+}
+
+function buildReport(today, data) {
+  const { visitors, calls, todayWorklogs, weekWorklogs, monthWorklogs, lockers, categories } = data;
+
+  const todaySales = sumSales(todayWorklogs);
+  const weekSales = sumSales(weekWorklogs);
+  const monthSales = sumSales(monthWorklogs);
+  const catTotals = todaySales.byCat;
+  const salesTotal = todaySales.total;
+  const otToday = todayWorklogs.reduce((a, w) => a + (Number(w.otCount) || 0), 0);
 
   // 방문/상담
   const registered = visitors.filter((v) => v.result === '등록완료').length;
@@ -143,7 +212,8 @@ function buildReport(today, data) {
   }).length;
   const expiring = lockers.filter((l) => l.lockerEnd && l.lockerEnd <= today).length;
 
-  // 목표 대비 (있으면)
+  // 목표 대비
+  const weekTarget = (categories || []).reduce((a, c) => a + (Number(c.weekTarget) || 0), 0);
   const monthTarget = (categories || []).reduce((a, c) => a + (Number(c.target) || 0), 0);
 
   // ---- 메시지 구성 ----
@@ -164,19 +234,18 @@ function buildReport(today, data) {
   L.push(`⏱️ OT        ${otToday}건`);
 
   // 특이사항 / 업무 요약
-  const notes = worklogs.map((w) => w.issues).filter(Boolean);
-  const summaries = worklogs.map((w) => w.summary).filter(Boolean);
+  const notes = todayWorklogs.map((w) => w.issues).filter(Boolean);
+  const summaries = todayWorklogs.map((w) => w.summary).filter(Boolean);
   if (notes.length) L.push(`⚠️ 특이사항   ${notes.join(' / ')}`);
   if (summaries.length) L.push(`📝 업무요약   ${summaries.join(' / ')}`);
 
-  if (worklogs.length === 0) {
+  if (todayWorklogs.length === 0) {
     L.push('');
     L.push('_※ 오늘 작성된 업무일지가 없어 매출은 0으로 표시됩니다._');
   }
-  if (monthTarget > 0) {
-    L.push('');
-    L.push(`🎯 이번 달 매출 목표 ${won(monthTarget)}`);
-  }
+  L.push('');
+  L.push(achievementLine('📅 이번 주 누계', weekSales, weekTarget));
+  L.push(achievementLine('🗓️ 이번 달 누계', monthSales, monthTarget));
 
   return L.join('\n');
 }
@@ -202,18 +271,23 @@ async function main() {
   if (!botToken || !chatId) throw new Error('TELEGRAM_BOT_TOKEN / TELEGRAM_CHAT_ID 가 설정되지 않았습니다.');
 
   const today = ymd(kstNow());
+  const week = weekRange(today);
+  const month = monthRange(today);
   const token = await signInAnonymously(apiKey);
 
-  const [visitors, calls, worklogs, lockers, catDoc] = await Promise.all([
+  const [visitors, calls, monthWorklogs, lockers, catDoc] = await Promise.all([
     queryByDate(projectId, token, 'visitors', today),
     queryByDate(projectId, token, 'inquiryCalls', today),
-    queryByDate(projectId, token, 'worklogs', today),
+    queryByDateRange(projectId, token, 'worklogs', month.start, month.end),
     listAll(projectId, token, 'lockers'),
     getDoc(projectId, token, 'settings/salesCategories'),
   ]);
 
+  const todayWorklogs = monthWorklogs.filter((w) => w.date === today);
+  const weekWorklogs = monthWorklogs.filter((w) => w.date >= week.start && w.date < week.end);
+
   const categories = catDoc && Array.isArray(catDoc.items) ? catDoc.items : [];
-  const text = buildReport(today, { visitors, calls, worklogs, lockers, categories });
+  const text = buildReport(today, { visitors, calls, todayWorklogs, weekWorklogs, monthWorklogs, lockers, categories });
 
   if (process.env.DRY_RUN === '1') {
     console.log('--- DRY RUN (전송 안 함) ---\n' + text);
