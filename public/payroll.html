@@ -89,14 +89,34 @@
   .emp-pick button{flex:1;min-width:90px;}
   .emp-pick button.selected{background:var(--accent);color:#fff;}
   ::placeholder{color:var(--ink-muted);opacity:.7;}
+
+  /* 급여명세서 인쇄(PDF 저장)용 — 화면에서는 안 보이고 인쇄할 때만 나옵니다. */
+  #payslip{display:none;}
+  @media print{
+    body{background:#fff;}
+    #app-root, #sync-badge{display:none !important;}
+    #payslip{display:block;color:#000;font-size:12px;padding:0;}
+    #payslip h1{font-size:20px;margin:0 0 4px;}
+    #payslip .ps-sub{color:#444;margin:0 0 18px;font-size:12px;}
+    #payslip h2{font-size:13px;margin:18px 0 6px;padding-bottom:4px;border-bottom:1px solid #000;}
+    #payslip table{width:100%;border-collapse:collapse;}
+    #payslip th, #payslip td{border:1px solid #999;padding:5px 7px;font-size:11px;text-align:left;}
+    #payslip th{background:#f0f0f0;}
+    #payslip td.num{text-align:right;font-variant-numeric:tabular-nums;}
+    #payslip .ps-total{margin-top:14px;border-top:2px solid #000;padding-top:8px;
+      display:flex;justify-content:space-between;font-size:15px;font-weight:700;}
+    #payslip .ps-foot{margin-top:26px;font-size:11px;color:#444;}
+    @page{margin:16mm;}
+  }
 </style>
 <div id="app-root"></div>
+<div id="payslip"></div>
 <script id="app-state" type="application/json">
 {
   "employees": [
     {"id":"gobumsu","name":"고범수","role":"manager","pinHash":"03ac674216f3e15c761ee1a5e255f067953623c8b388b4459e13f978d7c846f4","active":true,"supportAmount":0,"deductionRate":3.3,"brackets":[[15000000,3],[20000000,5],[25000000,7],[30000000,10]]},
     {"id":"leesaehan","name":"이새한","role":"trainer","pinHash":"03ac674216f3e15c761ee1a5e255f067953623c8b388b4459e13f978d7c846f4","active":true,"supportAmount":0,"deductionRate":3.3},
-    {"id":"choiminyoung","name":"최민영","role":"info","pinHash":"03ac674216f3e15c761ee1a5e255f067953623c8b388b4459e13f978d7c846f4","active":true,"hourlyWage":10320,"deductionRate":3.3,"schedule":"월~금 19:00~22:00(일 3시간), 주말·공휴일 휴무"}
+    {"id":"choiminyoung","name":"최민영","role":"info","pinHash":"03ac674216f3e15c761ee1a5e255f067953623c8b388b4459e13f978d7c846f4","active":true,"hourlyWage":10320,"pensionRate":4.5,"healthRate":3.545,"careRate":12.95,"schedule":"월~금 19:00~22:00(일 3시간), 주말·공휴일 휴무"}
   ],
   "adminPinHash": "888df25ae35772424a560c7152a1de794440e0ea5cfee62828333a456a506e05",
   "months": {}
@@ -171,7 +191,7 @@
     STATE.employees.forEach(function(emp){
       if (!m[emp.id]){
         if (emp.role === 'info'){
-          m[emp.id] = { status:'draft', holidays:'', absentDays:0, submittedAt:null, confirmedAt:null, hourlyWage: emp.hourlyWage, deductionRate: emp.deductionRate };
+          m[emp.id] = { status:'draft', holidays:'', absentDays:0, submittedAt:null, confirmedAt:null, hourlyWage: emp.hourlyWage, pensionRate:4.5, healthRate:3.545, careRate:12.95 };
         } else {
           m[emp.id] = { status:'draft', sessions:[], supportAmount: emp.supportAmount||0, deductionRate: emp.deductionRate||3.3, submittedAt:null, confirmedAt:null };
           if (emp.role === 'manager') m[emp.id].baseSalary = emp.baseSalary || 0;
@@ -311,10 +331,33 @@
     var restWeeks = Math.max(0, baseRestWeeks - holidayWeeks);
     var restPay = restWeeks*3*wage;
     var preTax = basePay+restPay;
-    var rate = monthData.deductionRate==null ? 3.3 : Number(monthData.deductionRate);
-    var deduction = Math.round(preTax*rate/100);
+
+    // 최민영(인포)은 사업소득 3.3%가 아니라 4대보험 가입자입니다.
+    // 다만 다른 직장이 주된 근무지라 고용보험은 그쪽에서 들고 있어 여기서는 빼고,
+    // 국민연금 · 건강보험 · 장기요양보험 3가지만 공제합니다.
+    // (산재보험은 전액 사업주 부담이라 급여에서 공제하지 않습니다.)
+    // 요율은 해마다 바뀌므로 관리자 화면에서 직접 고칠 수 있게 해 두었습니다.
+    var pensionRate = monthData.pensionRate==null ? 4.5 : Number(monthData.pensionRate);
+    var healthRate  = monthData.healthRate==null ? 3.545 : Number(monthData.healthRate);
+    var careRate    = monthData.careRate==null ? 12.95 : Number(monthData.careRate);
+    var pension = Math.round(preTax*pensionRate/100);
+    var health  = Math.round(preTax*healthRate/100);
+    var care    = Math.round(health*careRate/100);   // 장기요양보험은 건강보험료 기준
+    var deduction = pension + health + care;
     var net = preTax-deduction;
-    return {weekdayCount:weekdayCount, holidayCount:holidays.length, holidayWeeks:holidayWeeks, actualDays:actualDays, basePay:basePay, restWeeks:restWeeks, restPay:restPay, preTax:preTax, deductionRate:rate, deduction:deduction, net:net};
+    return {weekdayCount:weekdayCount, holidayCount:holidays.length, holidayWeeks:holidayWeeks,
+            actualDays:actualDays, basePay:basePay, restWeeks:restWeeks, restPay:restPay, preTax:preTax,
+            pensionRate:pensionRate, healthRate:healthRate, careRate:careRate,
+            pension:pension, health:health, care:care,
+            deduction:deduction, net:net};
+  }
+
+  // 인포(4대보험 중 3대보험) 공제 내역 표시
+  function insuranceKv(t){
+    return '<div class="kv"><div class="k" id="k-if-pension">국민연금 ('+t.pensionRate+'%)</div><div class="v" id="v-if-pension">-'+won(t.pension)+'</div></div>' +
+      '<div class="kv"><div class="k" id="k-if-health">건강보험 ('+t.healthRate+'%)</div><div class="v" id="v-if-health">-'+won(t.health)+'</div></div>' +
+      '<div class="kv"><div class="k" id="k-if-care">장기요양보험 (건강보험료의 '+t.careRate+'%)</div><div class="v" id="v-if-care">-'+won(t.care)+'</div></div>' +
+      '<p class="muted" style="margin:4px 0 0">고용보험은 기존 직장에서 가입되어 있어 제외합니다. 산재보험은 전액 사업주 부담입니다.</p>';
   }
 
   // ---------- 저장 상태 표시 ----------
@@ -523,6 +566,19 @@
     setText('v-if-hw', t.holidayWeeks+'주');
     setText('k-if-rest', '주휴수당 ('+t.restWeeks+'주)');
     setText('v-if-rest', won(t.restPay));
+    refreshInsuranceKv(t);
+  }
+
+  function refreshInsuranceKv(t){
+    setText('k-if-pension', '국민연금 ('+t.pensionRate+'%)');
+    setText('v-if-pension', '-'+won(t.pension));
+    setText('k-if-health', '건강보험 ('+t.healthRate+'%)');
+    setText('v-if-health', '-'+won(t.health));
+    setText('k-if-care', '장기요양보험 (건강보험료의 '+t.careRate+'%)');
+    setText('v-if-care', '-'+won(t.care));
+    setText('v-sum-pre', won(t.preTax));
+    setText('v-sum-ded', '-'+won(t.deduction));
+    setText('v-sum-net', won(t.net));
   }
 
   // 트레이너/인포 관리자 화면 전용 (매니저는 refreshManagerTotals 를 씁니다)
@@ -531,6 +587,8 @@
     if (emp.role==='info'){
       setText('v-ad-if-base', won(t.basePay));
       setText('v-ad-if-rest', won(t.restPay));
+      refreshInsuranceKv(t);
+      return;
     }
     setText('v-sum-pre', won(t.preTax));
     setText('k-sum-ded', '공제액 ('+t.deductionRate+'%)');
@@ -927,18 +985,16 @@
       '<div class="kv"><div class="k">기본급 (일 3시간)</div><div class="v" id="v-if-base">'+won(t.basePay)+'</div></div>' +
       '<div class="kv" id="kv-if-hw"'+(t.holidayWeeks>0?'':' style="display:none"')+'><div class="k">공휴일 포함으로 주휴수당 제외된 주</div><div class="v" id="v-if-hw">'+t.holidayWeeks+'주</div></div>' +
       '<div class="kv"><div class="k" id="k-if-rest">주휴수당 ('+t.restWeeks+'주)</div><div class="v" id="v-if-rest">'+won(t.restPay)+'</div></div>' +
-      (locked ? renderInfoConfirmedSummary(t) : '') +
+      '<div class="divider"></div>' +
+      '<div class="kv"><div class="k">공제 전 합계</div><div class="v" id="v-sum-pre">'+won(t.preTax)+'</div></div>' +
+      '<h4 style="margin:12px 0 6px">공제 (3대보험)</h4>' +
+      insuranceKv(t) +
+      '<div class="kv" style="margin-top:8px"><div class="k">공제액 합계</div><div class="v" id="v-sum-ded">-'+won(t.deduction)+'</div></div>' +
+      '<div class="kv"><div class="k" style="font-weight:700">지급 급여</div><div class="v" id="v-sum-net" style="color:var(--accent-strong);font-size:17px">'+won(t.net)+'</div></div>' +
       (locked ? '' : '<div class="row" style="margin-top:14px">' +
         '<button class="btn-ghost" id="save-draft-btn">임시저장</button>' +
         '<button class="btn-primary" id="submit-btn">제출하기</button>' +
       '</div>');
-  }
-
-  function renderInfoConfirmedSummary(t){
-    return '<div class="note" style="margin-top:10px">' +
-      '<div class="kv"><div class="k">공제액 ('+t.deductionRate+'%)</div><div class="v">-'+won(t.deduction)+'</div></div>' +
-      '<div class="kv"><div class="k" style="font-weight:700">지급 급여</div><div class="v" style="color:var(--accent-strong);font-size:16px">'+won(t.net)+'</div></div>' +
-    '</div>';
   }
 
   function renderEmployeeHistory(emp){
@@ -1125,9 +1181,17 @@
       html += '<div class="kv"><div class="k">기본급</div><div class="v" id="v-ad-if-base">'+won(t3.basePay)+'</div></div>';
       if (t3.holidayWeeks>0) html += '<div class="kv"><div class="k">공휴일 포함으로 주휴수당 제외된 주</div><div class="v">'+t3.holidayWeeks+'주</div></div>';
       html += '<div class="kv"><div class="k">주휴수당 ('+t3.restWeeks+'주)</div><div class="v" id="v-ad-if-rest">'+won(t3.restPay)+'</div></div>';
-      html += '<div class="col" style="margin-top:8px"><label>공제율(%)</label><input id="deduction-rate" type="number" step="0.1" value="'+t3.deductionRate+'" '+(locked?'disabled':'')+' style="width:100px"></div>';
       html += '<div class="divider"></div>';
-      html += summaryKv(t3.preTax, t3.deductionRate, t3.deduction, t3.net);
+      html += '<div class="kv"><div class="k">공제 전 합계</div><div class="v" id="v-sum-pre">'+won(t3.preTax)+'</div></div>';
+      html += '<h3 style="margin:14px 0 6px">공제 (4대보험 중 3대보험 · 고용보험 제외)</h3>';
+      html += '<div class="row">' +
+        '<div class="col"><label>국민연금(%)</label><input id="pension-rate" type="number" step="0.001" value="'+t3.pensionRate+'" '+(locked?'disabled':'')+' style="width:110px"></div>' +
+        '<div class="col"><label>건강보험(%)</label><input id="health-rate" type="number" step="0.001" value="'+t3.healthRate+'" '+(locked?'disabled':'')+' style="width:110px"></div>' +
+        '<div class="col"><label>장기요양(건강보험료의 %)</label><input id="care-rate" type="number" step="0.001" value="'+t3.careRate+'" '+(locked?'disabled':'')+' style="width:150px"></div>' +
+      '</div>';
+      html += insuranceKv(t3);
+      html += '<div class="kv" style="margin-top:8px"><div class="k">공제액 합계</div><div class="v" id="v-sum-ded">-'+won(t3.deduction)+'</div></div>';
+      html += '<div class="kv"><div class="k" style="font-weight:700">지급 급여</div><div class="v" id="v-sum-net" style="color:var(--accent-strong);font-size:17px">'+won(t3.net)+'</div></div>';
     }
 
     if (m.reopenLog && m.reopenLog.length){
@@ -1138,7 +1202,11 @@
     }
 
     if (m.status === 'confirmed'){
-      html += '<div class="row" style="margin-top:16px"><button class="btn-ghost" id="reopen-btn">확정 취소(재오픈)</button></div>';
+      html += '<div class="row" style="margin-top:16px">' +
+        '<button class="btn-primary" id="payslip-btn">급여명세서 PDF 저장</button>' +
+        '<button class="btn-ghost" id="reopen-btn">확정 취소(재오픈)</button>' +
+      '</div>';
+      html += '<p class="muted" style="margin:6px 0 0">인쇄 대화상자에서 대상(프린터)을 <strong>"PDF로 저장"</strong>으로 선택하면 파일로 내려받을 수 있습니다.</p>';
     } else if (m.status === 'submitted'){
       html += '<div class="row" style="margin-top:16px">' +
         '<button class="btn-primary" id="confirm-btn">확정하기</button>' +
@@ -1168,6 +1236,77 @@
       '<div class="col"><label>영업지원금</label><input id="support-amount" type="number" value="'+(m.supportAmount||0)+'" '+(locked?'disabled':'')+' style="width:140px"></div>' +
       '<div class="col"><label>공제율(%)</label><input id="deduction-rate" type="number" step="0.1" value="'+(m.deductionRate==null?3.3:m.deductionRate)+'" '+(locked?'disabled':'')+' style="width:100px"></div>' +
     '</div>';
+  }
+
+  // ---------- 급여명세서 (확정된 달만, 관리자 전용) ----------
+  // 별도 라이브러리 없이 브라우저 인쇄 기능을 씁니다. 인쇄 대화상자에서
+  // "PDF로 저장"을 고르면 그대로 PDF 파일로 내려받을 수 있습니다.
+  function payslipRows(rows){
+    return rows.map(function(r){
+      return '<tr><td>'+esc(r[0])+'</td><td class="num">'+(r[1]<0?'-':'')+won(Math.abs(r[1]))+'</td></tr>';
+    }).join('');
+  }
+
+  function buildPayslip(emp, m, monthKey){
+    var pay = [], ded = [], t;
+    if (emp.role==='manager'){
+      t = calcManagerTotals(emp, m);
+      pay.push(['① 수업료', t.feeTotal]);
+      pay.push(['② 기본급', t.baseSalary]);
+      pay.push(['③ 매출 인센티브 (매출 '+won(t.revenue)+' · 구간 '+t.rate+'%)', t.incentive]);
+      ded.push(['사업소득 원천징수 ('+t.deductionRate+'%)', t.deduction]);
+    } else if (emp.role==='trainer'){
+      t = calcTrainerTotals(m);
+      pay.push(['수업료 (당월 총매출 '+won(t.grossRevenue)+' · 요율 '+Math.round(t.rate*100)+'%)', t.baseFee]);
+      if (t.excess>0) pay.push(['700만원 초과분 인센티브 (10%)', t.excessIncentive]);
+      if (t.support) pay.push(['영업지원금', t.support]);
+      ded.push(['사업소득 원천징수 ('+t.deductionRate+'%)', t.deduction]);
+    } else {
+      t = calcInfoTotals(monthKey, m);
+      pay.push(['기본급 (실근무 '+t.actualDays+'일 × 3시간)', t.basePay]);
+      pay.push(['주휴수당 ('+t.restWeeks+'주)', t.restPay]);
+      ded.push(['국민연금 ('+t.pensionRate+'%)', t.pension]);
+      ded.push(['건강보험 ('+t.healthRate+'%)', t.health]);
+      ded.push(['장기요양보험 (건강보험료의 '+t.careRate+'%)', t.care]);
+    }
+
+    var html = '';
+    html += '<h1>급여명세서</h1>';
+    html += '<p class="ps-sub">M휘트니스 · '+monthKey+' 귀속 · 발행일 '+new Date().toLocaleDateString('ko-KR')+'</p>';
+    html += '<table><tbody>' +
+      '<tr><th style="width:120px">성명</th><td>'+esc(emp.name)+'</td>' +
+      '<th style="width:120px">구분</th><td>'+ROLE_LABEL[emp.role]+'</td></tr>' +
+      '<tr><th>지급 연월</th><td>'+monthKey+'</td><th>확정일</th><td>' +
+        (m.confirmedAt ? new Date(m.confirmedAt).toLocaleDateString('ko-KR') : '-') + '</td></tr>' +
+      '</tbody></table>';
+
+    html += '<h2>지급 내역</h2>';
+    html += '<table><thead><tr><th>항목</th><th style="width:160px;text-align:right">금액</th></tr></thead><tbody>' +
+      payslipRows(pay) +
+      '<tr><th>지급 합계</th><td class="num"><strong>'+won(t.preTax)+'</strong></td></tr>' +
+      '</tbody></table>';
+
+    html += '<h2>공제 내역</h2>';
+    html += '<table><thead><tr><th>항목</th><th style="width:160px;text-align:right">금액</th></tr></thead><tbody>' +
+      payslipRows(ded) +
+      '<tr><th>공제 합계</th><td class="num"><strong>'+won(t.deduction)+'</strong></td></tr>' +
+      '</tbody></table>';
+    if (emp.role==='info'){
+      html += '<p class="ps-foot">※ 고용보험은 타 사업장에서 가입되어 있어 제외하였으며, 산재보험은 전액 사업주가 부담합니다.</p>';
+    }
+
+    html += '<div class="ps-total"><span>실지급액</span><span>'+won(t.net)+'</span></div>';
+    html += '<p class="ps-foot">위와 같이 급여를 지급하였음을 확인합니다.<br>M휘트니스</p>';
+    return html;
+  }
+
+  function printPayslip(emp, m, monthKey){
+    var box = document.getElementById('payslip');
+    box.innerHTML = buildPayslip(emp, m, monthKey);
+    var prevTitle = document.title;
+    document.title = monthKey + '_' + emp.name + '_급여명세서';   // 저장 파일명 기본값
+    window.print();
+    document.title = prevTitle;
   }
 
   function summaryKv(preTax, rate, deduction, net){
@@ -1231,6 +1370,8 @@
       if (reopenBtn) reopenBtn.onclick = function(){
         reopenWithReason(m, 'confirmed', 'submitted', function(){ m.confirmedAt = null; });
       };
+      var payslipBtn = document.getElementById('payslip-btn');
+      if (payslipBtn) payslipBtn.onclick = function(){ printPayslip(emp, m, UI.month); };
       return;
     }
     if (m.status==='submitted'){
@@ -1279,9 +1420,13 @@
       if (dr) dr.oninput = function(){ m.deductionRate = Number(dr.value)||0; refreshAdminTotals(emp, m); };
     } else {
       var hw = document.getElementById('hourly-wage');
-      var dr2 = document.getElementById('deduction-rate');
       if (hw) hw.oninput = function(){ m.hourlyWage = Number(hw.value)||0; refreshAdminTotals(emp, m); };
-      if (dr2) dr2.oninput = function(){ m.deductionRate = Number(dr2.value)||0; refreshAdminTotals(emp, m); };
+      var pr = document.getElementById('pension-rate');
+      if (pr) pr.oninput = function(){ m.pensionRate = Number(pr.value)||0; refreshAdminTotals(emp, m); };
+      var hr = document.getElementById('health-rate');
+      if (hr) hr.oninput = function(){ m.healthRate = Number(hr.value)||0; refreshAdminTotals(emp, m); };
+      var cr2 = document.getElementById('care-rate');
+      if (cr2) cr2.oninput = function(){ m.careRate = Number(cr2.value)||0; refreshAdminTotals(emp, m); };
     }
     var confirmBtn = document.getElementById('confirm-btn');
     if (confirmBtn) confirmBtn.onclick = function(){
