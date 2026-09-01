@@ -629,10 +629,27 @@
 
   function logout(){ UI.session=null; UI.pickedEmp=null; UI.err=''; UI.pinChange=false; UI.loginTab='employee'; DRAFT={}; render(); }
 
+  function statusLabel(status){
+    return status==='confirmed' ? '확정됨' : (status==='submitted' ? '제출됨' : '미제출');
+  }
   function statusPill(status){
-    var label = status==='confirmed' ? '확정됨' : (status==='submitted' ? '제출됨' : '미제출');
     var cls = status==='confirmed' ? 'pill-confirmed' : (status==='submitted' ? 'pill-submitted' : 'pill-draft');
-    return '<span class="pill '+cls+'">'+label+'</span>';
+    return '<span class="pill '+cls+'">'+statusLabel(status)+'</span>';
+  }
+
+  // 제출(submitted) 이후에는 직원 화면이 잠깁니다. 관리자가 사유를 남기고
+  // 재오픈해야만 다시 열립니다 — 제출 후 임의로 계속 고쳐 쓰는 것을 막기 위함입니다.
+  function submittedNote(m){
+    if (m.status !== 'submitted') return '';
+    return '<p class="muted" style="margin:0 0 12px">제출 완료 · 관리자 확인 대기 중입니다. 확정되기 전까지 더 이상 수정할 수 없습니다. 고칠 내용이 있으면 관리자에게 재작성 요청을 부탁하세요.</p>';
+  }
+  function reopenNote(m){
+    if (m.status !== 'draft') return '';
+    var log = m.reopenLog;
+    if (!log || !log.length) return '';
+    var last = log[log.length-1];
+    if (last.to !== 'draft') return '';
+    return '<p class="muted" style="margin:0 0 12px;color:var(--accent-strong)">관리자가 재작성을 요청했습니다 ('+new Date(last.at).toLocaleString('ko-KR')+'): '+esc(last.reason)+'</p>';
   }
 
   // 해당 월에 실제로 입력된 내용이 있는지 (빈 껍데기 기록과 구분)
@@ -728,7 +745,7 @@
 
   function renderSessionForm(emp, m){
     var buf = DRAFT[emp.id] || (DRAFT[emp.id] = JSON.parse(JSON.stringify(m.sessions||[])));
-    var locked = m.status === 'confirmed';
+    var locked = m.status === 'confirmed' || m.status === 'submitted';
     var totals = emp.role==='manager' ? calcManagerTotals(emp, managerPreview(m, buf), UI.month) : calcTrainerTotals({sessions:buf});
     var trainerRate = emp.role==='trainer' ? totals.rate : null;
     var rows = buf.map(function(row, i){
@@ -752,6 +769,7 @@
       '</tr>';
     }).join('');
     return '' +
+      reopenNote(m) + submittedNote(m) +
       '<div class="table-wrap"><table><thead><tr>' +
         '<th>고객명</th><th>분류</th><th>계약세션</th><th>총결제금액</th><th>단가</th><th>전월까지</th><th>금월횟수</th><th>잔여</th><th>매출</th><th>요율</th><th>수업료</th>' +
         (emp.role==='manager'?'<th>개인매출</th>':'') + (locked?'':'<th></th>') +
@@ -793,9 +811,10 @@
 
   function renderInfoForm(emp, m, monthKey){
     var buf = DRAFT[emp.id] || (DRAFT[emp.id] = JSON.parse(JSON.stringify(m)));
-    var locked = m.status === 'confirmed';
+    var locked = m.status === 'confirmed' || m.status === 'submitted';
     var t = calcInfoTotals(monthKey, locked ? m : buf);
     return '' +
+      reopenNote(m) + submittedNote(m) +
       '<p class="muted">근무조건: '+esc(emp.schedule||'')+'</p>' +
       '<div class="row">' +
         '<div class="col"><label>이번 달 공휴일 날짜 (쉼표로 구분, 예: 2026-09-07,2026-09-08)</label><input id="info-holiday" type="text" placeholder="YYYY-MM-DD,YYYY-MM-DD" value="'+esc(buf.holidays||'')+'" '+(locked?'disabled':'')+' style="width:280px"></div>' +
@@ -865,7 +884,7 @@
     }
     ensureMonth(UI.month);
     var m = STATE.months[UI.month][emp.id];
-    if (m.status==='confirmed') return;
+    if (m.status==='confirmed' || m.status==='submitted') return;
 
     if (emp.role==='info'){
       var buf = DRAFT[emp.id];
@@ -909,6 +928,22 @@
     }
     if (submit){ m.status='submitted'; m.submittedAt = new Date().toISOString(); }
     persist();
+  }
+
+  // 관리자가 제출됨/확정됨 상태를 되돌릴 때는 반드시 사유를 남깁니다.
+  // (직원이 제출 후 임의로 계속 고쳐 쓰지 못하게 잠가둔 대신, 정말 고쳐야 할 때는
+  // 관리자가 이 사유와 함께 승인해야만 다시 열립니다.)
+  function reopenWithReason(m, fromStatus, toStatus, extra){
+    var reason = window.prompt('재오픈 사유를 입력해 주세요.'+(toStatus==='draft'?' (직원 화면에 표시됩니다)':''), '');
+    if (reason === null) return false;
+    reason = reason.trim();
+    if (!reason){ window.alert('재오픈 사유를 입력해야 합니다.'); return false; }
+    m.reopenLog = m.reopenLog || [];
+    m.reopenLog.push({ at: new Date().toISOString(), from: fromStatus, to: toStatus, reason: reason });
+    m.status = toStatus;
+    if (extra) extra();
+    persist();
+    return true;
   }
 
   // ---------- admin view ----------
@@ -1015,10 +1050,22 @@
       html += summaryKv(t3.preTax, t3.deductionRate, t3.deduction, t3.net);
     }
 
-    if (!locked){
-      html += '<div class="row" style="margin-top:16px"><button class="btn-primary" id="confirm-btn">확정하기</button></div>';
-    } else {
+    if (m.reopenLog && m.reopenLog.length){
+      html += '<div class="divider"></div><h3 style="margin:0 0 6px">재오픈 이력</h3>';
+      html += m.reopenLog.map(function(l){
+        return '<p class="muted" style="margin:2px 0">'+new Date(l.at).toLocaleString('ko-KR')+' · '+statusLabel(l.from)+' → '+statusLabel(l.to)+' — '+esc(l.reason)+'</p>';
+      }).join('');
+    }
+
+    if (m.status === 'confirmed'){
       html += '<div class="row" style="margin-top:16px"><button class="btn-ghost" id="reopen-btn">확정 취소(재오픈)</button></div>';
+    } else if (m.status === 'submitted'){
+      html += '<div class="row" style="margin-top:16px">' +
+        '<button class="btn-primary" id="confirm-btn">확정하기</button>' +
+        '<button class="btn-ghost" id="reject-btn">재작성 요청(직원에게 반려)</button>' +
+      '</div>';
+    } else {
+      html += '<div class="row" style="margin-top:16px"><button class="btn-primary" id="confirm-btn">확정하기</button></div>';
     }
     html += '</div>';
     return html;
@@ -1101,8 +1148,16 @@
     var m = STATE.months[UI.month][emp.id];
     if (m.status==='confirmed'){
       var reopenBtn = document.getElementById('reopen-btn');
-      if (reopenBtn) reopenBtn.onclick = function(){ m.status='submitted'; m.confirmedAt=null; persist(); };
+      if (reopenBtn) reopenBtn.onclick = function(){
+        reopenWithReason(m, 'confirmed', 'submitted', function(){ m.confirmedAt = null; });
+      };
       return;
+    }
+    if (m.status==='submitted'){
+      var rejectBtn = document.getElementById('reject-btn');
+      if (rejectBtn) rejectBtn.onclick = function(){
+        reopenWithReason(m, 'submitted', 'draft', function(){ m.submittedAt = null; });
+      };
     }
 
     if (emp.role==='manager'){
