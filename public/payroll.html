@@ -248,10 +248,14 @@
       var rate = categoryRate(row.category);
       totalFee += Math.round((Number(row.totalPaid)||0) * rate);
     });
-    // 인센티브 요율은 부가세가 포함된 센터 총매출(incentiveBase) 기준으로 판정·적용합니다.
+    // 센터 총매출은 기본적으로 운영 보드 worklogs 합계(자동)를 쓰지만, 그 달 집계가
+    // 안 맞거나 관리자가 실제 확정 매출로 바로잡아야 할 때는 관리자가 직접 숫자를
+    // 써넣어 자동값을 덮어쓸 수 있습니다 (monthData.centerRevenue).
+    // 인센티브 요율은 부가세가 포함된 이 금액 기준으로 판정·적용합니다.
     // 다만 그렇게 나온 금액에는 부가세 10%가 포함돼 있으므로, 실제 급여로 정산해주는
     // 금액은 그 10%를 제외한 금액(× 0.9)으로 낮춥니다.
-    var incentiveBase = centerRevenueOf(monthKey);
+    var autoRevenue = centerRevenueOf(monthKey);
+    var incentiveBase = (monthData.centerRevenue==null) ? autoRevenue : Number(monthData.centerRevenue);
     var brackets = (emp.brackets||[]).slice().sort(function(a,b){return a[0]-b[0];});
     var rate = 0;
     brackets.forEach(function(b){ if (incentiveBase >= b[0]) rate = b[1]; });
@@ -264,7 +268,7 @@
     var rate2 = monthData.deductionRate==null ? 3.3 : Number(monthData.deductionRate);
     var deduction = Math.round(preTax*rate2/100);
     var net = preTax - deduction;
-    return {totalFee:totalFee, incentiveBase:incentiveBase, rate:rate, autoIncentive:autoIncentive, autoIncentiveNet:autoIncentiveNet, finalIncentive:finalIncentive, baseSalary:baseSalary, support:support, preTax:preTax, deductionRate:rate2, deduction:deduction, net:net};
+    return {totalFee:totalFee, autoRevenue:autoRevenue, incentiveBase:incentiveBase, rate:rate, autoIncentive:autoIncentive, autoIncentiveNet:autoIncentiveNet, finalIncentive:finalIncentive, baseSalary:baseSalary, support:support, preTax:preTax, deductionRate:rate2, deduction:deduction, net:net};
   }
 
   // 이새한(트레이너): 당월 총매출 합계 기준 구간 요율을 매출 전체에 일괄 적용.
@@ -483,7 +487,7 @@
 
   function managerPreview(m, sessions){
     return { sessions: sessions, finalIncentive: m.finalIncentive, baseSalary: m.baseSalary,
-             supportAmount: m.supportAmount, deductionRate: m.deductionRate };
+             centerRevenue: m.centerRevenue, supportAmount: m.supportAmount, deductionRate: m.deductionRate };
   }
 
   function refreshSessionTotals(emp, m){
@@ -531,7 +535,7 @@
           : (emp.role==='trainer' ? calcTrainerTotals(m) : calcInfoTotals(UI.month, m));
     if (emp.role==='manager'){
       setText('v-ad-base-salary', won(t.baseSalary));
-      setText('v-ad-base', won(t.incentiveBase));
+      setText('v-ad-auto-revenue', won(t.autoRevenue));
       setText('k-ad-auto', '자동계산 총매출 인센티브 (부가세 포함, 참고값, '+t.rate+'%)');
       setText('v-ad-auto', won(t.autoIncentive));
       setText('v-ad-auto-net', won(t.autoIncentiveNet));
@@ -803,7 +807,7 @@
       '<div class="kv"><div class="k">이번 달 총수업료</div><div class="v" id="v-total-fee">'+won(totals.totalFee)+'</div></div>' +
       (emp.role==='manager' ? (
         (locked ? '<div class="kv"><div class="k">기본급</div><div class="v">'+won(totals.baseSalary)+'</div></div>' : '') +
-        '<div class="kv"><div class="k">센터 총매출 (이번 달, 운영 보드 기준 · 개인 실적과 무관)</div><div class="v" id="v-mg-base">'+won(totals.incentiveBase)+'</div></div>' +
+        '<div class="kv"><div class="k">센터 총매출 (이번 달, 운영 보드 기준 · 개인 실적과 무관 · 관리자가 조정할 수 있음)</div><div class="v" id="v-mg-base">'+won(totals.incentiveBase)+'</div></div>' +
         '<div class="kv"><div class="k">적용 구간 요율</div><div class="v" id="v-mg-rate">'+totals.rate+'%</div></div>' +
         '<div class="kv"><div class="k">매출구간 인센티브 (부가세 포함, 참고값)</div><div class="v muted" id="v-mg-amt-gross">'+won(totals.autoIncentive)+'</div></div>' +
         '<div class="kv"><div class="k">매출구간 인센티브 (부가세 제외, 실지급 기준)</div><div class="v" id="v-mg-amt">'+won(totals.autoIncentiveNet)+'</div></div>'
@@ -1029,8 +1033,9 @@
       var t = calcManagerTotals(emp, m, UI.month);
       html += '<div class="divider"></div>';
       html += '<div class="kv"><div class="k">기본급</div><div class="v" id="v-ad-base-salary">'+won(t.baseSalary)+'</div></div>';
-      html += '<div class="kv"><div class="k">수업료 (분류별 요율 적용)</div><div class="v">'+won(t.totalFee)+'</div></div>';
-      html += '<div class="kv"><div class="k">센터 총매출 (이번 달, 운영 보드 전체 · 개인 실적과 무관)</div><div class="v" id="v-ad-base">'+won(t.incentiveBase)+'</div></div>';
+      html += '<div class="kv"><div class="k">수업료 (분류별 요율 적용, 센터 총매출과는 완전히 별도로 정산)</div><div class="v">'+won(t.totalFee)+'</div></div>';
+      html += '<div class="kv"><div class="k">운영 보드 자동 집계 (참고, 매출·업무일지 합계)</div><div class="v" id="v-ad-auto-revenue">'+won(t.autoRevenue)+'</div></div>';
+      html += '<div class="col"><label>센터 총매출 (이번 달, 인센티브 산정 기준)</label><input id="center-revenue" type="number" inputmode="numeric" value="'+(m.centerRevenue==null?'':m.centerRevenue)+'" placeholder="비워두면 위 자동 집계값 사용" '+(locked?'disabled':'')+' style="width:200px"></div>';
       html += '<h3 style="margin-top:14px">매출 구간별 인센티브 요율</h3>';
       html += renderBracketEditor(emp, locked);
       html += '<div class="kv"><div class="k" id="k-ad-auto">자동계산 총매출 인센티브 (부가세 포함, 참고값, '+t.rate+'%)</div><div class="v" id="v-ad-auto">'+won(t.autoIncentive)+'</div></div>';
@@ -1218,6 +1223,8 @@
       if (fi) fi.oninput = function(){ m.finalIncentive = fi.value === '' ? null : Number(fi.value); refreshAdminTotals(emp, m); };
       var bs = document.getElementById('base-salary');
       if (bs) bs.oninput = function(){ m.baseSalary = Number(bs.value)||0; refreshAdminTotals(emp, m); };
+      var cr = document.getElementById('center-revenue');
+      if (cr) cr.oninput = function(){ m.centerRevenue = cr.value === '' ? null : Number(cr.value); refreshAdminTotals(emp, m); };
     }
     if (emp.role !== 'info'){
       var sa = document.getElementById('support-amount');
