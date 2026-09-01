@@ -52,6 +52,21 @@ function weekRange(today) {
   const end = new Date(start); end.setUTCDate(start.getUTCDate() + 7);
   return { start: ymd(start), end: ymd(end) };
 }
+// 주차 기준은 보드 화면과 동일: 그 주 월요일이 속한 달의 몇 번째 주(1~5)
+const WEEK_SLOTS = 5;
+function weekOfMonthIndex(today) {
+  const mondayStr = weekRange(today).start;
+  const { d } = parseYMD(mondayStr);
+  return Math.min(WEEK_SLOTS, Math.floor((d - 1) / 7) + 1);
+}
+// 1~5주차 배열이 있으면 이번 주차 값을, 없으면 예전 단일 weekTarget 값을 씁니다.
+function currentWeekTarget(item, today) {
+  if (Array.isArray(item.weekTargets)) {
+    return Number(item.weekTargets[weekOfMonthIndex(today) - 1]) || 0;
+  }
+  return Number(item.weekTarget) || 0;
+}
+
 function monthRange(today) {
   const { y, m } = parseYMD(today);
   const start = `${y}-${String(m).padStart(2, '0')}-01`;
@@ -233,7 +248,7 @@ function buildReport(today, data) {
   const expiring = lockers.filter((l) => l.lockerEnd && l.lockerEnd <= today).length;
 
   // 목표 대비
-  const weekTarget = (categories || []).reduce((a, c) => a + (Number(c.weekTarget) || 0), 0);
+  const weekTarget = (categories || []).reduce((a, c) => a + currentWeekTarget(c, today), 0);
   const monthTarget = (categories || []).reduce((a, c) => a + (Number(c.target) || 0), 0);
 
   // ---- 메시지 구성 ----
@@ -324,7 +339,7 @@ async function main() {
   const categories = catDoc && Array.isArray(catDoc.items) ? catDoc.items : [];
   const trainers = trainerDoc && Array.isArray(trainerDoc.items) ? trainerDoc.items : [];
   const otTarget = trainers.reduce((a, t) => a + (Number(t.target) || 0), 0);
-  const otWeekTarget = trainers.reduce((a, t) => a + (Number(t.weekTarget) || 0), 0);
+  const otWeekTarget = trainers.reduce((a, t) => a + currentWeekTarget(t, today), 0);
   const text = buildReport(today, { visitors, calls, todayWorklogs, weekWorklogs, monthWorklogs, lockers, categories, todayOt, weekOt, monthOt, otTarget, otWeekTarget });
 
   if (process.env.DRY_RUN === '1') {

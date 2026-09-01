@@ -165,6 +165,14 @@
   .meter-fill.warn { background: var(--warn); }
   .meter-fill.critical { background: var(--danger); }
 
+  .link-btn.danger { color: var(--danger); }
+  .week-target-row { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin: 0 0 14px 0; padding-left: 2px; }
+  .week-target-row .wt-label { font-size: 11px; color: var(--text-faint); margin-right: 4px; }
+  .week-target-row label { display: flex; flex-direction: column; gap: 2px; font-size: 10.5px; color: var(--text-faint); }
+  .week-target-row input { width: 96px; padding: 6px 8px; font-size: 12.5px; }
+  .week-target-row label.current-week input { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-bg, rgba(43,76,140,.12)); }
+  .week-target-row label.current-week { color: var(--accent); font-weight: 700; }
+
   .stat-cards { display: flex; flex-wrap: wrap; gap: 12px; margin: 14px 0 20px; }
   .stat-card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; display: flex; flex-direction: column; gap: 8px; flex: 1 1 200px; min-width: 180px; }
   .stat-card h3 { margin: 0; font-size: 13px; font-weight: 700; }
@@ -275,8 +283,8 @@
 
   .sub-heading { font-size: 14px; font-weight: 700; color: var(--text); margin: 0 0 12px; }
 
-  .cat-editor-row { display: grid; grid-template-columns: 1fr 130px 130px 40px; gap: 8px; align-items: center; margin-bottom: 8px; }
-  .cat-editor-head { display: grid; grid-template-columns: 1fr 130px 130px 40px; gap: 8px; margin-bottom: 4px; font-size: 11px; color: var(--text-faint); }
+  .cat-editor-row { display: grid; grid-template-columns: 1fr 130px 40px; gap: 8px; align-items: center; margin-bottom: 8px; }
+  .cat-editor-head { display: grid; grid-template-columns: 1fr 130px 40px; gap: 8px; margin-bottom: 4px; font-size: 11px; color: var(--text-faint); }
   .worklog-detail-row td { background: var(--surface-2); padding: 10px 14px; font-size: 12.5px; color: var(--text-muted); }
   .worklog-detail-row .detail-line { display: flex; justify-content: space-between; max-width: 320px; padding: 2px 0; }
   tr.worklog-row { cursor: pointer; }
@@ -324,6 +332,7 @@
     <button type="button" class="tab-btn" data-tab="calls">문의DB</button>
     <button type="button" class="tab-btn" data-tab="worklog">매출·업무일지</button>
     <button type="button" class="tab-btn" data-tab="ot">OT 관리</button>
+    <button type="button" class="tab-btn" data-tab="meetings">회의록</button>
     <button type="button" class="tab-btn" data-tab="lockers">사물함 정리</button>
   </nav>
 
@@ -476,7 +485,7 @@
         </div>
         <div class="table-wrap">
           <table>
-            <thead><tr><th>날짜</th><th>이름</th><th>휴대폰</th><th>메모</th><th>담당자</th></tr></thead>
+            <thead><tr><th>날짜</th><th>이름</th><th>휴대폰</th><th>메모</th><th>담당자</th><th></th></tr></thead>
             <tbody id="callBody"></tbody>
           </table>
           <p class="empty-state" id="callEmpty" hidden>아직 등록된 문의 전화 기록이 없습니다.</p>
@@ -500,12 +509,15 @@
     </div>
     <div id="worklogContent">
     <div class="list-header">
-      <h2 style="font-size:16px;">매출 카테고리 · 월 목표</h2>
+      <h2 style="font-size:16px;">매출 카테고리 · 월/주차 목표</h2>
       <button type="button" class="link-btn" id="catEditBtn">카테고리·목표 수정</button>
     </div>
     <p class="panel-sub" id="catSummaryText" style="margin-bottom:14px;">불러오는 중…</p>
 
     <div class="panel" id="catEditPanel" hidden style="margin-bottom:20px;">
+      <p class="panel-sub" style="margin-top:0;">1~5주차 목표를 미리 입력해두면, 매주 해당 주차 목표가 자동으로 적용됩니다.
+        (주차 기준: 그 주 <strong>월요일</strong>이 속한 달의 몇 번째 주)</p>
+      <div class="cat-editor-head"><span>카테고리명</span><span>월 목표</span><span></span></div>
       <div id="catEditorRows"></div>
       <button type="button" class="submit-btn ghost small" id="catAddBtn" style="margin-bottom:12px;">+ 카테고리 추가</button>
       <div class="edit-inline">
@@ -577,7 +589,7 @@
       <p class="panel-sub" style="margin:-6px 0 10px;">행을 클릭하면 카테고리별 매출 내역을 볼 수 있습니다</p>
       <div class="table-wrap">
         <table>
-          <thead><tr><th></th><th>날짜</th><th>당일 매출합계</th><th>특이사항</th><th>핵심 업무 요약</th></tr></thead>
+          <thead><tr><th></th><th>날짜</th><th>당일 매출합계</th><th>특이사항</th><th>핵심 업무 요약</th><th></th></tr></thead>
           <tbody id="worklogBody"></tbody>
         </table>
         <p class="empty-state" id="worklogEmpty" hidden>아직 등록된 업무일지가 없습니다.</p>
@@ -637,7 +649,9 @@
     </div>
 
     <div class="panel" id="otTrainerEditPanel" hidden style="margin-bottom:20px;">
-      <div class="cat-editor-head"><span>트레이너명</span><span>월 목표(건)</span><span>주 목표(건)</span><span></span></div>
+      <p class="panel-sub" style="margin-top:0;">1~5주차 목표를 미리 입력해두면, 매주 해당 주차 목표가 자동으로 적용됩니다.
+        (주차 기준: 그 주 <strong>월요일</strong>이 속한 달의 몇 번째 주)</p>
+      <div class="cat-editor-head"><span>트레이너명</span><span>월 목표(건)</span><span></span></div>
       <div id="otTrainerEditorRows"></div>
       <button type="button" class="submit-btn ghost small" id="otTrainerAddBtn" style="margin-bottom:12px;">+ 트레이너 추가</button>
       <div class="edit-inline">
@@ -697,10 +711,60 @@
         </div>
         <div class="table-wrap">
           <table>
-            <thead><tr><th>날짜</th><th>트레이너</th><th>고객명</th><th>연락처</th><th>회차</th><th>진행상황</th><th>전환여부</th><th>메모</th></tr></thead>
+            <thead><tr><th>날짜</th><th>트레이너</th><th>고객명</th><th>연락처</th><th>회차</th><th>진행상황</th><th>전환여부</th><th>메모</th><th></th></tr></thead>
             <tbody id="otBody"></tbody>
           </table>
           <p class="empty-state" id="otEmpty" hidden>아직 등록된 OT 진행 내역이 없습니다.</p>
+        </div>
+      </section>
+    </div>
+  </section>
+
+
+  <!-- ===================== 회의록 ===================== -->
+  <section class="tab-panel" id="tab-meetings" hidden>
+    <div class="kpi-row cols-3">
+      <div class="stat-tile"><span class="stat-tile-label">이번 달 회의</span><span class="stat-tile-value" id="mMonthCount">–</span><span class="goal-sub">건</span></div>
+      <div class="stat-tile"><span class="stat-tile-label">대표–매니저</span><span class="stat-tile-value" id="mTypeA">–</span><span class="goal-sub">이번 달</span></div>
+      <div class="stat-tile"><span class="stat-tile-label">매니저–직원</span><span class="stat-tile-value" id="mTypeB">–</span><span class="goal-sub">이번 달</span></div>
+    </div>
+
+    <div class="layout">
+      <section class="panel">
+        <h2>회의록 작성</h2>
+        <p class="panel-sub">주간 회의 내용을 기록해 두면 지난 회의도 언제든 다시 열어볼 수 있습니다</p>
+        <form id="meetingForm">
+          <label>회의 날짜<input type="date" id="mDate" required></label>
+          <div class="field-block">
+            <span class="field-label">회의 종류</span>
+            <div class="chip-group" id="mTypeChips"></div>
+          </div>
+          <div class="field-block"><span class="field-label">참석자</span><input type="text" id="mAttendees" placeholder="예: 대표, 고범수 매니저" autocomplete="off"></div>
+          <label>안건 · 논의 내용<textarea id="mAgenda" rows="4" placeholder="이번 주 회의에서 다룬 내용"></textarea></label>
+          <label>결정 사항<textarea id="mDecisions" rows="3" placeholder="회의에서 확정된 내용"></textarea></label>
+          <label>다음 액션 (할 일)<textarea id="mActions" rows="3" placeholder="누가 · 무엇을 · 언제까지"></textarea></label>
+          <div class="field-block"><span class="field-label">작성자</span><input type="text" id="mAuthor" list="staffList" placeholder="작성자명" autocomplete="off"></div>
+          <button type="submit" class="submit-btn" id="meetingSubmitBtn">저장하기</button>
+          <p class="form-status" id="meetingStatus" aria-live="polite"></p>
+        </form>
+      </section>
+
+      <section class="panel">
+        <div class="list-header">
+          <h2>회의록 목록</h2>
+          <div class="filters">
+            <select id="mFilterMonth"></select>
+            <select id="mFilterType"><option value="all">전체 종류</option></select>
+            <input type="text" id="mFilterSearch" placeholder="안건·결정사항 검색">
+          </div>
+        </div>
+        <p class="panel-sub" style="margin:-6px 0 10px;">행을 클릭하면 회의 전문(안건·결정사항·액션)이 펼쳐집니다</p>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th></th><th>날짜</th><th>종류</th><th>참석자</th><th>작성자</th><th></th></tr></thead>
+            <tbody id="meetingBody"></tbody>
+          </table>
+          <p class="empty-state" id="meetingEmpty" hidden>아직 작성된 회의록이 없습니다.</p>
         </div>
       </section>
     </div>
@@ -779,10 +843,10 @@
   var CONSULT_TYPES = ['네이버예약', '전화문의', '방문(워크인)', '기타 카톡/메시지'];
   var RESULTS = ['상담/예약 대기', '등록완료', '등록보류', '예약취소/노쇼'];
   var DEFAULT_CATEGORIES = [
-    { name: '고범수 매니저 (PT)', target: 3000000, weekTarget: 700000 },
-    { name: '이새한 트레이너 (PT)', target: 1000000, weekTarget: 230000 },
-    { name: '워크인 및 상담 (PT)', target: 3000000, weekTarget: 700000 },
-    { name: '퍼블릭 (헬스 회원권)', target: 13000000, weekTarget: 3000000 }
+    { name: '고범수 매니저 (PT)', target: 3000000, weekTargets: [700000, 700000, 700000, 700000, 200000] },
+    { name: '이새한 트레이너 (PT)', target: 1000000, weekTargets: [230000, 230000, 230000, 230000, 80000] },
+    { name: '워크인 및 상담 (PT)', target: 3000000, weekTargets: [700000, 700000, 700000, 700000, 200000] },
+    { name: '퍼블릭 (헬스 회원권)', target: 13000000, weekTargets: [3000000, 3000000, 3000000, 3000000, 1000000] }
   ];
   var FOCUS_TYPES = ['프로모션', '이벤트', '중점사항'];
   var LOCKER_SECTIONS = ['여탈의실', '남탈의실'];
@@ -792,15 +856,16 @@
   var WORKLOG_PASSWORD = '5631';
 
   var DEFAULT_OT_TRAINERS = [
-    { name: '고범수 매니저', target: 10, weekTarget: 3 },
-    { name: '이새한 트레이너', target: 20, weekTarget: 5 }
+    { name: '고범수 매니저', target: 10, weekTargets: [3, 3, 2, 2, 0] },
+    { name: '이새한 트레이너', target: 20, weekTargets: [5, 5, 5, 5, 0] }
   ];
   var OT_STATUS = ['예약', '진행중', '완료', '노쇼/취소'];
   var OT_CONVERTED = ['미정', '전환완료', '미전환'];
   var OT_ROUNDS = ['1회차', '2회차', '3회차', '4회차 이상'];
+  var MEETING_TYPES = ['대표-매니저', '매니저-직원'];
 
   var db = null;
-  var visitors = [], calls = [], worklogs = [], lockers = [], otSessions = [];
+  var visitors = [], calls = [], worklogs = [], lockers = [], otSessions = [], meetings = [];
   var categories = DEFAULT_CATEGORIES.slice();
   var otTrainers = DEFAULT_OT_TRAINERS.slice();
   var monthlyFocus = [];
@@ -868,6 +933,9 @@
   });
   var lSectionChips = setupChips($('lSectionChips'), '여탈의실');
 
+  buildChips($('mTypeChips'), MEETING_TYPES, true);
+  var meetingTypeChips = setupChips($('mTypeChips'), MEETING_TYPES[0]);
+
   // filter dropdown population
   CHANNELS.forEach(function (c) { var o = document.createElement('option'); o.value = c; o.textContent = c; $('vFilterChannel').appendChild(o); });
   RESULTS.forEach(function (r) { var o = document.createElement('option'); o.value = r; o.textContent = r; $('vFilterResult').appendChild(o); });
@@ -917,7 +985,68 @@
     else fillEl.classList.add('critical');
   }
 
-  // ---- 원형 달성률 게이지 (카테고리·트레이너별 "한눈에 보기" 카드용) ----
+  // ---- 목록 항목 삭제 ----
+  function deleteRecord(collection, id, label) {
+    if (!db) { window.alert('데이터베이스에 연결되어 있지 않습니다.'); return; }
+    if (!window.confirm(label + '\n\n이 기록을 삭제할까요? 되돌릴 수 없습니다.')) return;
+    db.collection(collection).doc(id).delete().catch(function () { window.alert('삭제에 실패했습니다.'); });
+  }
+  function deleteBtn(collection, id, label) {
+    var b = document.createElement('button');
+    b.type = 'button'; b.className = 'link-btn danger'; b.textContent = '삭제';
+    b.addEventListener('click', function (ev) { ev.stopPropagation(); deleteRecord(collection, id, label); });
+    return b;
+  }
+
+  // ---- 주차별 목표 (1~5주차를 미리 입력해두고, 이번 주에 해당하는 값만 자동으로 사용) ----
+  // 주차 기준: 그 주 "월요일"이 속한 달의 몇 번째 주인지 (월~일 주간 집계 범위와 같은 기준)
+  var WEEK_SLOTS = 5;
+  function weekOfMonthIndex(d) {
+    var monday = mondayOf(d || new Date());
+    return Math.min(WEEK_SLOTS, Math.floor((monday.getDate() - 1) / 7) + 1);
+  }
+  function normalizeWeekTargets(item) {
+    var arr;
+    if (Array.isArray(item.weekTargets)) {
+      arr = item.weekTargets.slice(0, WEEK_SLOTS).map(function (v) { return Number(v) || 0; });
+    } else {
+      // 예전 방식(주 목표 1개)으로 저장된 데이터는 5주 모두 같은 값으로 봅니다.
+      var legacy = Number(item.weekTarget) || 0;
+      arr = [legacy, legacy, legacy, legacy, legacy];
+    }
+    while (arr.length < WEEK_SLOTS) arr.push(0);
+    return arr;
+  }
+  function currentWeekTarget(item) {
+    return normalizeWeekTargets(item)[weekOfMonthIndex() - 1] || 0;
+  }
+  function weekTargetInputsRow(item, idxAttr) {
+    var wrap = document.createElement('div'); wrap.className = 'week-target-row';
+    var lab = document.createElement('span'); lab.className = 'wt-label'; lab.textContent = '주차별 목표';
+    wrap.appendChild(lab);
+    var values = normalizeWeekTargets(item);
+    var cur = weekOfMonthIndex();
+    for (var w = 1; w <= WEEK_SLOTS; w++) {
+      var l = document.createElement('label');
+      if (w === cur) l.className = 'current-week';
+      var cap = document.createElement('span'); cap.textContent = w + '주차' + (w === cur ? ' (이번 주)' : '');
+      var inp = document.createElement('input');
+      inp.type = 'number'; inp.min = '0'; inp.value = values[w - 1];
+      inp.setAttribute('data-idx', idxAttr); inp.setAttribute('data-week', w);
+      l.appendChild(cap); l.appendChild(inp); wrap.appendChild(l);
+    }
+    return wrap;
+  }
+  function readWeekTargets(container, idxAttr) {
+    var out = [];
+    for (var w = 1; w <= WEEK_SLOTS; w++) {
+      var el = container.querySelector('[data-idx="' + idxAttr + '"][data-week="' + w + '"]');
+      out.push(el ? (Number(el.value) || 0) : 0);
+    }
+    return out;
+  }
+
+  // ---- 원형 달성률 게이지 (카테고리별 "한눈에 보기" 카드용) ----
   function ringSVG(pct) {
     var p = pct === null ? 0 : Math.max(0, Math.min(100, pct));
     var r = 24, c = 2 * Math.PI * r;
@@ -1096,6 +1225,7 @@
         var editBtn = document.createElement('button'); editBtn.type = 'button'; editBtn.className = 'link-btn'; editBtn.textContent = '수정';
         editBtn.addEventListener('click', function () { startEditVisitor(e._id); });
         tdAction.appendChild(editBtn);
+        tdAction.appendChild(deleteBtn('visitors', e._id, (e.date || '') + ' ' + (e.customer || '방문자 기록')));
       }
 
       tr.appendChild(tdResult); tr.appendChild(tdProduct); tr.appendChild(tdAmount); tr.appendChild(tdStaff); tr.appendChild(tdAction);
@@ -1179,6 +1309,9 @@
         td.textContent = v;
         tr.appendChild(td);
       });
+      var tdDel = document.createElement('td'); tdDel.className = 'nowrap';
+      tdDel.appendChild(deleteBtn('inquiryCalls', e._id, (e.date || '') + ' ' + (e.name || e.phone || '문의 전화')));
+      tr.appendChild(tdDel);
       body.appendChild(tr);
     });
 
@@ -1315,6 +1448,7 @@
         var editBtn = document.createElement('button'); editBtn.type = 'button'; editBtn.className = 'link-btn'; editBtn.textContent = '수정';
         editBtn.addEventListener('click', function () { startEditLocker(e._id); });
         tdAction.appendChild(editBtn);
+        tdAction.appendChild(deleteBtn('lockers', e._id, (e.name || '사물함 기록') + ' ' + (e.section || '')));
       }
 
       tr.appendChild(tdSection); tr.appendChild(tdMEnd); tr.appendChild(tdLEnd);
@@ -1359,10 +1493,9 @@
       if (!otTrainers[i]) return;
       var nameEl = row.querySelector('[data-field="name"]');
       var targetEl = row.querySelector('[data-field="target"]');
-      var weekTargetEl = row.querySelector('[data-field="weekTarget"]');
       if (nameEl) otTrainers[i].name = nameEl.value;
       if (targetEl) otTrainers[i].target = Number(targetEl.value) || 0;
-      if (weekTargetEl) otTrainers[i].weekTarget = Number(weekTargetEl.value) || 0;
+      otTrainers[i].weekTargets = readWeekTargets($('otTrainerEditorRows'), i);
     });
   }
 
@@ -1375,18 +1508,18 @@
       nameInput.setAttribute('data-idx', i); nameInput.setAttribute('data-field', 'name');
       var targetInput = document.createElement('input'); targetInput.type = 'number'; targetInput.min = '0'; targetInput.step = '1'; targetInput.value = t.target; targetInput.placeholder = '월 목표(건)';
       targetInput.setAttribute('data-idx', i); targetInput.setAttribute('data-field', 'target');
-      var weekTargetInput = document.createElement('input'); weekTargetInput.type = 'number'; weekTargetInput.min = '0'; weekTargetInput.step = '1'; weekTargetInput.value = t.weekTarget || 0; weekTargetInput.placeholder = '주 목표(건)';
-      weekTargetInput.setAttribute('data-idx', i); weekTargetInput.setAttribute('data-field', 'weekTarget');
+
       var delBtn = document.createElement('button'); delBtn.type = 'button'; delBtn.className = 'icon-btn'; delBtn.textContent = '×';
       delBtn.addEventListener('click', function () { syncOtTrainerEditorToArray(); otTrainers.splice(i, 1); renderOtTrainerEditor(); });
-      row.appendChild(nameInput); row.appendChild(targetInput); row.appendChild(weekTargetInput); row.appendChild(delBtn);
+      row.appendChild(nameInput); row.appendChild(targetInput); row.appendChild(delBtn);
       wrap.appendChild(row);
+      wrap.appendChild(weekTargetInputsRow(t, i));
     });
   }
 
   $('otTrainerEditBtn').addEventListener('click', function () { renderOtTrainerEditor(); $('otTrainerEditPanel').hidden = false; });
   $('otTrainerCancelBtn').addEventListener('click', function () { $('otTrainerEditPanel').hidden = true; });
-  $('otTrainerAddBtn').addEventListener('click', function () { syncOtTrainerEditorToArray(); otTrainers.push({ name: '새 트레이너', target: 0, weekTarget: 0 }); renderOtTrainerEditor(); });
+  $('otTrainerAddBtn').addEventListener('click', function () { syncOtTrainerEditorToArray(); otTrainers.push({ name: '새 트레이너', target: 0, weekTargets: [0, 0, 0, 0, 0] }); renderOtTrainerEditor(); });
   $('otTrainerSaveBtn').addEventListener('click', function () {
     if (!db) { setFormStatus('otTrainerStatus', '데이터베이스에 연결되어 있지 않습니다.', 'error'); return; }
     var rows = $('otTrainerEditorRows').querySelectorAll('.cat-editor-row');
@@ -1394,9 +1527,9 @@
     rows.forEach(function (row) {
       var nameEl = row.querySelector('[data-field="name"]');
       var targetEl = row.querySelector('[data-field="target"]');
-      var weekTargetEl = row.querySelector('[data-field="weekTarget"]');
       var name = nameEl.value.trim();
-      if (name) next.push({ name: name, target: Number(targetEl.value) || 0, weekTarget: Number(weekTargetEl.value) || 0 });
+      var idx = Number(nameEl.getAttribute('data-idx'));
+      if (name) next.push({ name: name, target: Number(targetEl.value) || 0, weekTargets: readWeekTargets($('otTrainerEditorRows'), idx) });
     });
     if (next.length === 0) { setFormStatus('otTrainerStatus', '트레이너를 1명 이상 입력해 주세요.', 'error'); return; }
     $('otTrainerSaveBtn').disabled = true;
@@ -1484,6 +1617,9 @@
       tdConverted.appendChild(convSel); tr.appendChild(tdConverted);
 
       var tdNote = document.createElement('td'); tdNote.textContent = e.note || '-'; tr.appendChild(tdNote);
+      var tdOtDel = document.createElement('td'); tdOtDel.className = 'nowrap';
+      tdOtDel.appendChild(deleteBtn('otSessions', e._id, (e.date || '') + ' ' + (e.customer || '') + ' ' + (e.round || '')));
+      tr.appendChild(tdOtDel);
       body.appendChild(tr);
     });
   }
@@ -1529,7 +1665,7 @@
     var weekStat = otAchievement(weekSessions);
 
     var goalTotal = otTrainers.reduce(function (s, t) { return s + (Number(t.target) || 0); }, 0);
-    var weekGoalTotal = otTrainers.reduce(function (s, t) { return s + (Number(t.weekTarget) || 0); }, 0);
+    var weekGoalTotal = otTrainers.reduce(function (s, t) { return s + currentWeekTarget(t); }, 0);
 
     $('otGoalTotal').textContent = goalTotal > 0 ? (goalTotal.toLocaleString('ko-KR') + '건') : '목표 미설정';
     $('otAchievedTotal').textContent = monthStat.achieved.toLocaleString('ko-KR') + '명';
@@ -1553,7 +1689,8 @@
       var mStat = otAchievement(monthSessions.filter(function (e) { return e.trainer === t.name; }));
       var wStat = otAchievement(weekSessions.filter(function (e) { return e.trainer === t.name; }));
       var tRate = pctOf(mStat.achieved, Number(t.target) || 0);
-      var wRate = pctOf(wStat.achieved, Number(t.weekTarget) || 0);
+      var tWeekTarget = currentWeekTarget(t);
+      var wRate = pctOf(wStat.achieved, tWeekTarget);
       var cRate = pctOf(mStat.converted, mStat.decided);
 
       var tr = document.createElement('tr');
@@ -1562,7 +1699,7 @@
       var tdAch = document.createElement('td'); tdAch.className = 'num'; tdAch.textContent = mStat.achieved + '명'; tr.appendChild(tdAch);
       var tdRate = document.createElement('td'); tdRate.className = 'num'; appendPctBadge(tdRate, tRate); tr.appendChild(tdRate);
 
-      var tdWGoal = document.createElement('td'); tdWGoal.className = 'num'; tdWGoal.textContent = Number(t.weekTarget) > 0 ? (t.weekTarget + '건') : '-'; tr.appendChild(tdWGoal);
+      var tdWGoal = document.createElement('td'); tdWGoal.className = 'num'; tdWGoal.textContent = tWeekTarget > 0 ? (tWeekTarget + '건') : '-'; tr.appendChild(tdWGoal);
       var tdWAch = document.createElement('td'); tdWAch.className = 'num'; tdWAch.textContent = wStat.achieved + '명'; tr.appendChild(tdWAch);
 
       var tdConv = document.createElement('td'); tdConv.className = 'num'; tdConv.textContent = mStat.converted + '명'; tr.appendChild(tdConv);
@@ -1571,7 +1708,7 @@
 
       cardsWrap.appendChild(statCard(t.name, [
         ringItem(tRate, '월', mStat.achieved + '명 / ' + (Number(t.target) > 0 ? t.target + '건' : '목표 미설정')),
-        ringItem(wRate, '주', wStat.achieved + '명 / ' + (Number(t.weekTarget) > 0 ? t.weekTarget + '건' : '목표 미설정')),
+        ringItem(wRate, '주', wStat.achieved + '명 / ' + (tWeekTarget > 0 ? tWeekTarget + '건' : '목표 미설정')),
       ]));
     });
 
@@ -1580,6 +1717,104 @@
     $('ovOtSub').textContent = goalTotal > 0 ? ('목표 ' + goalTotal + '건 · ' + pct + '%') : '명';
   }
 
+
+  // ============ 회의록 ============
+  $('meetingForm').addEventListener('submit', function (ev) {
+    ev.preventDefault();
+    if (!db) { setFormStatus('meetingStatus', '데이터베이스에 연결되어 있지 않습니다.', 'error'); return; }
+    var date = $('mDate').value;
+    if (!date) { setFormStatus('meetingStatus', '회의 날짜는 필수입니다.', 'error'); return; }
+    var payload = {
+      date: date, type: meetingTypeChips.get() || MEETING_TYPES[0],
+      attendees: $('mAttendees').value.trim(), agenda: $('mAgenda').value.trim(),
+      decisions: $('mDecisions').value.trim(), actions: $('mActions').value.trim(),
+      author: $('mAuthor').value.trim(), createdAt: Date.now()
+    };
+    $('meetingSubmitBtn').disabled = true;
+    setFormStatus('meetingStatus', '저장 중…', '');
+    db.collection('meetings').add(payload).then(function () {
+      setFormStatus('meetingStatus', '저장되었습니다.', 'success');
+      flashPanel($('meetingForm'));
+      $('mAttendees').value = ''; $('mAgenda').value = ''; $('mDecisions').value = ''; $('mActions').value = '';
+    }).catch(function (err) { setFormStatus('meetingStatus', errMsg(err), 'error'); })
+      .finally(function () { $('meetingSubmitBtn').disabled = false; });
+  });
+
+  $('mFilterSearch').addEventListener('input', renderMeetings);
+  $('mFilterMonth').addEventListener('change', renderMeetings);
+  $('mFilterType').addEventListener('change', renderMeetings);
+
+  function populateMeetingFilters() {
+    var monthSel = $('mFilterMonth');
+    var months = {};
+    meetings.forEach(function (e) { if (e.date) months[e.date.slice(0, 7)] = true; });
+    months[todayStr().slice(0, 7)] = true;
+    var keys = Object.keys(months).sort().reverse();
+    var cur = monthSel.value;
+    monthSel.innerHTML = '<option value="">전체 기간</option>' + keys.map(function (k) { return '<option value="' + k + '">' + k + '</option>'; }).join('');
+    if (keys.indexOf(cur) !== -1) monthSel.value = cur;
+
+    var typeSel = $('mFilterType');
+    if (typeSel.options.length <= 1) {
+      typeSel.innerHTML = '<option value="all">전체 종류</option>' + MEETING_TYPES.map(function (t) { return '<option value="' + t + '">' + t + '</option>'; }).join('');
+    }
+  }
+
+  function renderMeetings() {
+    populateMeetingFilters();
+    var month = $('mFilterMonth').value, typeFilter = $('mFilterType').value;
+    var q = $('mFilterSearch').value.trim().toLowerCase();
+    var filtered = meetings.filter(function (e) {
+      if (month && (!e.date || e.date.slice(0, 7) !== month)) return false;
+      if (typeFilter !== 'all' && e.type !== typeFilter) return false;
+      if (!q) return true;
+      var hay = [e.agenda, e.decisions, e.actions, e.attendees].filter(Boolean).join(' ').toLowerCase();
+      return hay.indexOf(q) !== -1;
+    });
+
+    var body = $('meetingBody'); body.innerHTML = '';
+    $('meetingEmpty').hidden = filtered.length > 0;
+    filtered.forEach(function (e) {
+      var tr = document.createElement('tr'); tr.className = 'worklog-row';
+      var tdToggle = document.createElement('td'); tdToggle.className = 'nowrap'; tdToggle.textContent = '▸'; tr.appendChild(tdToggle);
+      var tdDate = document.createElement('td'); tdDate.className = 'nowrap'; tdDate.textContent = e.date || ''; tr.appendChild(tdDate);
+
+      var tdType = document.createElement('td'); tdType.className = 'nowrap';
+      var badge = document.createElement('span');
+      badge.className = 'badge ' + (e.type === MEETING_TYPES[0] ? 'badge-good' : 'badge-neutral');
+      badge.textContent = e.type || '-';
+      tdType.appendChild(badge); tr.appendChild(tdType);
+
+      var tdAtt = document.createElement('td'); tdAtt.textContent = e.attendees || '-'; tr.appendChild(tdAtt);
+      var tdAuthor = document.createElement('td'); tdAuthor.className = 'nowrap'; tdAuthor.textContent = e.author || '-'; tr.appendChild(tdAuthor);
+
+      var tdDel = document.createElement('td'); tdDel.className = 'nowrap';
+      tdDel.appendChild(deleteBtn('meetings', e._id, (e.date || '') + ' ' + (e.type || '회의록')));
+      tr.appendChild(tdDel);
+      body.appendChild(tr);
+
+      var detailTr = document.createElement('tr'); detailTr.className = 'worklog-detail-row'; detailTr.hidden = true;
+      var detailTd = document.createElement('td'); detailTd.colSpan = 6;
+      [['안건 · 논의', e.agenda], ['결정 사항', e.decisions], ['다음 액션', e.actions]].forEach(function (pair) {
+        var block = document.createElement('div'); block.style.marginBottom = '8px';
+        var h = document.createElement('div'); h.style.fontWeight = '700'; h.style.marginBottom = '2px'; h.textContent = pair[0];
+        var v = document.createElement('div'); v.style.whiteSpace = 'pre-wrap'; v.textContent = pair[1] || '-';
+        block.appendChild(h); block.appendChild(v); detailTd.appendChild(block);
+      });
+      detailTr.appendChild(detailTd); body.appendChild(detailTr);
+
+      tr.addEventListener('click', function () {
+        detailTr.hidden = !detailTr.hidden;
+        tdToggle.textContent = detailTr.hidden ? '▸' : '▾';
+      });
+    });
+
+    var prefix = todayStr().slice(0, 7);
+    var monthly = meetings.filter(function (e) { return e.date && e.date.slice(0, 7) === prefix; });
+    $('mMonthCount').textContent = monthly.length.toLocaleString('ko-KR');
+    $('mTypeA').textContent = monthly.filter(function (e) { return e.type === MEETING_TYPES[0]; }).length.toLocaleString('ko-KR') + '건';
+    $('mTypeB').textContent = monthly.filter(function (e) { return e.type === MEETING_TYPES[1]; }).length.toLocaleString('ko-KR') + '건';
+  }
 
   // ============ MONTHLY FOCUS (프로모션·이벤트·중점사항) ============
   function focusBadgeClass(type) {
@@ -1687,10 +1922,9 @@
       if (!categories[i]) return;
       var nameEl = row.querySelector('[data-field="name"]');
       var targetEl = row.querySelector('[data-field="target"]');
-      var weekTargetEl = row.querySelector('[data-field="weekTarget"]');
       if (nameEl) categories[i].name = nameEl.value;
       if (targetEl) categories[i].target = Number(targetEl.value) || 0;
-      if (weekTargetEl) categories[i].weekTarget = Number(weekTargetEl.value) || 0;
+      categories[i].weekTargets = readWeekTargets($('catEditorRows'), i);
     });
   }
 
@@ -1706,18 +1940,18 @@
       nameInput.setAttribute('data-idx', i); nameInput.setAttribute('data-field', 'name');
       var targetInput = document.createElement('input'); targetInput.type = 'number'; targetInput.min = '0'; targetInput.step = '10000'; targetInput.value = c.target; targetInput.placeholder = '월 목표';
       targetInput.setAttribute('data-idx', i); targetInput.setAttribute('data-field', 'target');
-      var weekTargetInput = document.createElement('input'); weekTargetInput.type = 'number'; weekTargetInput.min = '0'; weekTargetInput.step = '10000'; weekTargetInput.value = c.weekTarget || 0; weekTargetInput.placeholder = '주 목표';
-      weekTargetInput.setAttribute('data-idx', i); weekTargetInput.setAttribute('data-field', 'weekTarget');
+
       var delBtn = document.createElement('button'); delBtn.type = 'button'; delBtn.className = 'icon-btn'; delBtn.textContent = '×';
       delBtn.addEventListener('click', function () { syncCatEditorToArray(); categories.splice(i, 1); renderCatEditor(); });
-      row.appendChild(nameInput); row.appendChild(targetInput); row.appendChild(weekTargetInput); row.appendChild(delBtn);
+      row.appendChild(nameInput); row.appendChild(targetInput); row.appendChild(delBtn);
       wrap.appendChild(row);
+      wrap.appendChild(weekTargetInputsRow(c, i));
     });
   }
 
   $('catEditBtn').addEventListener('click', function () { renderCatEditor(); $('catEditPanel').hidden = false; });
   $('catCancelBtn').addEventListener('click', function () { $('catEditPanel').hidden = true; });
-  $('catAddBtn').addEventListener('click', function () { syncCatEditorToArray(); categories.push({ name: '새 카테고리', target: 0, weekTarget: 0 }); renderCatEditor(); });
+  $('catAddBtn').addEventListener('click', function () { syncCatEditorToArray(); categories.push({ name: '새 카테고리', target: 0, weekTargets: [0, 0, 0, 0, 0] }); renderCatEditor(); });
   $('catSaveBtn').addEventListener('click', function () {
     if (!db) { setFormStatus('catStatus', '데이터베이스에 연결되어 있지 않습니다.', 'error'); return; }
     var rows = $('catEditorRows').querySelectorAll('.cat-editor-row');
@@ -1725,9 +1959,9 @@
     rows.forEach(function (row) {
       var nameEl = row.querySelector('[data-field="name"]');
       var targetEl = row.querySelector('[data-field="target"]');
-      var weekTargetEl = row.querySelector('[data-field="weekTarget"]');
       var name = nameEl.value.trim();
-      if (name) next.push({ name: name, target: Number(targetEl.value) || 0, weekTarget: Number(weekTargetEl.value) || 0 });
+      var idx = Number(nameEl.getAttribute('data-idx'));
+      if (name) next.push({ name: name, target: Number(targetEl.value) || 0, weekTargets: readWeekTargets($('catEditorRows'), idx) });
     });
     if (next.length === 0) { setFormStatus('catStatus', '카테고리를 1개 이상 입력해 주세요.', 'error'); return; }
     $('catSaveBtn').disabled = true;
@@ -1801,10 +2035,13 @@
       var tdSum = document.createElement('td'); tdSum.className = 'num'; tdSum.textContent = won(worklogTotal(e)); tr.appendChild(tdSum);
       var tdIssues = document.createElement('td'); tdIssues.textContent = e.issues || '-'; tr.appendChild(tdIssues);
       var tdSummary = document.createElement('td'); tdSummary.textContent = e.summary || '-'; tr.appendChild(tdSummary);
+      var tdWDel = document.createElement('td'); tdWDel.className = 'nowrap';
+      tdWDel.appendChild(deleteBtn('worklogs', e._id, (e.date || '') + ' 업무일지'));
+      tr.appendChild(tdWDel);
       body.appendChild(tr);
 
       var detailTr = document.createElement('tr'); detailTr.className = 'worklog-detail-row'; detailTr.hidden = true;
-      var detailTd = document.createElement('td'); detailTd.colSpan = 5;
+      var detailTd = document.createElement('td'); detailTd.colSpan = 6;
       var sales = e.sales || {};
       var salesKeys = Object.keys(sales);
       if (salesKeys.length) {
@@ -1856,7 +2093,7 @@
     var totalMonthTarget = 0, totalMonthAch = 0, totalWeekTarget = 0, totalWeekAch = 0;
 
     categories.forEach(function (c) {
-      var monthTarget = Number(c.target) || 0, weekTarget = Number(c.weekTarget) || 0;
+      var monthTarget = Number(c.target) || 0, weekTarget = currentWeekTarget(c);
       var monthAch = sumSalesInRange(c.name, range.monthStart, range.monthEnd);
       var weekAch = sumSalesInRange(c.name, range.weekStart, range.weekEnd);
       totalMonthTarget += monthTarget; totalMonthAch += monthAch;
@@ -1922,7 +2159,7 @@
     var weekAchieved = sumSalesInRange(null, wkStart, wkEnd);
     $('wWeekSales').textContent = won(weekAchieved);
 
-    var weekTarget = categories.reduce(function (s, c) { return s + (Number(c.weekTarget) || 0); }, 0);
+    var weekTarget = categories.reduce(function (s, c) { return s + currentWeekTarget(c); }, 0);
     var weekPctText, weekPctVal;
     if (weekTarget > 0) {
       weekPctVal = Math.round((weekAchieved / weekTarget) * 100);
@@ -1934,7 +2171,7 @@
     $('ovSalesWeekSub').textContent = weekTarget > 0 ? '이번 주 목표 대비 달성률' : '목표 미설정';
     $('wSalesWeekSub').textContent = won(weekAchieved) + ' / ' + (weekTarget > 0 ? won(weekTarget) : '목표 미설정');
 
-    var catSummary = categories.map(function (c) { return c.name + ' 월 ' + won(c.target) + ' · 주 ' + won(c.weekTarget || 0); }).join(' / ');
+    var catSummary = categories.map(function (c) { return c.name + ' 월 ' + won(c.target) + ' · ' + weekOfMonthIndex() + '주차 ' + won(currentWeekTarget(c)); }).join(' / ');
     $('catSummaryText').textContent = categories.length ? catSummary : '설정된 카테고리가 없습니다.';
   }
 
@@ -1964,6 +2201,7 @@
     renderWorklogSummary();
     renderOtFormFields();
     renderOtList();
+    renderMeetings();
     renderOverview();
     renderOtSummary();
   }
@@ -2026,7 +2264,7 @@
         if (snap.exists) {
           var data = snap.data();
           if (data && Array.isArray(data.items) && data.items.length) {
-            categories = data.items.map(function (c) { return { name: c.name, target: Number(c.target) || 0, weekTarget: Number(c.weekTarget) || 0 }; });
+            categories = data.items.map(function (c) { return { name: c.name, target: Number(c.target) || 0, weekTarget: c.weekTarget, weekTargets: c.weekTargets }; });
           }
         }
         renderSalesFields(); renderGoalTable(); renderWorklogSummary();
@@ -2035,6 +2273,11 @@
       db.collection('lockers').orderBy('createdAt', 'desc').limit(1000).onSnapshot(function (snap) {
         lockers = snap.docs.map(function (d) { return Object.assign({ _id: d.id }, d.data()); });
         renderLockers();
+      }, function () {});
+
+      db.collection('meetings').orderBy('createdAt', 'desc').limit(1000).onSnapshot(function (snap) {
+        meetings = snap.docs.map(function (d) { return Object.assign({ _id: d.id }, d.data()); });
+        renderMeetings();
       }, function () {});
 
       db.collection('otSessions').orderBy('createdAt', 'desc').limit(1000).onSnapshot(function (snap) {
@@ -2046,7 +2289,7 @@
         if (snap.exists) {
           var data = snap.data();
           if (data && Array.isArray(data.items) && data.items.length) {
-            otTrainers = data.items.map(function (t) { return { name: t.name, target: Number(t.target) || 0, weekTarget: Number(t.weekTarget) || 0 }; });
+            otTrainers = data.items.map(function (t) { return { name: t.name, target: Number(t.target) || 0, weekTarget: t.weekTarget, weekTargets: t.weekTargets }; });
           }
         }
         renderOtFormFields(); renderOtSummary();

@@ -15,6 +15,7 @@ service cloud.firestore {
     match /worklogs/{doc}      { allow read, write: if signedIn(); }
     match /lockers/{doc}       { allow read, write: if signedIn(); }
     match /otSessions/{doc}    { allow read, write: if signedIn(); }
+    match /meetings/{doc}      { allow read, write: if signedIn(); }
     match /settings/{doc}      { allow read, write: if signedIn(); }
 
     // 급여 정산 (문서 하나에 전체 상태 저장)
