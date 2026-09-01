@@ -273,6 +273,8 @@
   .worklog-detail-row .detail-line { display: flex; justify-content: space-between; max-width: 320px; padding: 2px 0; }
   tr.worklog-row { cursor: pointer; }
   tr.worklog-row:hover { background: var(--surface-2); }
+  .ot-editor-row { display: grid; grid-template-columns: 1fr 140px 40px; gap: 8px; align-items: center; margin-bottom: 8px; }
+  .ot-editor-head { display: grid; grid-template-columns: 1fr 140px 40px; gap: 8px; margin-bottom: 4px; font-size: 11px; color: var(--text-faint); }
   .icon-btn {
     border: 1px solid var(--border); background: var(--surface); border-radius: 8px;
     width: 36px; height: 36px; cursor: pointer; color: var(--danger); font-weight: 700; font-size: 15px;
@@ -315,6 +317,7 @@
     <button type="button" class="tab-btn" data-tab="visitors">방문자·예약자</button>
     <button type="button" class="tab-btn" data-tab="calls">문의DB</button>
     <button type="button" class="tab-btn" data-tab="worklog">매출·업무일지</button>
+    <button type="button" class="tab-btn" data-tab="ot">OT 관리</button>
     <button type="button" class="tab-btn" data-tab="lockers">사물함 정리</button>
   </nav>
 
@@ -344,7 +347,7 @@
       <div class="stat-tile">
         <span class="stat-tile-label">이번 달 OT 누적</span>
         <span class="stat-tile-value" id="ovOtCount">–</span>
-        <span class="goal-sub">건</span>
+        <span class="goal-sub" id="ovOtSub">건</span>
       </div>
     </div>
     <div class="kpi-row cols-5">
@@ -506,7 +509,7 @@
       <p class="form-status" id="catStatus"></p>
     </div>
 
-    <div class="kpi-row cols-5">
+    <div class="kpi-row">
       <div class="stat-tile">
         <span class="stat-tile-label">이번 달 매출 달성률</span>
         <span class="stat-tile-value" id="wSalesPct">–</span>
@@ -521,7 +524,6 @@
       </div>
       <div class="stat-tile"><span class="stat-tile-label">오늘 매출</span><span class="stat-tile-value" id="wTodaySales">–</span></div>
       <div class="stat-tile"><span class="stat-tile-label">이번 주 매출</span><span class="stat-tile-value" id="wWeekSales">–</span></div>
-      <div class="stat-tile"><span class="stat-tile-label">이번 달 OT 누적</span><span class="stat-tile-value" id="wOtCount">–</span></div>
     </div>
 
     <div class="layout">
@@ -531,7 +533,6 @@
         <form id="worklogForm">
           <label>날짜<input type="date" id="wDate" required></label>
           <div id="wSalesFields"></div>
-          <label>당일 OT 개수<input type="number" id="wOt" min="0" step="1" placeholder="0"></label>
           <label>특이사항 및 민원<textarea id="wIssues" rows="2" placeholder="선택 입력"></textarea></label>
           <label>오늘의 핵심 업무 요약<textarea id="wSummary" rows="3" placeholder="오늘 진행한 업무를 기록하세요"></textarea></label>
           <button type="submit" class="submit-btn" id="worklogSubmitBtn">등록하기</button>
@@ -594,6 +595,84 @@
       <div id="focusView"></div>
       <p class="empty-state" id="focusEmpty" hidden>등록된 프로모션·이벤트·중점사항이 없습니다.</p>
     </section>
+    </div>
+  </section>
+
+
+  <!-- ===================== OT 관리 ===================== -->
+  <section class="tab-panel" id="tab-ot" hidden>
+    <div class="kpi-row">
+      <div class="stat-tile"><span class="stat-tile-label">이번 달 OT 목표</span><span class="stat-tile-value" id="otGoalTotal">–</span></div>
+      <div class="stat-tile"><span class="stat-tile-label">이번 달 진행 건수</span><span class="stat-tile-value" id="otAchievedTotal">–</span></div>
+      <div class="stat-tile">
+        <span class="stat-tile-label">달성률</span>
+        <span class="stat-tile-value" id="otPctTotal">–</span>
+        <div class="meter-track"><div class="meter-fill" id="otPctMeter"></div></div>
+      </div>
+      <div class="stat-tile"><span class="stat-tile-label">전환율</span><span class="stat-tile-value" id="otConvPct">–</span><span class="goal-sub" id="otConvSub">–</span></div>
+    </div>
+
+    <div class="list-header">
+      <h2 style="font-size:16px;">트레이너별 OT 월 목표</h2>
+      <button type="button" class="link-btn" id="otTrainerEditBtn">트레이너·목표 수정</button>
+    </div>
+
+    <div class="panel" id="otTrainerEditPanel" hidden style="margin-bottom:20px;">
+      <div class="ot-editor-head"><span>트레이너명</span><span>월 목표(건)</span><span></span></div>
+      <div id="otTrainerEditorRows"></div>
+      <button type="button" class="submit-btn ghost small" id="otTrainerAddBtn" style="margin-bottom:12px;">+ 트레이너 추가</button>
+      <div class="edit-inline">
+        <button type="button" class="submit-btn small" id="otTrainerSaveBtn">저장</button>
+        <button type="button" class="link-btn" id="otTrainerCancelBtn">취소</button>
+      </div>
+      <p class="form-status" id="otTrainerStatus"></p>
+    </div>
+
+    <div class="table-wrap" style="margin-bottom:20px;">
+      <table>
+        <thead><tr><th>트레이너</th><th>목표</th><th>진행</th><th>달성률</th><th>전환</th><th>전환율</th></tr></thead>
+        <tbody id="otTrainerBody"></tbody>
+      </table>
+    </div>
+
+    <div class="layout">
+      <section class="panel">
+        <h2>OT 진행 등록</h2>
+        <p class="panel-sub">트레이너별로 진행한 OT 인원을 한 건씩 기록하세요</p>
+        <form id="otForm">
+          <label>날짜<input type="date" id="otDate" required></label>
+          <div class="field-block"><span class="field-label">담당 트레이너</span><select id="otTrainerSelect" required></select></div>
+          <div class="field-row">
+            <div class="field-block"><span class="field-label">고객명</span><input type="text" id="otCustomer" placeholder="고객명" required autocomplete="off"></div>
+            <div class="field-block"><span class="field-label">연락처</span><input type="tel" id="otPhone" placeholder="010-0000-0000"></div>
+          </div>
+          <div class="field-row">
+            <div class="field-block"><span class="field-label">진행상황</span><select id="otStatus"></select></div>
+            <div class="field-block"><span class="field-label">전환여부</span><select id="otConverted"></select></div>
+          </div>
+          <label>메모<textarea id="otNote" rows="2" placeholder="선택 입력"></textarea></label>
+          <button type="submit" class="submit-btn" id="otSubmitBtn">등록하기</button>
+          <p class="form-status" id="otFormStatus" aria-live="polite"></p>
+        </form>
+      </section>
+
+      <section class="panel">
+        <div class="list-header">
+          <h2>OT 진행 인원 목록</h2>
+          <div class="filters">
+            <select id="otFilterMonth"></select>
+            <select id="otFilterTrainer"><option value="all">전체 트레이너</option></select>
+            <input type="text" id="otFilterSearch" placeholder="고객명·연락처 검색">
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>날짜</th><th>트레이너</th><th>고객명</th><th>연락처</th><th>진행상황</th><th>전환여부</th><th>메모</th></tr></thead>
+            <tbody id="otBody"></tbody>
+          </table>
+          <p class="empty-state" id="otEmpty" hidden>아직 등록된 OT 진행 내역이 없습니다.</p>
+        </div>
+      </section>
     </div>
   </section>
 
@@ -682,9 +761,17 @@
   // 주의: 이 값은 페이지 소스에 그대로 노출되므로 강력한 보안은 아닙니다. 직원이 실수로 들어가는 것을 막는 용도입니다.
   var WORKLOG_PASSWORD = '5631';
 
+  var DEFAULT_OT_TRAINERS = [
+    { name: '고범수 매니저', target: 10 },
+    { name: '이새한 트레이너', target: 20 }
+  ];
+  var OT_STATUS = ['예약', '진행중', '완료', '노쇼/취소'];
+  var OT_CONVERTED = ['미정', '전환완료', '미전환'];
+
   var db = null;
-  var visitors = [], calls = [], worklogs = [], lockers = [];
+  var visitors = [], calls = [], worklogs = [], lockers = [], otSessions = [];
   var categories = DEFAULT_CATEGORIES.slice();
+  var otTrainers = DEFAULT_OT_TRAINERS.slice();
   var monthlyFocus = [];
   var currentAgg = 'week';
   var editingVisitorId = null;
@@ -1187,6 +1274,207 @@
     $('lSent').textContent = lockers.filter(function (e) { return lockerStatusOf(e) === 'mismatch' && e.textSent; }).length.toLocaleString('ko-KR');
   }
 
+  // ============ OT 관리 ============
+  function otMonthPrefix() { return todayStr().slice(0, 7); }
+
+  function otTrainerFieldOptions(select, list, placeholder) {
+    var current = select.value;
+    select.innerHTML = '';
+    if (placeholder) {
+      var ph = document.createElement('option'); ph.value = ''; ph.textContent = placeholder; ph.disabled = true;
+      select.appendChild(ph);
+    }
+    list.forEach(function (v) {
+      var o = document.createElement('option'); o.value = v; o.textContent = v; select.appendChild(o);
+    });
+    if (list.indexOf(current) !== -1) select.value = current;
+  }
+
+  function renderOtFormFields() {
+    otTrainerFieldOptions($('otTrainerSelect'), otTrainers.map(function (t) { return t.name; }), '트레이너 선택');
+    otTrainerFieldOptions($('otStatus'), OT_STATUS);
+    otTrainerFieldOptions($('otConverted'), OT_CONVERTED);
+  }
+
+  function syncOtTrainerEditorToArray() {
+    var rows = $('otTrainerEditorRows').querySelectorAll('.ot-editor-row');
+    rows.forEach(function (row, i) {
+      if (!otTrainers[i]) return;
+      var nameEl = row.querySelector('[data-field="name"]');
+      var targetEl = row.querySelector('[data-field="target"]');
+      if (nameEl) otTrainers[i].name = nameEl.value;
+      if (targetEl) otTrainers[i].target = Number(targetEl.value) || 0;
+    });
+  }
+
+  function renderOtTrainerEditor() {
+    var wrap = $('otTrainerEditorRows');
+    wrap.innerHTML = '';
+    otTrainers.forEach(function (t, i) {
+      var row = document.createElement('div'); row.className = 'ot-editor-row';
+      var nameInput = document.createElement('input'); nameInput.type = 'text'; nameInput.value = t.name; nameInput.placeholder = '트레이너명';
+      nameInput.setAttribute('data-idx', i); nameInput.setAttribute('data-field', 'name');
+      var targetInput = document.createElement('input'); targetInput.type = 'number'; targetInput.min = '0'; targetInput.step = '1'; targetInput.value = t.target; targetInput.placeholder = '월 목표(건)';
+      targetInput.setAttribute('data-idx', i); targetInput.setAttribute('data-field', 'target');
+      var delBtn = document.createElement('button'); delBtn.type = 'button'; delBtn.className = 'icon-btn'; delBtn.textContent = '×';
+      delBtn.addEventListener('click', function () { syncOtTrainerEditorToArray(); otTrainers.splice(i, 1); renderOtTrainerEditor(); });
+      row.appendChild(nameInput); row.appendChild(targetInput); row.appendChild(delBtn);
+      wrap.appendChild(row);
+    });
+  }
+
+  $('otTrainerEditBtn').addEventListener('click', function () { renderOtTrainerEditor(); $('otTrainerEditPanel').hidden = false; });
+  $('otTrainerCancelBtn').addEventListener('click', function () { $('otTrainerEditPanel').hidden = true; });
+  $('otTrainerAddBtn').addEventListener('click', function () { syncOtTrainerEditorToArray(); otTrainers.push({ name: '새 트레이너', target: 0 }); renderOtTrainerEditor(); });
+  $('otTrainerSaveBtn').addEventListener('click', function () {
+    if (!db) { setFormStatus('otTrainerStatus', '데이터베이스에 연결되어 있지 않습니다.', 'error'); return; }
+    var rows = $('otTrainerEditorRows').querySelectorAll('.ot-editor-row');
+    var next = [];
+    rows.forEach(function (row) {
+      var nameEl = row.querySelector('[data-field="name"]');
+      var targetEl = row.querySelector('[data-field="target"]');
+      var name = nameEl.value.trim();
+      if (name) next.push({ name: name, target: Number(targetEl.value) || 0 });
+    });
+    if (next.length === 0) { setFormStatus('otTrainerStatus', '트레이너를 1명 이상 입력해 주세요.', 'error'); return; }
+    $('otTrainerSaveBtn').disabled = true;
+    db.doc('settings/otTrainers').set({ items: next, updatedAt: Date.now() }).then(function () {
+      setFormStatus('otTrainerStatus', '저장되었습니다.', 'success');
+      $('otTrainerEditPanel').hidden = true;
+    }).catch(function () { setFormStatus('otTrainerStatus', '저장에 실패했습니다.', 'error'); })
+      .finally(function () { $('otTrainerSaveBtn').disabled = false; });
+  });
+
+  $('otForm').addEventListener('submit', function (ev) {
+    ev.preventDefault();
+    if (!db) { setFormStatus('otFormStatus', '데이터베이스에 연결되어 있지 않습니다.', 'error'); return; }
+    var date = $('otDate').value, trainer = $('otTrainerSelect').value, customer = $('otCustomer').value.trim();
+    if (!date || !trainer || !customer) { setFormStatus('otFormStatus', '날짜, 트레이너, 고객명은 필수입니다.', 'error'); return; }
+    var payload = {
+      date: date, trainer: trainer, customer: customer, phone: $('otPhone').value.trim(),
+      status: $('otStatus').value || OT_STATUS[0], converted: $('otConverted').value || OT_CONVERTED[0],
+      note: $('otNote').value.trim(), createdAt: Date.now()
+    };
+    $('otSubmitBtn').disabled = true;
+    setFormStatus('otFormStatus', '등록 중…', '');
+    db.collection('otSessions').add(payload).then(function () {
+      setFormStatus('otFormStatus', '등록되었습니다.', 'success');
+      flashPanel($('otForm'));
+      $('otCustomer').value = ''; $('otPhone').value = ''; $('otNote').value = '';
+      $('otStatus').value = OT_STATUS[0]; $('otConverted').value = OT_CONVERTED[0];
+    }).catch(function (err) { setFormStatus('otFormStatus', errMsg(err), 'error'); })
+      .finally(function () { $('otSubmitBtn').disabled = false; });
+  });
+
+  function updateOtSession(id, patch) {
+    if (!db) return;
+    db.collection('otSessions').doc(id).update(patch).catch(function () {});
+  }
+
+  function populateOtFilters() {
+    var monthSel = $('otFilterMonth');
+    var months = {};
+    otSessions.forEach(function (e) { if (e.date) months[e.date.slice(0, 7)] = true; });
+    months[otMonthPrefix()] = true;
+    var keys = Object.keys(months).sort().reverse();
+    var curMonth = monthSel.value;
+    monthSel.innerHTML = '<option value="">전체 기간</option>' + keys.map(function (k) { return '<option value="' + k + '">' + k + '</option>'; }).join('');
+    if (keys.indexOf(curMonth) !== -1) monthSel.value = curMonth;
+
+    var trainerSel = $('otFilterTrainer');
+    var curTrainer = trainerSel.value;
+    trainerSel.innerHTML = '<option value="all">전체 트레이너</option>' + otTrainers.map(function (t) { return '<option value="' + t.name + '">' + t.name + '</option>'; }).join('');
+    if (curTrainer && [].slice.call(trainerSel.options).some(function (o) { return o.value === curTrainer; })) trainerSel.value = curTrainer;
+  }
+
+  function renderOtList() {
+    populateOtFilters();
+    var month = $('otFilterMonth').value, trainerFilter = $('otFilterTrainer').value;
+    var q = $('otFilterSearch').value.trim().toLowerCase();
+    var filtered = otSessions.filter(function (e) {
+      if (month && (!e.date || e.date.slice(0, 7) !== month)) return false;
+      if (trainerFilter !== 'all' && e.trainer !== trainerFilter) return false;
+      if (!q) return true;
+      var hay = [e.customer, e.phone].filter(Boolean).join(' ').toLowerCase();
+      return hay.indexOf(q) !== -1;
+    });
+    var body = $('otBody'); body.innerHTML = '';
+    $('otEmpty').hidden = filtered.length > 0;
+    filtered.forEach(function (e) {
+      var tr = document.createElement('tr');
+      var tdDate = document.createElement('td'); tdDate.className = 'nowrap'; tdDate.textContent = e.date || ''; tr.appendChild(tdDate);
+      var tdTrainer = document.createElement('td'); tdTrainer.className = 'nowrap'; tdTrainer.textContent = e.trainer || '-'; tr.appendChild(tdTrainer);
+      var tdCustomer = document.createElement('td'); tdCustomer.textContent = e.customer || ''; tr.appendChild(tdCustomer);
+      var tdPhone = document.createElement('td'); tdPhone.className = 'nowrap'; tdPhone.textContent = e.phone || '-'; tr.appendChild(tdPhone);
+
+      var tdStatus = document.createElement('td'); tdStatus.className = 'nowrap small-input';
+      var statusSel = document.createElement('select');
+      OT_STATUS.forEach(function (v) { var o = document.createElement('option'); o.value = v; o.textContent = v; if (v === e.status) o.selected = true; statusSel.appendChild(o); });
+      statusSel.addEventListener('change', function () { updateOtSession(e._id, { status: statusSel.value }); });
+      tdStatus.appendChild(statusSel); tr.appendChild(tdStatus);
+
+      var tdConverted = document.createElement('td'); tdConverted.className = 'nowrap small-input';
+      var convSel = document.createElement('select');
+      OT_CONVERTED.forEach(function (v) { var o = document.createElement('option'); o.value = v; o.textContent = v; if (v === e.converted) o.selected = true; convSel.appendChild(o); });
+      convSel.addEventListener('change', function () { updateOtSession(e._id, { converted: convSel.value }); });
+      tdConverted.appendChild(convSel); tr.appendChild(tdConverted);
+
+      var tdNote = document.createElement('td'); tdNote.textContent = e.note || '-'; tr.appendChild(tdNote);
+      body.appendChild(tr);
+    });
+  }
+
+  function renderOtSummary() {
+    var prefix = otMonthPrefix();
+    var monthSessions = otSessions.filter(function (e) { return e.date && e.date.slice(0, 7) === prefix; });
+
+    var goalTotal = otTrainers.reduce(function (s, t) { return s + (Number(t.target) || 0); }, 0);
+    var achievedTotal = monthSessions.length;
+    var convertedTotal = monthSessions.filter(function (e) { return e.converted === '전환완료'; }).length;
+    var decidedTotal = monthSessions.filter(function (e) { return e.converted && e.converted !== '미정'; }).length;
+
+    $('otGoalTotal').textContent = goalTotal > 0 ? (goalTotal.toLocaleString('ko-KR') + '건') : '목표 미설정';
+    $('otAchievedTotal').textContent = achievedTotal.toLocaleString('ko-KR') + '건';
+    var pct = goalTotal > 0 ? Math.round((achievedTotal / goalTotal) * 100) : null;
+    $('otPctTotal').textContent = pct === null ? '–' : pct + '%';
+    if (pct !== null) applyMeter($('otPctMeter'), pct);
+    var convPct = decidedTotal > 0 ? Math.round((convertedTotal / decidedTotal) * 100) : null;
+    $('otConvPct').textContent = convPct === null ? '–' : convPct + '%';
+    $('otConvSub').textContent = convertedTotal.toLocaleString('ko-KR') + '건 전환 / ' + decidedTotal.toLocaleString('ko-KR') + '건 결정';
+
+    var body = $('otTrainerBody'); body.innerHTML = '';
+    otTrainers.forEach(function (t) {
+      var rows = monthSessions.filter(function (e) { return e.trainer === t.name; });
+      var achieved = rows.length;
+      var converted = rows.filter(function (e) { return e.converted === '전환완료'; }).length;
+      var decided = rows.filter(function (e) { return e.converted && e.converted !== '미정'; }).length;
+      var tRate = Number(t.target) > 0 ? Math.round((achieved / Number(t.target)) * 100) : null;
+      var cRate = decided > 0 ? Math.round((converted / decided) * 100) : null;
+
+      var tr = document.createElement('tr');
+      var tdName = document.createElement('td'); tdName.textContent = t.name; tr.appendChild(tdName);
+      var tdGoal = document.createElement('td'); tdGoal.className = 'num'; tdGoal.textContent = Number(t.target) > 0 ? (t.target + '건') : '-'; tr.appendChild(tdGoal);
+      var tdAch = document.createElement('td'); tdAch.className = 'num'; tdAch.textContent = achieved + '건'; tr.appendChild(tdAch);
+
+      var tdRate = document.createElement('td'); tdRate.className = 'num';
+      if (tRate !== null) {
+        var badge = document.createElement('span');
+        badge.className = 'badge ' + (tRate >= 100 ? 'badge-good' : tRate >= 70 ? 'badge-warn' : 'badge-danger');
+        badge.textContent = tRate + '%';
+        tdRate.appendChild(badge);
+      } else { tdRate.textContent = '-'; }
+      tr.appendChild(tdRate);
+
+      var tdConv = document.createElement('td'); tdConv.className = 'num'; tdConv.textContent = converted + '건'; tr.appendChild(tdConv);
+      var tdConvRate = document.createElement('td'); tdConvRate.className = 'num'; tdConvRate.textContent = cRate === null ? '-' : cRate + '%'; tr.appendChild(tdConvRate);
+      body.appendChild(tr);
+    });
+
+    // 개요 탭: 이번 달 OT 누적 타일도 실제 등록 건수 기준으로 표시
+    $('ovOtCount').textContent = achievedTotal.toLocaleString('ko-KR');
+    $('ovOtSub').textContent = goalTotal > 0 ? ('목표 ' + goalTotal + '건 · ' + pct + '%') : '건';
+  }
+
   // ============ MONTHLY FOCUS (프로모션·이벤트·중점사항) ============
   function focusBadgeClass(type) {
     if (type === '프로모션') return 'badge-good';
@@ -1546,11 +1834,6 @@
     $('ovSalesWeekSub').textContent = weekTarget > 0 ? '이번 주 목표 대비 달성률' : '목표 미설정';
     $('wSalesWeekSub').textContent = won(weekAchieved) + ' / ' + (weekTarget > 0 ? won(weekTarget) : '목표 미설정');
 
-    var otSum = worklogs.filter(function (e) { return e.date && e.date.slice(0, 7) === today.slice(0, 7); })
-      .reduce(function (s, e) { return s + (Number(e.otCount) || 0); }, 0);
-    $('wOtCount').textContent = otSum.toLocaleString('ko-KR') + '건';
-    $('ovOtCount').textContent = otSum.toLocaleString('ko-KR');
-
     var catSummary = categories.map(function (c) { return c.name + ' 월 ' + won(c.target) + ' · 주 ' + won(c.weekTarget || 0); }).join(' / ');
     $('catSummaryText').textContent = categories.length ? catSummary : '설정된 카테고리가 없습니다.';
   }
@@ -1579,7 +1862,10 @@
     renderWorklogList();
     renderGoalTable();
     renderWorklogSummary();
+    renderOtFormFields();
+    renderOtList();
     renderOverview();
+    renderOtSummary();
   }
 
   // firebase-config.js 를 어떤 형태로 채웠든 설정값을 찾아냅니다.
@@ -1649,6 +1935,21 @@
       db.collection('lockers').orderBy('createdAt', 'desc').limit(1000).onSnapshot(function (snap) {
         lockers = snap.docs.map(function (d) { return Object.assign({ _id: d.id }, d.data()); });
         renderLockers();
+      }, function () {});
+
+      db.collection('otSessions').orderBy('createdAt', 'desc').limit(1000).onSnapshot(function (snap) {
+        otSessions = snap.docs.map(function (d) { return Object.assign({ _id: d.id }, d.data()); });
+        renderOtList(); renderOtSummary();
+      }, function () {});
+
+      db.doc('settings/otTrainers').onSnapshot(function (snap) {
+        if (snap.exists) {
+          var data = snap.data();
+          if (data && Array.isArray(data.items) && data.items.length) {
+            otTrainers = data.items.map(function (t) { return { name: t.name, target: Number(t.target) || 0 }; });
+          }
+        }
+        renderOtFormFields(); renderOtSummary();
       }, function () {});
 
       db.doc('settings/monthlyFocus').onSnapshot(function (snap) {

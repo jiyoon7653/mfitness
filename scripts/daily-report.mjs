@@ -193,14 +193,14 @@ function achievementLine(label, sales, target) {
 }
 
 function buildReport(today, data) {
-  const { visitors, calls, todayWorklogs, weekWorklogs, monthWorklogs, lockers, categories } = data;
+  const { visitors, calls, todayWorklogs, weekWorklogs, monthWorklogs, lockers, categories, todayOt, monthOt, otTarget } = data;
 
   const todaySales = sumSales(todayWorklogs);
   const weekSales = sumSales(weekWorklogs);
   const monthSales = sumSales(monthWorklogs);
   const catTotals = todaySales.byCat;
   const salesTotal = todaySales.total;
-  const otToday = todayWorklogs.reduce((a, w) => a + (Number(w.otCount) || 0), 0);
+  const otConvertedToday = todayOt.filter((e) => e.converted === '전환완료').length;
 
   // 방문/상담
   const registered = visitors.filter((v) => v.result === '등록완료').length;
@@ -231,7 +231,7 @@ function buildReport(today, data) {
   L.push(`👣 방문/상담  ${visitors.length}명 (등록완료 ${registered}명)`);
   L.push(`📞 문의전화   ${calls.length}건`);
   L.push(`🔒 사물함     신규 ${newLockers} · 정리대상 ${expiring}`);
-  L.push(`⏱️ OT        ${otToday}건`);
+  L.push(`⏱️ OT 진행    ${todayOt.length}건 (전환 ${otConvertedToday}건)`);
 
   // 특이사항 / 업무 요약
   const notes = todayWorklogs.map((w) => w.issues).filter(Boolean);
@@ -246,6 +246,12 @@ function buildReport(today, data) {
   L.push('');
   L.push(achievementLine('📅 이번 주 누계', weekSales, weekTarget));
   L.push(achievementLine('🗓️ 이번 달 누계', monthSales, monthTarget));
+
+  if (otTarget > 0) {
+    const otPct = Math.round((monthOt.length / otTarget) * 100);
+    const otConvertedMonth = monthOt.filter((e) => e.converted === '전환완료').length;
+    L.push(`🏋️ 이번 달 OT 달성률  *${otPct}%* (${monthOt.length}/${otTarget}건 · 전환 ${otConvertedMonth}건)`);
+  }
 
   return L.join('\n');
 }
@@ -275,19 +281,24 @@ async function main() {
   const month = monthRange(today);
   const token = await signInAnonymously(apiKey);
 
-  const [visitors, calls, monthWorklogs, lockers, catDoc] = await Promise.all([
+  const [visitors, calls, monthWorklogs, lockers, catDoc, monthOt, trainerDoc] = await Promise.all([
     queryByDate(projectId, token, 'visitors', today),
     queryByDate(projectId, token, 'inquiryCalls', today),
     queryByDateRange(projectId, token, 'worklogs', month.start, month.end),
     listAll(projectId, token, 'lockers'),
     getDoc(projectId, token, 'settings/salesCategories'),
+    queryByDateRange(projectId, token, 'otSessions', month.start, month.end),
+    getDoc(projectId, token, 'settings/otTrainers'),
   ]);
 
   const todayWorklogs = monthWorklogs.filter((w) => w.date === today);
   const weekWorklogs = monthWorklogs.filter((w) => w.date >= week.start && w.date < week.end);
+  const todayOt = monthOt.filter((e) => e.date === today);
 
   const categories = catDoc && Array.isArray(catDoc.items) ? catDoc.items : [];
-  const text = buildReport(today, { visitors, calls, todayWorklogs, weekWorklogs, monthWorklogs, lockers, categories });
+  const trainers = trainerDoc && Array.isArray(trainerDoc.items) ? trainerDoc.items : [];
+  const otTarget = trainers.reduce((a, t) => a + (Number(t.target) || 0), 0);
+  const text = buildReport(today, { visitors, calls, todayWorklogs, weekWorklogs, monthWorklogs, lockers, categories, todayOt, monthOt, otTarget });
 
   if (process.env.DRY_RUN === '1') {
     console.log('--- DRY RUN (전송 안 함) ---\n' + text);
