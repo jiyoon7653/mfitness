@@ -116,7 +116,7 @@
   "employees": [
     {"id":"gobumsu","name":"고범수","role":"manager","pinHash":"03ac674216f3e15c761ee1a5e255f067953623c8b388b4459e13f978d7c846f4","active":true,"supportAmount":0,"deductionRate":3.3,"brackets":[[15000000,3],[20000000,5],[25000000,7],[30000000,10]]},
     {"id":"leesaehan","name":"이새한","role":"trainer","pinHash":"03ac674216f3e15c761ee1a5e255f067953623c8b388b4459e13f978d7c846f4","active":true,"supportAmount":0,"deductionRate":3.3},
-    {"id":"choiminyoung","name":"최민영","role":"info","pinHash":"03ac674216f3e15c761ee1a5e255f067953623c8b388b4459e13f978d7c846f4","active":true,"hourlyWage":10320,"pensionRate":4.5,"healthRate":3.545,"careRate":12.95,"schedule":"월~금 19:00~22:00(일 3시간), 주말·공휴일 휴무"}
+    {"id":"choiminyoung","name":"최민영","role":"info","pinHash":"03ac674216f3e15c761ee1a5e255f067953623c8b388b4459e13f978d7c846f4","active":true,"hourlyWage":10320,"pensionRateSelf":4.75,"healthRateTotal":7.19,"careRateTotal":0.9448,"schedule":"월~금 19:00~22:00(일 3시간), 주말·공휴일 휴무"}
   ],
   "adminPinHash": "888df25ae35772424a560c7152a1de794440e0ea5cfee62828333a456a506e05",
   "months": {}
@@ -191,7 +191,7 @@
     STATE.employees.forEach(function(emp){
       if (!m[emp.id]){
         if (emp.role === 'info'){
-          m[emp.id] = { status:'draft', holidays:'', absentDays:0, submittedAt:null, confirmedAt:null, hourlyWage: emp.hourlyWage, pensionRate:4.5, healthRate:3.545, careRate:12.95 };
+          m[emp.id] = { status:'draft', holidays:'', absentDays:0, submittedAt:null, confirmedAt:null, hourlyWage: emp.hourlyWage, pensionRateSelf:4.75, healthRateTotal:7.19, careRateTotal:0.9448 };
         } else {
           m[emp.id] = { status:'draft', sessions:[], supportAmount: emp.supportAmount||0, deductionRate: emp.deductionRate||3.3, submittedAt:null, confirmedAt:null };
           if (emp.role === 'manager') m[emp.id].baseSalary = emp.baseSalary || 0;
@@ -337,27 +337,44 @@
     // 국민연금 · 건강보험 · 장기요양보험 3가지만 공제합니다.
     // (산재보험은 전액 사업주 부담이라 급여에서 공제하지 않습니다.)
     // 요율은 해마다 바뀌므로 관리자 화면에서 직접 고칠 수 있게 해 두었습니다.
-    var pensionRate = monthData.pensionRate==null ? 4.5 : Number(monthData.pensionRate);
-    var healthRate  = monthData.healthRate==null ? 3.545 : Number(monthData.healthRate);
-    var careRate    = monthData.careRate==null ? 12.95 : Number(monthData.careRate);
+    // 요율 입력은 세무사가 주는 고시 요율 표기를 그대로 씁니다.
+    //  · 국민연금은 관행대로 "본인부담률"(총 9.5% 중 절반인 4.75%)을 그대로 입력
+    //  · 건강보험 · 장기요양은 고시되는 "노사 합산 총 요율"을 입력하고 절반만 공제
+    // 장기요양은 보수 대비 총 요율(0.9448%)로 계산합니다
+    // (건강보험료 대비 13.14%와 같은 값: 7.19% × 13.14% = 0.9448%).
+    var pensionRate = monthData.pensionRateSelf==null ? 4.75 : Number(monthData.pensionRateSelf);
+    var healthTotal = monthData.healthRateTotal==null ? 7.19 : Number(monthData.healthRateTotal);
+    var careTotal   = monthData.careRateTotal==null ? 0.9448 : Number(monthData.careRateTotal);
+    var healthRate  = healthTotal/2;   // 본인부담률
+    var careRate    = careTotal/2;     // 본인부담률
     var pension = Math.round(preTax*pensionRate/100);
     var health  = Math.round(preTax*healthRate/100);
-    var care    = Math.round(health*careRate/100);   // 장기요양보험은 건강보험료 기준
+    var care    = Math.round(preTax*careRate/100);
     var deduction = pension + health + care;
     var net = preTax-deduction;
     return {weekdayCount:weekdayCount, holidayCount:holidays.length, holidayWeeks:holidayWeeks,
             actualDays:actualDays, basePay:basePay, restWeeks:restWeeks, restPay:restPay, preTax:preTax,
-            pensionRate:pensionRate, healthRate:healthRate, careRate:careRate,
+            pensionRate:pensionRate, healthTotal:healthTotal, careTotal:careTotal,
+            healthRate:healthRate, careRate:careRate,
             pension:pension, health:health, care:care,
             deduction:deduction, net:net};
   }
 
-  // 인포(4대보험 중 3대보험) 공제 내역 표시
+  // 인포(4대보험 중 3대보험) 공제 내역 표시 — 고시 요율과 실제 본인부담률을 함께 보여줍니다.
+  function insuranceLabels(t){
+    return {
+      pension: '국민연금 (본인부담 '+t.pensionRate+'%)',
+      health:  '건강보험 (총 '+t.healthTotal+'% 중 본인부담 '+t.healthRate+'%)',
+      care:    '장기요양보험 (총 '+t.careTotal+'% 중 본인부담 '+t.careRate+'%)'
+    };
+  }
+
   function insuranceKv(t){
-    return '<div class="kv"><div class="k" id="k-if-pension">국민연금 ('+t.pensionRate+'%)</div><div class="v" id="v-if-pension">-'+won(t.pension)+'</div></div>' +
-      '<div class="kv"><div class="k" id="k-if-health">건강보험 ('+t.healthRate+'%)</div><div class="v" id="v-if-health">-'+won(t.health)+'</div></div>' +
-      '<div class="kv"><div class="k" id="k-if-care">장기요양보험 (건강보험료의 '+t.careRate+'%)</div><div class="v" id="v-if-care">-'+won(t.care)+'</div></div>' +
-      '<p class="muted" style="margin:4px 0 0">고용보험은 기존 직장에서 가입되어 있어 제외합니다. 산재보험은 전액 사업주 부담입니다.</p>';
+    var L = insuranceLabels(t);
+    return '<div class="kv"><div class="k" id="k-if-pension">'+L.pension+'</div><div class="v" id="v-if-pension">-'+won(t.pension)+'</div></div>' +
+      '<div class="kv"><div class="k" id="k-if-health">'+L.health+'</div><div class="v" id="v-if-health">-'+won(t.health)+'</div></div>' +
+      '<div class="kv"><div class="k" id="k-if-care">'+L.care+'</div><div class="v" id="v-if-care">-'+won(t.care)+'</div></div>' +
+      '<p class="muted" style="margin:4px 0 0">건강보험·장기요양은 노사가 절반씩 부담하므로 고시 총 요율의 1/2만 공제합니다. 고용보험은 기존 직장에서 가입되어 있어 제외하고, 산재보험은 전액 사업주 부담입니다.</p>';
   }
 
   // ---------- 저장 상태 표시 ----------
@@ -570,11 +587,12 @@
   }
 
   function refreshInsuranceKv(t){
-    setText('k-if-pension', '국민연금 ('+t.pensionRate+'%)');
+    var L = insuranceLabels(t);
+    setText('k-if-pension', L.pension);
     setText('v-if-pension', '-'+won(t.pension));
-    setText('k-if-health', '건강보험 ('+t.healthRate+'%)');
+    setText('k-if-health', L.health);
     setText('v-if-health', '-'+won(t.health));
-    setText('k-if-care', '장기요양보험 (건강보험료의 '+t.careRate+'%)');
+    setText('k-if-care', L.care);
     setText('v-if-care', '-'+won(t.care));
     setText('v-sum-pre', won(t.preTax));
     setText('v-sum-ded', '-'+won(t.deduction));
@@ -1185,9 +1203,9 @@
       html += '<div class="kv"><div class="k">공제 전 합계</div><div class="v" id="v-sum-pre">'+won(t3.preTax)+'</div></div>';
       html += '<h3 style="margin:14px 0 6px">공제 (4대보험 중 3대보험 · 고용보험 제외)</h3>';
       html += '<div class="row">' +
-        '<div class="col"><label>국민연금(%)</label><input id="pension-rate" type="number" step="0.001" value="'+t3.pensionRate+'" '+(locked?'disabled':'')+' style="width:110px"></div>' +
-        '<div class="col"><label>건강보험(%)</label><input id="health-rate" type="number" step="0.001" value="'+t3.healthRate+'" '+(locked?'disabled':'')+' style="width:110px"></div>' +
-        '<div class="col"><label>장기요양(건강보험료의 %)</label><input id="care-rate" type="number" step="0.001" value="'+t3.careRate+'" '+(locked?'disabled':'')+' style="width:150px"></div>' +
+        '<div class="col"><label>국민연금 본인부담(%)</label><input id="pension-rate" type="number" step="0.0001" value="'+t3.pensionRate+'" '+(locked?'disabled':'')+' style="width:130px"></div>' +
+        '<div class="col"><label>건강보험 총 요율(%)</label><input id="health-rate" type="number" step="0.0001" value="'+t3.healthTotal+'" '+(locked?'disabled':'')+' style="width:130px"></div>' +
+        '<div class="col"><label>장기요양 총 요율(%)</label><input id="care-rate" type="number" step="0.0001" value="'+t3.careTotal+'" '+(locked?'disabled':'')+' style="width:130px"></div>' +
       '</div>';
       html += insuranceKv(t3);
       html += '<div class="kv" style="margin-top:8px"><div class="k">공제액 합계</div><div class="v" id="v-sum-ded">-'+won(t3.deduction)+'</div></div>';
@@ -1265,9 +1283,10 @@
       t = calcInfoTotals(monthKey, m);
       pay.push(['기본급 (실근무 '+t.actualDays+'일 × 3시간)', t.basePay]);
       pay.push(['주휴수당 ('+t.restWeeks+'주)', t.restPay]);
-      ded.push(['국민연금 ('+t.pensionRate+'%)', t.pension]);
-      ded.push(['건강보험 ('+t.healthRate+'%)', t.health]);
-      ded.push(['장기요양보험 (건강보험료의 '+t.careRate+'%)', t.care]);
+      var L = insuranceLabels(t);
+      ded.push([L.pension, t.pension]);
+      ded.push([L.health, t.health]);
+      ded.push([L.care, t.care]);
     }
 
     var html = '';
@@ -1422,11 +1441,11 @@
       var hw = document.getElementById('hourly-wage');
       if (hw) hw.oninput = function(){ m.hourlyWage = Number(hw.value)||0; refreshAdminTotals(emp, m); };
       var pr = document.getElementById('pension-rate');
-      if (pr) pr.oninput = function(){ m.pensionRate = Number(pr.value)||0; refreshAdminTotals(emp, m); };
+      if (pr) pr.oninput = function(){ m.pensionRateSelf = Number(pr.value)||0; refreshAdminTotals(emp, m); };
       var hr = document.getElementById('health-rate');
-      if (hr) hr.oninput = function(){ m.healthRate = Number(hr.value)||0; refreshAdminTotals(emp, m); };
+      if (hr) hr.oninput = function(){ m.healthRateTotal = Number(hr.value)||0; refreshAdminTotals(emp, m); };
       var cr2 = document.getElementById('care-rate');
-      if (cr2) cr2.oninput = function(){ m.careRate = Number(cr2.value)||0; refreshAdminTotals(emp, m); };
+      if (cr2) cr2.oninput = function(){ m.careRateTotal = Number(cr2.value)||0; refreshAdminTotals(emp, m); };
     }
     var confirmBtn = document.getElementById('confirm-btn');
     if (confirmBtn) confirmBtn.onclick = function(){
