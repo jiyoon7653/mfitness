@@ -1,0 +1,26 @@
+name: Firebase Hosting 자동 배포
+
+# main 브랜치가 바뀔 때마다 Firebase Hosting(무료)으로 배포합니다.
+# Netlify의 배포당 크레딧 과금과 달리, Firebase Hosting은 이 규모(직원 4명)에서
+# 무료 한도(하루 전송량 360MB, 저장 10GB)에 사실상 걸리지 않습니다.
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'public/**'
+      - 'firebase.json'
+      - '.firebaserc'
+  workflow_dispatch: {}   # 수동 실행 버튼 (테스트용)
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Firebase Hosting에 배포
+        uses: FirebaseExtended/action-hosting-deploy@v0
+        with:
+          repoToken: '${{ secrets.GITHUB_TOKEN }}'
+          firebaseServiceAccount: '${{ secrets.FIREBASE_SERVICE_ACCOUNT }}'
+          channelId: live
+          projectId: mfitness-d4a16
