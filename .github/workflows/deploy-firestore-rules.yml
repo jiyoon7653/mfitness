@@ -29,4 +29,20 @@ jobs:
           echo "GOOGLE_APPLICATION_CREDENTIALS=$RUNNER_TEMP/service-account.json" >> "$GITHUB_ENV"
 
       - name: 규칙 배포
+        id: deploy
         run: npx --yes firebase-tools@13 deploy --only firestore:rules --project mfitness-d4a16 --non-interactive
+
+      # 서비스 계정에 규칙 배포 권한이 없으면 403 이 납니다(호스팅 배포 권한과 별개입니다).
+      - name: 실패했을 때 할 일 안내
+        if: failure()
+        run: |
+          echo "::error::규칙 배포에 실패했습니다. 아래 둘 중 하나로 해결하세요."
+          echo ""
+          echo "[방법 1 · 지금 바로] Firebase 콘솔에서 직접 게시"
+          echo "  https://console.firebase.google.com/project/mfitness-d4a16/firestore/rules"
+          echo "  저장소의 firestore.rules 내용을 붙여넣고 '게시'"
+          echo ""
+          echo "[방법 2 · 다음부터 자동으로] 서비스 계정에 권한 추가 (403 The caller does not have permission 인 경우)"
+          echo "  https://console.cloud.google.com/iam-admin/iam?project=mfitness-d4a16"
+          echo "  FIREBASE_SERVICE_ACCOUNT 에 넣은 서비스 계정(보통 firebase-adminsdk-...@mfitness-d4a16.iam.gserviceaccount.com)"
+          echo "  → 역할 수정 → 'Firebase Rules 관리자'(Firebase Rules Admin) 추가 → 저장"
