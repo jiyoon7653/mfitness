@@ -1,0 +1,32 @@
+name: Firestore 보안 규칙 자동 배포
+
+# firestore.rules 가 바뀌면 Firebase 프로젝트에 자동으로 반영합니다.
+# 페이지(Hosting)만 배포하고 규칙을 안 올리면 새 기능이 "권한 없음"으로 막히기 때문에
+# 규칙도 같이 자동화해 둡니다.
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'firestore.rules'
+      - 'firestore.indexes.json'
+  workflow_dispatch: {}   # 수동 실행 버튼
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: 서비스 계정 키를 파일로 저장
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+        run: |
+          printf '%s' "$FIREBASE_SERVICE_ACCOUNT" > "$RUNNER_TEMP/service-account.json"
+          echo "GOOGLE_APPLICATION_CREDENTIALS=$RUNNER_TEMP/service-account.json" >> "$GITHUB_ENV"
+
+      - name: 규칙 배포
+        run: npx --yes firebase-tools@13 deploy --only firestore:rules --project mfitness-d4a16 --non-interactive
