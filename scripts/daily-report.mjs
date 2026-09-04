@@ -1,8 +1,13 @@
-// 매일 22:10(KST) 운영 보드 집계를 텔레그램으로 보냅니다.
+// 운영 보드 집계를 텔레그램으로 보냅니다. 세 가지 리포트를 한 파일에서 처리합니다.
+//   REPORT_KIND=daily   (기본) 매일 22:10 KST — 그날 하루
+//   REPORT_KIND=weekly        일요일 22:20 KST — 그 주 월요일~일요일 누적
+//   REPORT_KIND=monthly       말일 22:30 KST — 그 달 마감
 // GitHub Actions에서 실행되며, Firebase에는 익명 로그인으로 접속해 읽기만 합니다.
 //
 // 필요한 환경변수(= GitHub Secrets):
 //   TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID
+// 선택 환경변수:
+//   REPORT_KIND (daily|weekly|monthly), DRY_RUN=1 (전송 안 하고 출력만), FORCE=1 (말일 검사 건너뛰기)
 // Firebase 설정(apiKey, projectId)은 public/firebase-config.js 에서 자동으로 읽습니다.
 
 import { readFileSync } from 'node:fs';
@@ -77,6 +82,26 @@ function monthRange(today) {
 function won(n) {
   return (Math.round(n) || 0).toLocaleString('ko-KR') + '원';
 }
+function addDays(dateStr, n) {
+  const d = dateFromYMD(dateStr);
+  d.setUTCDate(d.getUTCDate() + n);
+  return ymd(d);
+}
+// 이번 달의 마지막 날짜(YYYY-MM-DD)
+function lastDayOfMonth(today) {
+  const { y, m } = parseYMD(today);
+  return ymd(new Date(Date.UTC(y, m, 0)));
+}
+function pctOf(value, target) {
+  return target > 0 ? Math.round((value / target) * 100) : null;
+}
+// 달성률에 눈에 띄는 표시를 붙입니다.
+function pctMark(pct) {
+  if (pct === null) return '';
+  if (pct >= 100) return ' ✅';
+  if (pct >= 70) return '';
+  return ' ⚠️';
+}
 
 // ---------- Firestore 값 디코더 ----------
 function decode(v) {
@@ -114,27 +139,6 @@ async function signInAnonymously(apiKey) {
 }
 
 // 컬렉션에서 date 필드가 오늘인 문서만 가져오기 (date 필터가 없으면 전체)
-async function queryByDate(projectId, token, collection, today) {
-  const url = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents:runQuery`;
-  const body = {
-    structuredQuery: {
-      from: [{ collectionId: collection }],
-      where: {
-        fieldFilter: { field: { fieldPath: 'date' }, op: 'EQUAL', value: { stringValue: today } },
-      },
-      limit: 1000,
-    },
-  };
-  const r = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
-    body: JSON.stringify(body),
-  });
-  if (!r.ok) throw new Error(collection + ' 조회 실패: ' + r.status + ' ' + (await r.text()));
-  const rows = await r.json();
-  return rows.filter((x) => x.document).map((x) => decodeDoc(x.document));
-}
-
 // date 필드가 [start, end) 범위인 문서만 가져오기. ISO(YYYY-MM-DD) 문자열은
 // 사전식 비교가 날짜 순서와 그대로 일치해서 범위 쿼리로 바로 씁니다.
 async function queryByDateRange(projectId, token, collection, start, end) {
@@ -296,6 +300,172 @@ function buildReport(today, data) {
   return L.join('\n');
 }
 
+
+// ---------- 공통 조각 ----------
+// 사물함 대조 스냅샷(settings/lockerSnapshot)에서 상태별 개수를 셉니다.
+function lockerStats(snapshot) {
+  const rows = (snapshot && Array.isArray(snapshot.rows)) ? snapshot.rows : [];
+  if (!rows.length) return null;
+  const c = { target: 0, soon: 0, orphan: 0, ok: 0, empty: 0 };
+  rows.forEach((r) => { if (c[r.status] !== undefined) c[r.status]++; });
+  return { ...c, total: rows.length, used: rows.length - c.empty, builtOn: snapshot.builtOn || '' };
+}
+// 당직표(settings/dutyRoster)에서 [start, end) 구간에 걸린 당직을 날짜순으로 뽑습니다.
+function dutiesBetween(dutyDoc, start, end) {
+  if (!dutyDoc) return [];
+  return Object.keys(dutyDoc)
+    .filter((k) => /^\d{4}-\d{2}-\d{2}$/.test(k) && k >= start && k < end)
+    .sort()
+    .map((k) => ({ date: k, ...(dutyDoc[k] || {}) }))
+    .filter((e) => e.person);
+}
+function conversionLine(visitors, calls) {
+  const registered = visitors.filter((v) => v.result === '등록완료').length;
+  const pct = pctOf(registered, visitors.length);
+  const L = [];
+  L.push(`👣 방문/상담  ${visitors.length}명 · 등록완료 ${registered}명` + (pct === null ? '' : ` (전환 ${pct}%)`));
+  L.push(`📞 문의전화   ${calls.length}건`);
+  return L;
+}
+function categoryLines(byCat, categories, targetOf) {
+  const names = new Set([...Object.keys(byCat), ...categories.map((c) => c.name)]);
+  const out = [];
+  [...names].forEach((name) => {
+    const sales = byCat[name] || 0;
+    const cat = categories.find((c) => c.name === name);
+    const target = cat ? targetOf(cat) : 0;
+    const pct = pctOf(sales, target);
+    out.push(`   ${name}  ${won(sales)}` + (pct === null ? '' : ` / ${won(target)} · ${pct}%${pctMark(pct)}`));
+  });
+  return out;
+}
+
+// ---------- 주간 리포트 (월요일 ~ 일요일 누적) ----------
+function buildWeeklyReport(today, data) {
+  const { week, weekWorklogs, monthWorklogs, weekVisitors, weekCalls, weekOt,
+          categories, otWeekTarget, lockerSnapshot, dutyDoc } = data;
+  const lastDay = addDays(week.end, -1);            // 그 주 일요일
+  const weekSales = sumSales(weekWorklogs);
+  const monthSales = sumSales(monthWorklogs);
+  const weekTarget = categories.reduce((a, c) => a + currentWeekTarget(c, today), 0);
+  const monthTarget = categories.reduce((a, c) => a + (Number(c.target) || 0), 0);
+
+  const L = [];
+  L.push('📊 *M휘트니스 주간 리포트*');
+  L.push(`${week.start}(${weekdayKo(week.start)}) ~ ${lastDay}(${weekdayKo(lastDay)})`);
+  if (today < lastDay) L.push(`_※ 아직 주가 끝나지 않았습니다 (${today} 까지 집계)_`);
+  L.push('━━━━━━━━━━━━');
+
+  const wPct = pctOf(weekSales.total, weekTarget);
+  L.push(`💰 주간 매출  *${won(weekSales.total)}*`
+    + (wPct === null ? ' (목표 미설정)' : ` (목표 ${won(weekTarget)} · ${wPct}%${pctMark(wPct)})`));
+  L.push('');
+
+  // 일자별 누적 — 하루하루가 어떻게 쌓였는지
+  L.push('📅 *일자별*');
+  const byDate = {};
+  weekWorklogs.forEach((w) => { byDate[w.date] = (byDate[w.date] || 0) + sumSales([w]).total; });
+  let running = 0;
+  for (let i = 0; i < 7; i++) {
+    const ds = addDays(week.start, i);
+    if (ds > today) break;
+    running += byDate[ds] || 0;
+    const mark = byDate[ds] === undefined ? '  _(일지 없음)_' : '';
+    L.push(`   ${weekdayKo(ds)} ${ds.slice(5)}   ${won(byDate[ds] || 0)}   누적 ${won(running)}${mark}`);
+  }
+  L.push('');
+
+  const catLines = categoryLines(weekSales.byCat, categories, (c) => currentWeekTarget(c, today));
+  if (catLines.length) {
+    L.push('🏷️ *카테고리별*');
+    catLines.forEach((l) => L.push(l));
+    L.push('');
+  }
+
+  conversionLine(weekVisitors, weekCalls).forEach((l) => L.push(l));
+
+  const otStat = otAchievement(weekOt);
+  const otPct = pctOf(otStat.achieved, otWeekTarget);
+  L.push(`⏱️ OT 진행    ${otStat.achieved}명 (전환 ${otStat.converted}명)`
+    + (otPct === null ? '' : ` · 목표 ${otWeekTarget}명 · ${otPct}%${pctMark(otPct)}`));
+
+  const lk = lockerStats(lockerSnapshot);
+  if (lk) L.push(`🔒 사물함     재등록 안내 ${lk.target}명 · 곧 만료 ${lk.soon}명 · 정리 대상 ${lk.orphan}명`);
+
+  const duties = dutiesBetween(dutyDoc, week.start, week.end);
+  if (duties.length) L.push(`🗓️ 이번 주 당직  ${duties.map((d) => d.person).join(' · ')}`);
+
+  L.push('');
+  const mPct = pctOf(monthSales.total, monthTarget);
+  L.push(`🗓️ 이번 달 누계  *${won(monthSales.total)}*`
+    + (mPct === null ? ' (목표 미설정)' : ` (목표 ${won(monthTarget)} · ${mPct}%${pctMark(mPct)})`));
+  return L.join('\n');
+}
+
+// ---------- 월간 마감 리포트 ----------
+function buildMonthlyReport(today, data) {
+  const { monthWorklogs, monthVisitors, monthCalls, monthOt,
+          categories, otTarget, lockerSnapshot } = data;
+  const { y, m } = parseYMD(today);
+  const monthSales = sumSales(monthWorklogs);
+  const monthTarget = categories.reduce((a, c) => a + (Number(c.target) || 0), 0);
+
+  const L = [];
+  L.push('📈 *M휘트니스 월간 마감 리포트*');
+  L.push(`${y}년 ${m}월 (${monthRange(today).start} ~ ${lastDayOfMonth(today)})`);
+  if (today < lastDayOfMonth(today)) L.push(`_※ 아직 달이 끝나지 않았습니다 (${today} 까지 집계)_`);
+  L.push('━━━━━━━━━━━━');
+
+  const mPct = pctOf(monthSales.total, monthTarget);
+  L.push(`💰 월 매출  *${won(monthSales.total)}*`
+    + (mPct === null ? ' (목표 미설정)' : ` (목표 ${won(monthTarget)} · ${mPct}%${pctMark(mPct)})`));
+  L.push('');
+
+  const catLines = categoryLines(monthSales.byCat, categories, (c) => Number(c.target) || 0);
+  if (catLines.length) {
+    L.push('🏷️ *카테고리별*');
+    catLines.forEach((l) => L.push(l));
+    L.push('');
+  }
+
+  // 주차별 — 그 주 월요일 기준으로 묶습니다. 주차 번호는 보드 화면과 같은 규칙이라
+  // 달 경계에 걸친 주는 앞 달의 주차 번호를 그대로 씁니다(예: 8/31~9/6 은 5주차).
+  // 번호만 보면 헷갈려서 기간을 함께 적습니다.
+  const byWeek = {};
+  monthWorklogs.forEach((w) => {
+    const mon = weekRange(w.date).start;
+    if (!byWeek[mon]) byWeek[mon] = 0;
+    byWeek[mon] += sumSales([w]).total;
+  });
+  const mondays = Object.keys(byWeek).sort();
+  if (mondays.length) {
+    L.push('📅 *주차별 매출*');
+    mondays.forEach((mon) => {
+      const i = weekOfMonthIndex(mon);
+      const sun = addDays(mon, 6);
+      const target = categories.reduce((a, c) => a + (Array.isArray(c.weekTargets) ? (Number(c.weekTargets[i - 1]) || 0) : 0), 0);
+      const pct = pctOf(byWeek[mon], target);
+      L.push(`   ${i}주차 (${mon.slice(5)}~${sun.slice(5)})   ${won(byWeek[mon])}`
+        + (pct === null ? '' : ` / ${won(target)} · ${pct}%${pctMark(pct)}`));
+    });
+    L.push('');
+  }
+
+  conversionLine(monthVisitors, monthCalls).forEach((l) => L.push(l));
+
+  const otStat = otAchievement(monthOt);
+  const otPct = pctOf(otStat.achieved, otTarget);
+  L.push(`⏱️ OT 진행    ${otStat.achieved}명 (전환 ${otStat.converted}명)`
+    + (otPct === null ? '' : ` · 목표 ${otTarget}명 · ${otPct}%${pctMark(otPct)}`));
+
+  const lk = lockerStats(lockerSnapshot);
+  if (lk) {
+    L.push(`🔒 사물함     사용 ${lk.used} / ${lk.total}칸 · 빈 칸 ${lk.empty}`);
+    L.push(`   재등록 안내 ${lk.target}명 · 곧 만료 ${lk.soon}명 · 정리 대상 ${lk.orphan}명${lk.builtOn ? ` (${lk.builtOn} 기준)` : ''}`);
+  }
+  return L.join('\n');
+}
+
 // ---------- 텔레그램 전송 ----------
 async function sendTelegram(botToken, chatId, text) {
   const r = await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
@@ -312,6 +482,8 @@ async function main() {
   const { apiKey, projectId } = loadFirebaseConfig();
   const botToken = process.env.TELEGRAM_BOT_TOKEN;
   const chatId = process.env.TELEGRAM_CHAT_ID;
+  const kind = (process.env.REPORT_KIND || 'daily').trim().toLowerCase();
+  if (!['daily', 'weekly', 'monthly'].includes(kind)) throw new Error('REPORT_KIND 는 daily/weekly/monthly 중 하나여야 합니다: ' + kind);
 
   if (!apiKey || !projectId) throw new Error('firebase-config.js 에서 apiKey/projectId 를 읽지 못했습니다.');
   if (!botToken || !chatId) throw new Error('TELEGRAM_BOT_TOKEN / TELEGRAM_CHAT_ID 가 설정되지 않았습니다.');
@@ -319,16 +491,29 @@ async function main() {
   const today = ymd(kstNow());
   const week = weekRange(today);
   const month = monthRange(today);
+
+  // 월간은 cron 으로 "말일"을 지정할 수 없어 28~31일에 매일 돌리고, 여기서 말일이 아니면 조용히 끝냅니다.
+  if (kind === 'monthly' && today !== lastDayOfMonth(today) && process.env.FORCE !== '1' && process.env.DRY_RUN !== '1') {
+    console.log('오늘은 말일이 아니라 월간 리포트를 보내지 않습니다:', today);
+    return;
+  }
+
   const token = await signInAnonymously(apiKey);
 
-  const [visitors, calls, monthWorklogs, lockers, catDoc, monthOt, trainerDoc] = await Promise.all([
-    queryByDate(projectId, token, 'visitors', today),
-    queryByDate(projectId, token, 'inquiryCalls', today),
+  // 일일은 오늘 하루치만, 주간·월간은 기간 전체를 불러옵니다.
+  const rangeStart = kind === 'daily' ? today : (kind === 'weekly' ? week.start : month.start);
+  const rangeEnd = kind === 'daily' ? addDays(today, 1) : (kind === 'weekly' ? week.end : month.end);
+
+  const [visitorsRange, callsRange, monthWorklogs, lockers, catDoc, monthOt, trainerDoc, lockerSnapshot, dutyDoc] = await Promise.all([
+    queryByDateRange(projectId, token, 'visitors', rangeStart, rangeEnd),
+    queryByDateRange(projectId, token, 'inquiryCalls', rangeStart, rangeEnd),
     queryByDateRange(projectId, token, 'worklogs', month.start, month.end),
     listAll(projectId, token, 'lockers'),
     getDoc(projectId, token, 'settings/salesCategories'),
     queryByDateRange(projectId, token, 'otSessions', month.start, month.end),
     getDoc(projectId, token, 'settings/otTrainers'),
+    getDoc(projectId, token, 'settings/lockerSnapshot'),
+    getDoc(projectId, token, 'settings/dutyRoster'),
   ]);
 
   const todayWorklogs = monthWorklogs.filter((w) => w.date === today);
@@ -340,14 +525,31 @@ async function main() {
   const trainers = trainerDoc && Array.isArray(trainerDoc.items) ? trainerDoc.items : [];
   const otTarget = trainers.reduce((a, t) => a + (Number(t.target) || 0), 0);
   const otWeekTarget = trainers.reduce((a, t) => a + currentWeekTarget(t, today), 0);
-  const text = buildReport(today, { visitors, calls, todayWorklogs, weekWorklogs, monthWorklogs, lockers, categories, todayOt, weekOt, monthOt, otTarget, otWeekTarget });
+
+  let text;
+  if (kind === 'weekly') {
+    text = buildWeeklyReport(today, {
+      week, weekWorklogs, monthWorklogs, weekVisitors: visitorsRange, weekCalls: callsRange,
+      weekOt, categories, otWeekTarget, lockerSnapshot, dutyDoc,
+    });
+  } else if (kind === 'monthly') {
+    text = buildMonthlyReport(today, {
+      monthWorklogs, monthVisitors: visitorsRange, monthCalls: callsRange, monthOt,
+      categories, otTarget, lockerSnapshot,
+    });
+  } else {
+    text = buildReport(today, {
+      visitors: visitorsRange, calls: callsRange, todayWorklogs, weekWorklogs, monthWorklogs,
+      lockers, categories, todayOt, weekOt, monthOt, otTarget, otWeekTarget,
+    });
+  }
 
   if (process.env.DRY_RUN === '1') {
-    console.log('--- DRY RUN (전송 안 함) ---\n' + text);
+    console.log(`--- DRY RUN / ${kind} (전송 안 함) ---\n` + text);
     return;
   }
   await sendTelegram(botToken, chatId, text);
-  console.log('전송 완료:', today);
+  console.log(`전송 완료 (${kind}):`, today);
 }
 
 main().catch((e) => {

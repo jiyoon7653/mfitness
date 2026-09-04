@@ -1,11 +1,19 @@
-name: 일일 운영 리포트 (텔레그램)
+name: 운영 리포트 (텔레그램)
 
 on:
   schedule:
-    # 매일 13:10 UTC = 22:10 KST
-    - cron: '10 13 * * *'
-  workflow_dispatch:      # 수동 실행 버튼 (테스트용)
+    # cron 은 UTC 기준입니다. KST = UTC + 9.
+    - cron: '10 13 * * *'       # 매일 22:10 KST — 일일 리포트
+    - cron: '20 13 * * 0'       # 일요일 22:20 KST — 주간 리포트 (월~일 누적)
+    - cron: '30 13 28-31 * *'   # 말일 후보일 22:30 KST — 월간 마감 (스크립트가 말일만 통과시킵니다)
+  workflow_dispatch:            # 수동 실행 버튼
     inputs:
+      kind:
+        description: '어떤 리포트를 보낼지'
+        required: true
+        default: daily
+        type: choice
+        options: [daily, weekly, monthly]
       dry_run:
         description: '전송하지 않고 미리보기만 (1 = 미리보기)'
         required: false
@@ -15,13 +23,18 @@ jobs:
   report:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
-      - name: 일일 리포트 전송
+      - name: 리포트 전송
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
           DRY_RUN: ${{ github.event.inputs.dry_run }}
+          # 예약 실행일 때는 어떤 cron 이 울렸는지로 종류를 정하고,
+          # 수동 실행일 때는 위에서 고른 값을 씁니다.
+          REPORT_KIND: ${{ github.event.inputs.kind || (github.event.schedule == '20 13 * * 0' && 'weekly') || (github.event.schedule == '30 13 28-31 * *' && 'monthly') || 'daily' }}
+          # 월간은 말일에만 나갑니다. 수동 실행은 날짜 검사를 건너뜁니다.
+          FORCE: ${{ github.event_name == 'workflow_dispatch' && '1' || '0' }}
         run: node scripts/daily-report.mjs
