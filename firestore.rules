@@ -90,7 +90,15 @@ service cloud.firestore {
       allow write: if lessonAdmin();
     }
 
-    // lessonSettings/owner 는 여기에 어떤 allow 도 없으므로 클라이언트에서 접근 불가입니다.
+    // 관리자 등록 문서. 아직 없을 때 딱 한 번, 비밀번호로 로그인한 사람이
+    // "자기 이메일로만" 만들 수 있습니다. 한 번 만들어지면 페이지에서는
+    // 읽지도 고치지도 지우지도 못합니다(바꾸려면 Firebase 콘솔에서 지우고 다시 등록).
+    match /lessonSettings/owner {
+      allow create: if request.auth != null
+        && request.auth.token.firebase.sign_in_provider == 'password'
+        && request.resource.data.keys().hasOnly(['email'])
+        && request.resource.data.email == request.auth.token.email;
+    }
 
     // 그 외 경로는 모두 차단
     match /{document=**}       { allow read, write: if false; }

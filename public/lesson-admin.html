@@ -71,6 +71,12 @@
   .login-wrap .brand { font-size: 12px; letter-spacing: .3em; text-transform: uppercase; color: var(--accent); margin: 0 0 14px; font-weight: 700; }
   .login-wrap h1 { font-size: 25px; margin: 0 0 8px; letter-spacing: -.02em; }
   .login-wrap .sub { color: var(--muted); font-size: 14px; margin: 0 0 26px; }
+  .switch-mode { text-align: center; font-size: 13.5px; color: var(--muted); margin: 18px 0 0; }
+  .linkish {
+    border: none; background: none; padding: 4px 2px; font: inherit; font-size: 13.5px;
+    font-weight: 600; color: var(--accent-ink); text-decoration: underline; text-underline-offset: 3px;
+  }
+  .linkish:hover { color: var(--accent); }
 
   /* ---------- 공통 ---------- */
   .card {
@@ -144,7 +150,7 @@
   .panel h2 { font-size: 16px; margin: 0 0 3px; letter-spacing: -.01em; }
   .panel .sub { font-size: 13px; color: var(--muted); margin: 0 0 16px; }
   .heat-scroll { overflow-x: auto; }
-  table.heat { border-collapse: separate; border-spacing: 4px; min-width: 480px; width: 100%; }
+  table.heat { border-collapse: separate; border-spacing: 4px; min-width: 620px; width: 100%; }
   table.heat th { font-size: 12px; color: var(--muted); font-weight: 600; padding: 2px 4px; }
   table.heat th.row { text-align: right; width: 34px; white-space: nowrap; }
   table.heat td {
@@ -245,14 +251,38 @@
         <label class="lab" for="email">관리자 이메일</label>
         <input type="email" id="email" autocomplete="username" placeholder="you@example.com">
       </div>
-      <div style="margin-bottom:18px">
+      <div style="margin-bottom:14px">
         <label class="lab" for="password">비밀번호</label>
         <input type="password" id="password" autocomplete="current-password">
       </div>
+      <div style="margin-bottom:18px" id="confirmWrap" hidden>
+        <label class="lab" for="password2">비밀번호 확인</label>
+        <input type="password" id="password2" autocomplete="new-password">
+      </div>
       <button type="submit" class="btn primary full" id="loginBtn">로그인</button>
     </form>
+    <p class="switch-mode">
+      <span id="switchText">이 화면을 처음 여시나요?</span>
+      <button type="button" class="linkish" id="modeToggle">관리자 계정 만들기</button>
+    </p>
   </div>
   <p class="conn" id="loginConn"><span class="conn-dot"></span><span id="loginConnText">연결 중…</span></p>
+</div>
+
+<!-- ================= 관리자 등록 (최초 1회) ================= -->
+<div class="login-wrap" id="claimView" hidden>
+  <p class="brand">Nums Approach</p>
+  <h1>관리자 등록</h1>
+  <p class="sub">이 계정을 이 화면의 관리자로 등록합니다. 한 번만 하면 됩니다.</p>
+  <div class="card">
+    <p class="msg bad" id="claimError" hidden></p>
+    <p class="msg info">
+      <b id="claimEmail"></b> 계정을 관리자로 등록하면, <b>이 계정만</b> 신청자의 이름·연락처·특이사항을
+      볼 수 있습니다. 다른 계정은 물론이고 신청 폼조차 읽지 못합니다.
+    </p>
+    <button class="btn primary full" id="claimBtn">이 계정을 관리자로 등록</button>
+    <button class="btn full" id="claimLogout" style="margin-top:10px">다른 계정으로 로그인</button>
+  </div>
 </div>
 
 <!-- ================= 콘솔 ================= -->
@@ -283,7 +313,7 @@
 
   <section class="card panel">
     <h2>요일 × 시간대 히트맵</h2>
-    <p class="sub">상태가 <b>대기</b>인 신청자의 희망 일정만 셉니다. 진한 칸을 먼저 열면 대기가 가장 많이 풀립니다.</p>
+    <p class="sub">상태가 <b>대기</b>인 신청자의 희망 일정만 셉니다. 열 머리글은 레슨 <b>시작 시각</b>입니다. 진한 칸을 먼저 열면 대기가 가장 많이 풀립니다.</p>
     <div class="heat-scroll">
       <table class="heat" id="heatTable"><tbody></tbody></table>
     </div>
@@ -364,10 +394,12 @@
 
   /* lesson.html 과 같은 목록을 씁니다. 한쪽만 고치면 히트맵이 어긋납니다. */
   var DAYS = ['월', '화', '수', '목', '금', '토', '일'];
-  var SLOTS = ['오전 06-09', '오전 09-12', '오후 12-15', '오후 15-18', '저녁 18-21', '야간 21-24'];
+  var SLOTS = ['09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00'];
   var MEMBER_TYPES = ['기존 회원', '신규'];
   var STATUSES = ['대기', '연락완료', '상담예정', '등록완료', '보류', '취소'];
 
+  var app = null;    // 신청 폼(익명 로그인)과 로그인 상태가 섞이지 않도록 별도 앱으로 띄웁니다
+  var auth = null;
   var db = null;
   var rows = [];
   var selectedId = '';
@@ -375,6 +407,12 @@
   var filters = { q: '', status: '', member: '', day: '', slot: '', sort: 'new' };
 
   var $ = function (id) { return document.getElementById(id); };
+  // 히트맵 열 머리글에 쓰는 짧은 표기 ('09:00' -> '09')
+  var shortSlot = function (s) { return String(s).replace(':00', ''); };
+  // 고른 순서가 아니라 항상 같은 순서(요일·시각 순)로 보여줍니다
+  function ordered(list, ref) {
+    return (list || []).slice().sort(function (a, b) { return ref.indexOf(a) - ref.indexOf(b); });
+  }
   var esc = function (s) {
     return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
       return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
@@ -435,7 +473,7 @@
       });
     });
 
-    var short = SLOTS.map(function (s) { return s.split(' ')[1] || s; });
+    var short = SLOTS.map(shortSlot);
     var html = '<tr><th class="row"></th>' + short.map(function (s) { return '<th>' + esc(s) + '</th>'; }).join('') + '</tr>';
 
     DAYS.forEach(function (d) {
@@ -515,8 +553,8 @@
           '<a href="sms:' + esc(String(r.phone || '').replace(/\D/g, '')) + '" aria-label="문자 보내기" title="문자 보내기">' + ICON_SMS + '</a>' +
         '</span></td>' +
         '<td>' + esc(r.memberType || '') + '</td>' +
-        '<td class="tags">' + esc((r.days || []).join(' ')) + '</td>' +
-        '<td class="tags">' + esc((r.slots || []).map(function (s) { return s.split(' ')[1] || s; }).join(', ')) + '</td>' +
+        '<td class="tags">' + esc(ordered(r.days, DAYS).join(' ')) + '</td>' +
+        '<td class="tags">' + esc(ordered(r.slots, SLOTS).join(', ')) + '</td>' +
         '<td></td>';
 
       var sel = document.createElement('select');
@@ -565,8 +603,8 @@
       ['접수일시', fmtDateTime(created)],
       ['연락처', r.phone || ''],
       ['회원 여부', r.memberType || ''],
-      ['희망 요일', (r.days || []).join(', ')],
-      ['희망 시간대', (r.slots || []).join(', ')],
+      ['희망 요일', ordered(r.days, DAYS).join(', ')],
+      ['희망 시간대', ordered(r.slots, SLOTS).join(', ')],
       ['운동 목적', (r.goals || []).join(', ')],
       ['운동 경력', r.experience || ''],
       ['상태', r.status || ''],
@@ -615,7 +653,7 @@
     list.forEach(function (r) {
       lines.push([
         fmtDateTime(toDate(r.createdAt)), r.code, r.name, r.phone, r.memberType,
-        (r.days || []).join(' '), (r.slots || []).join(' '), (r.goals || []).join(' '),
+        ordered(r.days, DAYS).join(' '), ordered(r.slots, SLOTS).join(' '), (r.goals || []).join(' '),
         r.experience, r.notes, r.status, fmtDateTime(toDate(r.contactedAt)), r.adminMemo
       ].map(csvCell).join(','));
     });
@@ -668,15 +706,51 @@
     el.innerHTML = msg;
   }
 
-  var SETUP_GUIDE =
-    '<b>관리자 계정이 아직 준비되지 않았습니다.</b> Firebase 콘솔에서 세 가지만 해두면 됩니다.' +
+  // 콘솔에서 해야 하는 일은 이 스위치 하나뿐입니다. 계정 생성과 관리자 등록은 이 화면에서 합니다.
+  var PROVIDER_GUIDE =
+    '<b>Firebase 콘솔에서 스위치 하나만 켜주세요.</b>' +
     '<ol>' +
-    '<li>Authentication → Sign-in method → <b>이메일/비밀번호</b> 사용 설정</li>' +
-    '<li>Authentication → Users → <b>사용자 추가</b> 로 관리자 이메일·비밀번호 등록</li>' +
-    '<li>Firestore → 컬렉션 <code>lessonSettings</code> → 문서 <code>owner</code> → 필드 <code>email</code> 에 그 이메일 입력</li>' +
-    '</ol>';
+    '<li>Firebase 콘솔 → <b>Authentication</b> → <b>Sign-in method</b> 탭</li>' +
+    '<li><b>이메일/비밀번호</b> → 사용 설정(첫 번째 스위치만) → 저장</li>' +
+    '</ol>' +
+    '켠 뒤 이 화면에서 <b>관리자 계정 만들기</b>로 계정을 만드시면 됩니다.';
 
-  /* ---------------- 로그인 ---------------- */
+  /* ---------------- 로그인 / 관리자 계정 만들기 ---------------- */
+  var signupMode = false;
+
+  function setMode(on) {
+    signupMode = on;
+    $('confirmWrap').hidden = !on;
+    $('password').setAttribute('autocomplete', on ? 'new-password' : 'current-password');
+    $('loginBtn').textContent = on ? '관리자 계정 만들기' : '로그인';
+    $('switchText').textContent = on ? '이미 계정이 있으신가요?' : '이 화면을 처음 여시나요?';
+    $('modeToggle').textContent = on ? '로그인하기' : '관리자 계정 만들기';
+    setLoginError('');
+    setLoginHelp('');
+  }
+
+  function authFailed(err) {
+    $('loginBtn').disabled = false;
+    setMode(signupMode);
+    var code = (err && err.code) || '';
+    if (code === 'auth/operation-not-allowed') {
+      setLoginError('이메일/비밀번호 로그인이 아직 켜져 있지 않습니다.');
+      setLoginHelp(PROVIDER_GUIDE);
+    } else if (code === 'auth/email-already-in-use') {
+      setLoginError('이미 만들어진 계정입니다. 아래 "로그인하기"로 들어가 주세요.');
+    } else if (code === 'auth/weak-password') {
+      setLoginError('비밀번호는 6자 이상이어야 합니다.');
+    } else if (code === 'auth/invalid-email') {
+      setLoginError('이메일 형식이 올바르지 않습니다.');
+    } else if (code === 'auth/user-not-found' || code === 'auth/invalid-credential' || code === 'auth/wrong-password') {
+      setLoginError('이메일 또는 비밀번호가 맞지 않습니다. 계정을 아직 안 만드셨다면 아래 "관리자 계정 만들기"를 눌러 주세요.');
+    } else if (code === 'auth/too-many-requests') {
+      setLoginError('시도가 너무 많습니다. 잠시 후 다시 시도해 주세요.');
+    } else {
+      setLoginError('처리하지 못했습니다: ' + ((err && err.message) || ''));
+    }
+  }
+
   function login(ev) {
     ev.preventDefault();
     setLoginError('');
@@ -684,19 +758,40 @@
     var email = $('email').value.trim();
     var pw = $('password').value;
     if (!email || !pw) { setLoginError('이메일과 비밀번호를 입력해 주세요.'); return; }
+    if (signupMode && pw !== $('password2').value) { setLoginError('비밀번호 확인이 일치하지 않습니다.'); return; }
 
     $('loginBtn').disabled = true;
-    $('loginBtn').textContent = '확인 중…';
-    firebase.auth().signInWithEmailAndPassword(email, pw).catch(function (err) {
-      $('loginBtn').disabled = false;
-      $('loginBtn').textContent = '로그인';
-      var code = (err && err.code) || '';
-      if (code === 'auth/operation-not-allowed') { setLoginHelp(SETUP_GUIDE); setLoginError('이메일/비밀번호 로그인이 아직 켜져 있지 않습니다.'); }
-      else if (code === 'auth/user-not-found' || code === 'auth/invalid-credential' || code === 'auth/wrong-password') {
-        setLoginError('이메일 또는 비밀번호가 맞지 않습니다.');
-        setLoginHelp(SETUP_GUIDE);
-      } else if (code === 'auth/too-many-requests') { setLoginError('시도가 너무 많습니다. 잠시 후 다시 시도해 주세요.'); }
-      else { setLoginError('로그인에 실패했습니다: ' + ((err && err.message) || '')); }
+    $('loginBtn').textContent = signupMode ? '만드는 중…' : '확인 중…';
+    var task = signupMode
+      ? auth.createUserWithEmailAndPassword(email, pw)
+      : auth.signInWithEmailAndPassword(email, pw);
+    task.catch(authFailed);
+  }
+
+  /* ---------------- 관리자 등록 (최초 1회) ---------------- */
+  function claimOwner() {
+    var user = auth.currentUser;
+    if (!user) return;
+    $('claimBtn').disabled = true;
+    $('claimBtn').textContent = '등록 중…';
+    $('claimError').hidden = true;
+    db.doc('lessonSettings/owner').set({ email: user.email }).then(function () {
+      $('claimBtn').disabled = false;
+      $('claimBtn').textContent = '이 계정을 관리자로 등록';
+      showConsole();
+    }).catch(function (err) {
+      $('claimBtn').disabled = false;
+      $('claimBtn').textContent = '이 계정을 관리자로 등록';
+      var el = $('claimError');
+      el.hidden = false;
+      if (err && err.code === 'permission-denied') {
+        el.innerHTML = '<b>이미 다른 계정이 관리자로 등록되어 있습니다.</b><br>' +
+          '그 계정으로 로그인하시거나, Firebase 콘솔 → Firestore → <code>lessonSettings</code> → ' +
+          '<code>owner</code> 문서를 지우고 다시 등록해 주세요.';
+      } else {
+        el.textContent = '등록에 실패했습니다: ' + ((err && err.message) || '') +
+          ' (보안 규칙이 아직 배포되지 않았을 수 있습니다)';
+      }
     });
   }
 
@@ -716,9 +811,10 @@
           closeDrawer();
         }
       }, function (err) {
+        // 이 계정이 아직 관리자로 등록되지 않았으면 등록 화면으로 보냅니다.
+        if (err && err.code === 'permission-denied') { showClaim(); return; }
         setConn('error', '목록을 읽지 못했습니다.');
-        if (err && err.code === 'permission-denied') showConsoleError(SETUP_GUIDE);
-        else showConsoleError('동기화 오류: ' + ((err && err.message) || ''));
+        showConsoleError('동기화 오류: ' + ((err && err.message) || ''));
       }));
 
     unsub.push(db.doc('lessonSettings/config').onSnapshot(function (snap) {
@@ -727,20 +823,38 @@
     }, function () {}));
   }
 
-  function showConsole() {
-    $('loginView').hidden = true;
-    $('consoleView').hidden = false;
-    subscribe();
-  }
-  function showLogin() {
+  function teardown() {
     unsub.forEach(function (f) { try { f(); } catch (e) {} });
     unsub = [];
     rows = [];
+  }
+  function hideAll() {
+    $('loginView').hidden = true;
+    $('claimView').hidden = true;
     $('consoleView').hidden = true;
+  }
+  function showConsole() {
+    teardown();
+    hideAll();
+    $('consoleView').hidden = false;
+    subscribe();
+  }
+  function showClaim() {
+    teardown();
+    hideAll();
+    var user = auth.currentUser;
+    $('claimEmail').textContent = (user && user.email) || '';
+    $('claimError').hidden = true;
+    $('claimView').hidden = false;
+  }
+  function showLogin() {
+    teardown();
+    hideAll();
     $('loginView').hidden = false;
     $('loginBtn').disabled = false;
-    $('loginBtn').textContent = '로그인';
+    setMode(false);
     $('password').value = '';
+    $('password2').value = '';
   }
 
   /* ---------------- 시작 ---------------- */
@@ -770,12 +884,15 @@
     });
 
     $('csvBtn').addEventListener('click', exportCsv);
-    $('logoutBtn').addEventListener('click', function () { firebase.auth().signOut(); });
+    $('logoutBtn').addEventListener('click', function () { auth.signOut(); });
     $('intakeToggle').addEventListener('change', toggleIntake);
     $('drawerClose').addEventListener('click', closeDrawer);
     $('drawerBg').addEventListener('click', closeDrawer);
     $('dSave').addEventListener('click', saveMemo);
     $('loginForm').addEventListener('submit', login);
+    $('modeToggle').addEventListener('click', function () { setMode(!signupMode); });
+    $('claimBtn').addEventListener('click', claimOwner);
+    $('claimLogout').addEventListener('click', function () { auth.signOut(); });
     document.addEventListener('keydown', function (e) {
       if (e.key === 'Escape' && $('drawer').classList.contains('on')) closeDrawer();
     });
@@ -789,10 +906,14 @@
       $('loginConnText').textContent = '서버 설정을 불러오지 못했습니다.';
       return;
     }
-    firebase.initializeApp(findFirebaseConfig());
-    db = firebase.firestore();
+    // 같은 주소의 신청 폼·운영 보드는 익명 로그인을 씁니다. 기본 앱을 함께 쓰면
+    // 다른 탭에서 폼을 여는 순간 이 화면이 익명 계정으로 바뀌어 로그아웃됩니다.
+    // 이름 있는 앱으로 띄우면 로그인 상태가 서로 섞이지 않습니다.
+    app = firebase.initializeApp(findFirebaseConfig(), 'numsLessonAdmin');
+    db = app.firestore();
+    auth = app.auth();
 
-    firebase.auth().onAuthStateChanged(function (user) {
+    auth.onAuthStateChanged(function (user) {
       // 익명 로그인 상태로 들어온 브라우저는 관리자 권한이 없습니다.
       if (user && !user.isAnonymous) {
         $('loginConn').className = 'conn live';
