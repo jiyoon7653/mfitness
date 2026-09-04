@@ -396,7 +396,11 @@
     });
     var restWeeks = Math.max(0, baseRestWeeks - holidayWeeks);
     var restPay = restWeeks*3*wage;
-    var preTax = basePay+restPay;
+    // 조정액: 달력만으로는 표현되지 않는 일회성 가감(소급분, 과·부족 지급 정산 등).
+    // 기본급·주휴수당은 그대로 두고 사유와 함께 남기기 위한 칸입니다. 공제 대상에 포함됩니다.
+    var adjustAmount = Number(monthData.adjustAmount)||0;
+    var adjustNote = monthData.adjustNote || '';
+    var preTax = basePay+restPay+adjustAmount;
 
     // 최민영(인포)은 사업소득 3.3%가 아니라 4대보험 가입자입니다.
     // 다만 다른 직장이 주된 근무지라 고용보험은 그쪽에서 들고 있어 여기서는 빼고,
@@ -419,7 +423,8 @@
     var deduction = pension + health + care;
     var net = preTax-deduction;
     return {weekdayCount:weekdayCount, holidayCount:holidays.length, holidayWeeks:holidayWeeks,
-            actualDays:actualDays, basePay:basePay, restWeeks:restWeeks, restPay:restPay, preTax:preTax,
+            actualDays:actualDays, basePay:basePay, restWeeks:restWeeks, restPay:restPay,
+            adjustAmount:adjustAmount, adjustNote:adjustNote, preTax:preTax,
             pensionRate:pensionRate, healthTotal:healthTotal, careTotal:careTotal,
             healthRate:healthRate, careRate:careRate,
             pension:pension, health:health, care:care,
@@ -433,6 +438,13 @@
       health:  '건강보험 (총 '+t.healthTotal+'% 중 본인부담 '+t.healthRate+'%)',
       care:    '장기요양보험 (총 '+t.careTotal+'% 중 본인부담 '+t.careRate+'%)'
     };
+  }
+
+  // 조정액은 값이 있을 때만 보여 줍니다 (없으면 화면이 그대로).
+  function infoAdjustKv(t){
+    if (!t.adjustAmount) return '<div class="kv" id="kv-if-adj" style="display:none"><div class="k" id="k-if-adj">조정액</div><div class="v" id="v-if-adj">0원</div></div>';
+    return '<div class="kv" id="kv-if-adj"><div class="k" id="k-if-adj">조정액'+(t.adjustNote?' ('+esc(t.adjustNote)+')':'')+'</div>' +
+      '<div class="v" id="v-if-adj">'+(t.adjustAmount>0?'+':'')+won(t.adjustAmount)+'</div></div>';
   }
 
   function insuranceKv(t){
@@ -649,6 +661,9 @@
     setText('v-if-hw', t.holidayWeeks+'주');
     setText('k-if-rest', '주휴수당 ('+t.restWeeks+'주)');
     setText('v-if-rest', won(t.restPay));
+    showRow('kv-if-adj', !!t.adjustAmount);
+    setText('k-if-adj', '조정액' + (t.adjustNote ? ' ('+t.adjustNote+')' : ''));
+    setText('v-if-adj', (t.adjustAmount>0?'+':'')+won(t.adjustAmount));
     refreshInsuranceKv(t);
   }
 
@@ -671,7 +686,15 @@
     if (emp.role==='info'){
       setText('v-ad-if-base', won(t.basePay));
       setText('v-ad-if-rest', won(t.restPay));
+      showRow('kv-ad-if-adj', !!t.adjustAmount);
+      setText('k-ad-if-adj', '조정액' + (t.adjustNote ? ' ('+t.adjustNote+')' : ''));
+      setText('v-ad-if-adj', (t.adjustAmount>0?'+':'')+won(t.adjustAmount));
       refreshInsuranceKv(t);
+      // 합계 줄도 같이 갱신합니다. (이전에는 여기서 바로 끝나 시급·요율을 고쳐도
+      //  공제 전 합계·공제액·지급 급여가 그대로 남아 있었습니다.)
+      setText('v-sum-pre', won(t.preTax));
+      setText('v-sum-ded', '-'+won(t.deduction));
+      setText('v-sum-net', won(t.net));
       return;
     }
     setText('v-sum-pre', won(t.preTax));
@@ -1069,6 +1092,7 @@
       '<div class="kv"><div class="k">기본급 (일 3시간)</div><div class="v" id="v-if-base">'+won(t.basePay)+'</div></div>' +
       '<div class="kv" id="kv-if-hw"'+(t.holidayWeeks>0?'':' style="display:none"')+'><div class="k">공휴일 포함으로 주휴수당 제외된 주</div><div class="v" id="v-if-hw">'+t.holidayWeeks+'주</div></div>' +
       '<div class="kv"><div class="k" id="k-if-rest">주휴수당 ('+t.restWeeks+'주)</div><div class="v" id="v-if-rest">'+won(t.restPay)+'</div></div>' +
+      infoAdjustKv(t) +
       '<div class="divider"></div>' +
       '<div class="kv"><div class="k">공제 전 합계</div><div class="v" id="v-sum-pre">'+won(t.preTax)+'</div></div>' +
       '<h4 style="margin:12px 0 6px">공제 (3대보험)</h4>' +
@@ -1265,6 +1289,12 @@
       html += '<div class="kv"><div class="k">기본급</div><div class="v" id="v-ad-if-base">'+won(t3.basePay)+'</div></div>';
       if (t3.holidayWeeks>0) html += '<div class="kv"><div class="k">공휴일 포함으로 주휴수당 제외된 주</div><div class="v">'+t3.holidayWeeks+'주</div></div>';
       html += '<div class="kv"><div class="k">주휴수당 ('+t3.restWeeks+'주)</div><div class="v" id="v-ad-if-rest">'+won(t3.restPay)+'</div></div>';
+      html += '<div class="row" style="margin-top:8px">' +
+        '<div class="col"><label>조정액 (원, 빼려면 음수)</label><input id="adjust-amount" type="number" step="1" value="'+(m.adjustAmount||0)+'" '+(locked?'disabled':'')+' style="width:160px"></div>' +
+        '<div class="col"><label>조정 사유</label><input id="adjust-note" type="text" value="'+esc(m.adjustNote||'')+'" '+(locked?'disabled':'')+' placeholder="예) 전월 과지급 정산" style="width:320px"></div>' +
+      '</div>';
+      html += '<p class="muted" style="margin:4px 0 0">달력만으로는 표현되지 않는 일회성 가감에 씁니다. 기본급·주휴수당은 그대로 두고 이 줄로만 조정되며, 공제 대상에 포함됩니다.</p>';
+      html += '<div class="kv" id="kv-ad-if-adj"'+(t3.adjustAmount?'':' style="display:none"')+'><div class="k" id="k-ad-if-adj">조정액'+(t3.adjustNote?' ('+esc(t3.adjustNote)+')':'')+'</div><div class="v" id="v-ad-if-adj">'+(t3.adjustAmount>0?'+':'')+won(t3.adjustAmount)+'</div></div>';
       html += '<div class="divider"></div>';
       html += '<div class="kv"><div class="k">공제 전 합계</div><div class="v" id="v-sum-pre">'+won(t3.preTax)+'</div></div>';
       html += '<h3 style="margin:14px 0 6px">공제 (4대보험 중 3대보험 · 고용보험 제외)</h3>';
@@ -1349,6 +1379,7 @@
       t = calcInfoTotals(monthKey, m);
       pay.push(['기본급 (실근무 '+t.actualDays+'일 × 3시간)', t.basePay]);
       pay.push(['주휴수당 ('+t.restWeeks+'주)', t.restPay]);
+      if (t.adjustAmount) pay.push(['조정액'+(t.adjustNote?' ('+t.adjustNote+')':''), t.adjustAmount]);
       var L = insuranceLabels(t);
       ded.push([L.pension, t.pension]);
       ded.push([L.health, t.health]);
@@ -1512,6 +1543,11 @@
       if (hr) hr.oninput = function(){ m.healthRateTotal = Number(hr.value)||0; refreshAdminTotals(emp, m); };
       var cr2 = document.getElementById('care-rate');
       if (cr2) cr2.oninput = function(){ m.careRateTotal = Number(cr2.value)||0; refreshAdminTotals(emp, m); };
+      var aj = document.getElementById('adjust-amount');
+      if (aj) aj.oninput = function(){ m.adjustAmount = Number(aj.value)||0; refreshAdminTotals(emp, m); };
+      // 사유는 한글 입력이 끊기지 않도록 다시 그리지 않고 값만 담아 둡니다.
+      var an = document.getElementById('adjust-note');
+      if (an) an.oninput = function(){ m.adjustNote = an.value; };
     }
     var confirmBtn = document.getElementById('confirm-btn');
     if (confirmBtn) confirmBtn.onclick = function(){
