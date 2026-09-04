@@ -1427,9 +1427,37 @@
   // ---- 주차별 목표 (1~5주차를 미리 입력해두고, 이번 주에 해당하는 값만 자동으로 사용) ----
   // 주차 기준: 그 주 "월요일"이 속한 달의 몇 번째 주인지 (월~일 주간 집계 범위와 같은 기준)
   var WEEK_SLOTS = 5;
+  // 달 경계에서 주를 자릅니다. 그 달에 걸치는 월~일 주들을 순서대로 1주차부터 매기되,
+  // 각 주의 범위는 그 달 안으로 잘라냅니다. 예) 8/31(월)~9/6(일) 주는
+  // 8월에서는 8월 마지막 주(8/31 하루), 9월에서는 9월 1주차(9/1~9/6) 로 나뉩니다.
+  // 텔레그램 리포트(scripts/daily-report.mjs)와 같은 규칙입니다.
+  function monthWeeksOf(d) {
+    var base = d || new Date();
+    var mStart = new Date(base.getFullYear(), base.getMonth(), 1);
+    var mEnd = new Date(base.getFullYear(), base.getMonth() + 1, 1);
+    var monday = mondayOf(mStart), out = [], i = 1;
+    while (monday < mEnd) {
+      var sunday = new Date(monday.getFullYear(), monday.getMonth(), monday.getDate() + 7);
+      out.push({
+        index: i,
+        start: monday < mStart ? mStart : monday,
+        end: sunday > mEnd ? mEnd : sunday
+      });
+      monday = new Date(monday.getFullYear(), monday.getMonth(), monday.getDate() + 7);
+      i++;
+    }
+    return out;
+  }
+  function monthWeekOf(d) {
+    var base = d || new Date();
+    var weeks = monthWeeksOf(base);
+    for (var i = 0; i < weeks.length; i++) {
+      if (base >= weeks[i].start && base < weeks[i].end) return weeks[i];
+    }
+    return weeks[weeks.length - 1];
+  }
   function weekOfMonthIndex(d) {
-    var monday = mondayOf(d || new Date());
-    return Math.min(WEEK_SLOTS, Math.floor((monday.getDate() - 1) / 7) + 1);
+    return monthWeekOf(d || new Date()).index;
   }
   function normalizeWeekTargets(item) {
     var arr;
@@ -1444,7 +1472,11 @@
     return arr;
   }
   function currentWeekTarget(item) {
-    return normalizeWeekTargets(item)[weekOfMonthIndex() - 1] || 0;
+    // 달 첫날이 주 중간이면 그 달 주차가 6개까지 나옵니다. 목표 칸은 1~5주차뿐이라
+    // 6주차는 목표 없음(0)으로 둡니다 — 5주차 목표를 두 번 쓰지 않기 위해서입니다.
+    var i = weekOfMonthIndex();
+    if (i > WEEK_SLOTS) return 0;
+    return normalizeWeekTargets(item)[i - 1] || 0;
   }
   function weekTargetInputsRow(item, idxAttr) {
     var wrap = document.createElement('div'); wrap.className = 'week-target-row';
@@ -2486,8 +2518,9 @@
     var now = new Date();
     var monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
     var monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 1);
-    var weekStart = mondayOf(now); var weekEnd = new Date(weekStart); weekEnd.setDate(weekStart.getDate() + 7);
-    return { monthStart: monthStart, monthEnd: monthEnd, weekStart: weekStart, weekEnd: weekEnd };
+    // 이번 주도 달 경계에서 자릅니다 — 이번 달 화면에 지난 달 매출이 섞이지 않게.
+    var w = monthWeekOf(now);
+    return { monthStart: monthStart, monthEnd: monthEnd, weekStart: w.start, weekEnd: w.end };
   }
 
   function sumSalesInRange(catName, start, end) {

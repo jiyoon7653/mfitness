@@ -57,19 +57,73 @@ function weekRange(today) {
   const end = new Date(start); end.setUTCDate(start.getUTCDate() + 7);
   return { start: ymd(start), end: ymd(end) };
 }
-// 주차 기준은 보드 화면과 동일: 그 주 월요일이 속한 달의 몇 번째 주(1~5)
 const WEEK_SLOTS = 5;
-function weekOfMonthIndex(today) {
-  const mondayStr = weekRange(today).start;
-  const { d } = parseYMD(mondayStr);
+// 예전 주차 규칙: 그 주 월요일이 속한 달의 몇 번째 주. 이제는 달을 넘어온 주에
+// "(8월 5주차)" 처럼 원래 이름을 같이 적어 주기 위해서만 씁니다.
+function legacyWeekIndex(dateStr) {
+  const { d } = parseYMD(weekRange(dateStr).start);
   return Math.min(WEEK_SLOTS, Math.floor((d - 1) / 7) + 1);
+}
+
+// 달 경계에서 주를 자릅니다.
+// 그 달에 걸치는 월~일 주들을 순서대로 1주차부터 매기되, 각 주의 범위는 그 달 안으로
+// 잘라냅니다. 예) 2026년 9월 -> 1주차는 9/1(화)~9/6(일). 8/31(월)은 8월 몫으로 남습니다.
+//
+// 달을 걸친 주(맨 앞·맨 뒤 토막)에는 예전 이름을 괄호로 같이 적습니다.
+//   9월 1주차 (8월 5주차)  <- 8/31 월요일에 시작한 주의 9월 몫
+//   8월 6주차 (8월 5주차)  <- 같은 주의 8월 몫 (8/31 하루)
+// 달 첫날이 주 중간이면 그 달 주차가 6개까지 나올 수 있습니다. 목표는 1~5주차만
+// 설정할 수 있으므로 6주차는 "목표 미설정"으로 둡니다.
+function monthWeeks(today) {
+  const { start: mStart, end: mEnd } = monthRange(today);
+  const weeks = [];
+  let monday = weekRange(mStart).start;
+  let i = 1;
+  while (monday < mEnd) {
+    const sunday = addDays(monday, 6);
+    const spillsIn = monday < mStart;              // 앞 달에서 넘어온 토막
+    const spillsOut = addDays(sunday, 1) > mEnd;   // 다음 달로 넘어가는 토막
+    const start = spillsIn ? mStart : monday;
+    const endEx = spillsOut ? mEnd : addDays(sunday, 1);
+    weeks.push({
+      index: i,
+      monday,
+      start,                       // 이 달 안에서의 시작일
+      end: endEx,                  // [start, end)
+      last: addDays(endEx, -1),    // 이 달 안에서의 마지막 날
+      legacyMonth: (spillsIn || spillsOut) ? parseYMD(monday).m : null,
+      legacyIndex: (spillsIn || spillsOut) ? legacyWeekIndex(monday) : null,
+    });
+    monday = addDays(monday, 7);
+    i++;
+  }
+  return weeks;
+}
+// 그 날이 속한 "달 안으로 자른 주"
+function monthWeekOf(dateStr) {
+  return monthWeeks(dateStr).find((w) => dateStr >= w.start && dateStr < w.end);
+}
+function weekLabel(w) {
+  const base = `${w.index}주차`;
+  return w.legacyIndex ? `${base} (${w.legacyMonth}월 ${w.legacyIndex}주차)` : base;
+}
+// 목표는 1~5주차 칸까지만 있습니다. 6주차가 생기면 목표 없음(null)으로 알립니다.
+function weekTargetOf(item, weekIndex) {
+  if (!Array.isArray(item.weekTargets)) return Number(item.weekTarget) || 0;
+  if (weekIndex > WEEK_SLOTS) return null;
+  return Number(item.weekTargets[weekIndex - 1]) || 0;
+}
+function weekTargetSum(items, weekIndex) {
+  if (weekIndex > WEEK_SLOTS) return null;
+  return items.reduce((a, c) => a + (weekTargetOf(c, weekIndex) || 0), 0);
+}
+function weekOfMonthIndex(dateStr) {
+  const w = monthWeekOf(dateStr);
+  return w ? w.index : legacyWeekIndex(dateStr);
 }
 // 1~5주차 배열이 있으면 이번 주차 값을, 없으면 예전 단일 weekTarget 값을 씁니다.
 function currentWeekTarget(item, today) {
-  if (Array.isArray(item.weekTargets)) {
-    return Number(item.weekTargets[weekOfMonthIndex(today) - 1]) || 0;
-  }
-  return Number(item.weekTarget) || 0;
+  return weekTargetOf(item, weekOfMonthIndex(today)) || 0;
 }
 
 function monthRange(today) {
@@ -283,7 +337,8 @@ function buildReport(today, data) {
     L.push('_※ 오늘 작성된 업무일지가 없어 매출은 0으로 표시됩니다._');
   }
   L.push('');
-  L.push(achievementLine('📅 이번 주 누계', weekSales, weekTarget));
+  const dw = monthWeekOf(today);
+  L.push(achievementLine(`📅 이번 주 누계 (${parseYMD(dw.start).m}월 ${dw.index}주차)`, weekSales, weekTarget));
   L.push(achievementLine('🗓️ 이번 달 누계', monthSales, monthTarget));
 
   const weekOtStat = otAchievement(weekOt);
@@ -344,15 +399,18 @@ function categoryLines(byCat, categories, targetOf) {
 function buildWeeklyReport(today, data) {
   const { week, weekWorklogs, monthWorklogs, weekVisitors, weekCalls, weekOt,
           categories, otWeekTarget, lockerSnapshot, dutyDoc } = data;
-  const lastDay = addDays(week.end, -1);            // 그 주 일요일
+  const lastDay = week.last;                       // 이 달 안에서의 마지막 날
   const weekSales = sumSales(weekWorklogs);
   const monthSales = sumSales(monthWorklogs);
   const weekTarget = categories.reduce((a, c) => a + currentWeekTarget(c, today), 0);
   const monthTarget = categories.reduce((a, c) => a + (Number(c.target) || 0), 0);
 
   const L = [];
+  const { m: mm } = parseYMD(week.start);
   L.push('📊 *M휘트니스 주간 리포트*');
+  L.push(`${mm}월 ${weekLabel(week)}`);
   L.push(`${week.start}(${weekdayKo(week.start)}) ~ ${lastDay}(${weekdayKo(lastDay)})`);
+  if (week.spillIndex) L.push(`_※ ${week.monday}(월)부터 시작한 주지만, ${mm}월 몫만 모았습니다._`);
   if (today < lastDay) L.push(`_※ 아직 주가 끝나지 않았습니다 (${today} 까지 집계)_`);
   L.push('━━━━━━━━━━━━');
 
@@ -366,8 +424,7 @@ function buildWeeklyReport(today, data) {
   const byDate = {};
   weekWorklogs.forEach((w) => { byDate[w.date] = (byDate[w.date] || 0) + sumSales([w]).total; });
   let running = 0;
-  for (let i = 0; i < 7; i++) {
-    const ds = addDays(week.start, i);
+  for (let ds = week.start; ds <= lastDay; ds = addDays(ds, 1)) {
     if (ds > today) break;
     running += byDate[ds] || 0;
     const mark = byDate[ds] === undefined ? '  _(일지 없음)_' : '';
@@ -428,28 +485,19 @@ function buildMonthlyReport(today, data) {
     L.push('');
   }
 
-  // 주차별 — 그 주 월요일 기준으로 묶습니다. 주차 번호는 보드 화면과 같은 규칙이라
-  // 달 경계에 걸친 주는 앞 달의 주차 번호를 그대로 씁니다(예: 8/31~9/6 은 5주차).
-  // 번호만 보면 헷갈려서 기간을 함께 적습니다.
-  const byWeek = {};
-  monthWorklogs.forEach((w) => {
-    const mon = weekRange(w.date).start;
-    if (!byWeek[mon]) byWeek[mon] = 0;
-    byWeek[mon] += sumSales([w]).total;
+  // 주차별 — 달 경계에서 자른 주 기준입니다. 이 달 날짜만 들어가므로 주차 합이 곧 월 매출입니다.
+  const weeks = monthWeeks(today);
+  L.push('📅 *주차별 매출*');
+  weeks.forEach((w) => {
+    const sales = sumSales(monthWorklogs.filter((x) => x.date >= w.start && x.date < w.end)).total;
+    const target = weekTargetSum(categories, w.index);
+    const pct = target === null ? null : pctOf(sales, target);
+    const legacy = w.legacyIndex ? `  _(${w.legacyMonth}월 ${w.legacyIndex}주차)_` : '';
+    L.push(`   ${w.index}주차  ${w.start.slice(5)}~${w.last.slice(5)}   ${won(sales)}`
+      + (target === null ? '  _(목표 칸 없음)_' : pct === null ? '' : ` / ${won(target)} · ${pct}%${pctMark(pct)}`)
+      + legacy);
   });
-  const mondays = Object.keys(byWeek).sort();
-  if (mondays.length) {
-    L.push('📅 *주차별 매출*');
-    mondays.forEach((mon) => {
-      const i = weekOfMonthIndex(mon);
-      const sun = addDays(mon, 6);
-      const target = categories.reduce((a, c) => a + (Array.isArray(c.weekTargets) ? (Number(c.weekTargets[i - 1]) || 0) : 0), 0);
-      const pct = pctOf(byWeek[mon], target);
-      L.push(`   ${i}주차 (${mon.slice(5)}~${sun.slice(5)})   ${won(byWeek[mon])}`
-        + (pct === null ? '' : ` / ${won(target)} · ${pct}%${pctMark(pct)}`));
-    });
-    L.push('');
-  }
+  L.push('');
 
   conversionLine(monthVisitors, monthCalls).forEach((l) => L.push(l));
 
@@ -489,7 +537,7 @@ async function main() {
   if (!botToken || !chatId) throw new Error('TELEGRAM_BOT_TOKEN / TELEGRAM_CHAT_ID 가 설정되지 않았습니다.');
 
   const today = ymd(kstNow());
-  const week = weekRange(today);
+  const week = monthWeekOf(today);   // 달 경계에서 잘린 이번 주
   const month = monthRange(today);
 
   // 월간은 cron 으로 "말일"을 지정할 수 없어 28~31일에 매일 돌리고, 여기서 말일이 아니면 조용히 끝냅니다.
