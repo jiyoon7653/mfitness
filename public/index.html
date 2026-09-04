@@ -336,6 +336,39 @@
   .focus-item-title { font-weight: 600; font-size: 14.5px; color: var(--text); letter-spacing: -0.012em; }
   .focus-item-detail { font-size: 13.5px; color: var(--text-muted); margin-top: 4px; white-space: pre-wrap; }
 
+  /* ---- 근무·당직 달력 ---- */
+  .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 1px; background: var(--border); border: 1px solid var(--border); border-radius: 14px; overflow: hidden; }
+  .cal-head { background: var(--surface-2); padding: 10px 8px; text-align: center; font-size: 12px; font-weight: 600; color: var(--text-muted); letter-spacing: -0.004em; }
+  .cal-head.sun { color: var(--danger); }
+  .cal-head.sat { color: var(--accent); }
+  .cal-cell { background: var(--surface); min-height: 92px; padding: 8px 8px 10px; display: flex; flex-direction: column; gap: 5px; }
+  .cal-cell.muted { background: var(--surface-2); }
+  .cal-cell.today { box-shadow: inset 0 0 0 2px var(--accent); }
+  .cal-date { font-size: 12.5px; font-weight: 600; color: var(--text); font-variant-numeric: tabular-nums; }
+  .cal-cell.muted .cal-date { color: var(--text-faint); font-weight: 500; }
+  .cal-date.sun, .cal-date.holiday { color: var(--danger); }
+  .cal-date.sat { color: var(--accent); }
+  .cal-holiday { font-size: 10.5px; color: var(--danger); letter-spacing: -0.006em; }
+  .cal-tag { font-size: 11px; padding: 3px 7px; border-radius: 7px; line-height: 1.3; letter-spacing: -0.006em; }
+  .cal-tag.duty { background: var(--accent-bg); color: var(--accent); font-weight: 600; }
+  .cal-tag.leave { background: var(--warn-bg); color: var(--warn); }
+
+  /* ---- 사물함 엑셀 분석 ---- */
+  .upload-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 16px; }
+  .upload-box {
+    border: 1px dashed var(--border); border-radius: 14px; background: var(--surface-2);
+    padding: 18px 16px; display: flex; flex-direction: column; gap: 8px; transition: border-color .18s var(--ease), background .18s var(--ease);
+  }
+  .upload-box:hover { border-color: var(--accent); background: var(--accent-bg); }
+  .upload-box.filled { border-style: solid; border-color: var(--good); background: var(--good-bg); }
+  .upload-box .up-title { font-size: 13.5px; font-weight: 600; color: var(--text); letter-spacing: -0.01em; }
+  .upload-box .up-hint { font-size: 11.5px; color: var(--text-faint); line-height: 1.45; }
+  .upload-box input[type="file"] { font-size: 12px; padding: 7px 0; border: none; background: none; }
+  .snapshot-meta { font-size: 12.5px; color: var(--text-muted); margin: 0 0 18px; }
+  .lk-legend { display: flex; flex-wrap: wrap; gap: 14px; margin: 0 0 16px; font-size: 12px; color: var(--text-muted); }
+  .lk-legend span { display: flex; align-items: center; gap: 6px; }
+
+
   /* 다크 모드에서는 입력란을 카드보다 한 톤 밝게 해 경계를 분명히 합니다. */
   @media (prefers-color-scheme: dark) {
     :root:not([data-theme="light"]) input,
@@ -372,10 +405,12 @@
     <button type="button" class="tab-btn" data-tab="worklog">매출·업무일지</button>
     <button type="button" class="tab-btn" data-tab="ot">OT 관리</button>
     <button type="button" class="tab-btn" data-tab="meetings">회의록</button>
+    <button type="button" class="tab-btn" data-tab="duty">근무·당직</button>
     <button type="button" class="tab-btn" data-tab="lockers">사물함 정리</button>
   </nav>
 
   <datalist id="staffList"></datalist>
+  <datalist id="dutyStaffList"></datalist>
 
   <!-- ===================== 개요 ===================== -->
   <section class="tab-panel" id="tab-overview">
@@ -402,6 +437,33 @@
         <span class="stat-tile-label">이번 달 OT 누적</span>
         <span class="stat-tile-value" id="ovOtCount">–</span>
         <span class="goal-sub" id="ovOtSub">건</span>
+      </div>
+    </div>
+    <div class="kpi-row cols-3">
+      <div class="stat-tile">
+        <span class="stat-tile-label">이번 달 당직</span>
+        <span class="stat-tile-value" id="ovDutyValue">–</span>
+        <span class="goal-sub" id="ovDutySub">주차별 배정 현황</span>
+      </div>
+      <div class="stat-tile">
+        <span class="stat-tile-label">올해 휴가 사용</span>
+        <span class="stat-tile-value" id="ovLeaveValue">–</span>
+        <span class="goal-sub" id="ovLeaveSub">월차 · 연차 누적</span>
+      </div>
+      <div class="stat-tile">
+        <span class="stat-tile-label">사물함 재등록 안내 대상</span>
+        <span class="stat-tile-value c-warn" id="ovLockerTargets">–</span>
+        <span class="goal-sub" id="ovLockerSub">엑셀을 불러오면 집계됩니다</span>
+      </div>
+    </div>
+    <div class="panel" style="margin-bottom:26px;">
+      <h2 style="font-size:17px;">이번 달 당직표</h2>
+      <p class="panel-sub" id="ovDutyMonthLabel">–</p>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>주차</th><th>당직일</th><th>당직자</th><th>메모</th></tr></thead>
+          <tbody id="ovDutyBody"></tbody>
+        </table>
       </div>
     </div>
     <div class="kpi-row cols-5">
@@ -807,10 +869,190 @@
     </div>
   </section>
 
+  <!-- ===================== 근무·당직 ===================== -->
+  <section class="tab-panel" id="tab-duty" hidden>
+    <div class="kpi-row cols-5">
+      <div class="stat-tile"><span class="stat-tile-label">이번 달 당직 배정</span><span class="stat-tile-value" id="dAssigned">–</span><span class="goal-sub" id="dAssignedSub">주차</span></div>
+      <div class="stat-tile"><span class="stat-tile-label">미배정 주차</span><span class="stat-tile-value c-warn" id="dUnassigned">–</span><span class="goal-sub">주차</span></div>
+      <div class="stat-tile"><span class="stat-tile-label">올해 월차 사용</span><span class="stat-tile-value" id="dYearMonthly">–</span><span class="goal-sub">일</span></div>
+      <div class="stat-tile"><span class="stat-tile-label">올해 연차 사용</span><span class="stat-tile-value" id="dYearAnnual">–</span><span class="goal-sub">일</span></div>
+      <div class="stat-tile"><span class="stat-tile-label">이번 달 휴가</span><span class="stat-tile-value" id="dMonthLeave">–</span><span class="goal-sub">일</span></div>
+    </div>
+
+    <section class="panel">
+      <div class="list-header">
+        <div>
+          <h2>당직표</h2>
+          <p class="panel-sub" id="dutyMonthSub">주차별 당직자를 지정하면 개요에 자동으로 집계됩니다</p>
+        </div>
+        <div class="filters">
+          <button type="button" class="submit-btn ghost small" id="dPrevMonth">← 이전 달</button>
+          <input type="month" id="dutyMonth" aria-label="당직 월 선택">
+          <button type="button" class="submit-btn ghost small" id="dNextMonth">다음 달 →</button>
+        </div>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>주차</th><th>기간</th><th>당직일</th><th>당직자</th><th>인수인계 / 메모</th><th></th></tr></thead>
+          <tbody id="dutyBody"></tbody>
+        </table>
+      </div>
+      <p class="form-status" id="dutyStatus" aria-live="polite"></p>
+    </section>
+
+    <div class="layout">
+      <section class="panel">
+        <h2>월차·연차 등록</h2>
+        <p class="panel-sub">사용한 날짜를 등록하면 연간 누적이 자동으로 계산됩니다</p>
+        <form id="leaveForm">
+          <div class="field-row">
+            <label>사용일<input type="date" id="lvDate" required></label>
+            <label>직원<input type="text" id="lvPerson" list="dutyStaffList" placeholder="직원명" required autocomplete="off"></label>
+          </div>
+          <div class="field-block">
+            <span class="field-label">구분</span>
+            <div class="chip-group" id="lvTypeChips"></div>
+          </div>
+          <label>메모<input type="text" id="lvNote" placeholder="선택 입력"></label>
+          <button type="submit" class="submit-btn" id="leaveSubmitBtn">등록하기</button>
+          <p class="form-status" id="leaveStatus" aria-live="polite"></p>
+        </form>
+
+        <h3 class="sub-heading" style="margin-top:26px;">직원 명단</h3>
+        <p class="panel-sub">당직·휴가 선택지에 나타납니다. 쉼표로 구분해 주세요.</p>
+        <input type="text" id="dutyStaffInput" placeholder="고범수, 이새한, …" autocomplete="off">
+        <div class="edit-inline" style="margin-top:10px;">
+          <button type="button" class="submit-btn small" id="dutyStaffSave">명단 저장</button>
+          <button type="button" class="submit-btn ghost small" id="dutySeedBtn">2026 달력 불러오기</button>
+        </div>
+        <p class="form-status" id="dutyStaffStatus" aria-live="polite"></p>
+      </section>
+
+      <section class="panel">
+        <div class="list-header">
+          <h2>직원별 누적</h2>
+          <div class="filters">
+            <select id="dYearFilter" aria-label="연도"></select>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>직원</th><th class="num">당직</th><th class="num">월차</th><th class="num">연차</th><th class="num">휴무</th><th class="num">합계 휴가</th></tr></thead>
+            <tbody id="dutySummaryBody"></tbody>
+          </table>
+          <p class="empty-state" id="dutySummaryEmpty" hidden>아직 등록된 기록이 없습니다.</p>
+        </div>
+
+        <h3 class="sub-heading" style="margin-top:26px;">휴가 사용 내역</h3>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>일자</th><th>직원</th><th>구분</th><th>메모</th><th></th></tr></thead>
+            <tbody id="leaveBody"></tbody>
+          </table>
+          <p class="empty-state" id="leaveEmpty" hidden>아직 등록된 휴가가 없습니다.</p>
+        </div>
+      </section>
+    </div>
+
+    <section class="panel" style="margin-top:24px;">
+      <div class="list-header">
+        <div>
+          <h2 id="calTitle">달력</h2>
+          <p class="panel-sub">당직 · 휴가 · 공휴일을 한눈에 확인합니다</p>
+        </div>
+      </div>
+      <div class="cal-grid" id="calGrid"></div>
+    </section>
+  </section>
+
   <!-- ===================== 사물함 정리 ===================== -->
   <section class="tab-panel" id="tab-lockers" hidden>
-    <div class="kpi-row">
-      <div class="stat-tile"><span class="stat-tile-label">전체 등록 인원</span><span class="stat-tile-value" id="lTotal">–</span></div>
+    <div class="kpi-row cols-5">
+      <div class="stat-tile">
+        <span class="stat-tile-label">재등록 안내 대상</span>
+        <span class="stat-tile-value c-warn" id="lkTargets">–</span>
+        <span class="goal-sub">회원권 유효 · 사물함 만료</span>
+      </div>
+      <div class="stat-tile">
+        <span class="stat-tile-label">곧 만료 (30일 이내)</span>
+        <span class="stat-tile-value" id="lkSoon">–</span>
+        <span class="goal-sub">회원권 유효 · 사물함 임박</span>
+      </div>
+      <div class="stat-tile">
+        <span class="stat-tile-label">정리 대상</span>
+        <span class="stat-tile-value" id="lkOrphan">–</span>
+        <span class="goal-sub">회원권 만료 · 사물함 점유</span>
+      </div>
+      <div class="stat-tile">
+        <span class="stat-tile-label">사용 중</span>
+        <span class="stat-tile-value" id="lkInUse">–</span>
+        <span class="goal-sub" id="lkInUseSub">전체 – 칸</span>
+      </div>
+      <div class="stat-tile">
+        <span class="stat-tile-label">빈 사물함</span>
+        <span class="stat-tile-value c-good" id="lkEmpty">–</span>
+        <span class="goal-sub">배정 가능</span>
+      </div>
+    </div>
+
+    <section class="panel">
+      <h2>엑셀 불러오기</h2>
+      <p class="panel-sub">헬스장 프로그램에서 <strong>사물함 관리</strong>와 <strong>유효 회원 목록</strong>을 엑셀로 내보낸 뒤 그대로 올려 주세요. 회원번호로 두 파일을 대조해 사물함만 만료된 회원을 찾아냅니다.</p>
+      <div class="upload-row">
+        <label class="upload-box" id="lkBoxLocker">
+          <span class="up-title">① 사물함 관리 파일</span>
+          <span class="up-hint">사물함번호 · 회원이름 · 종료일자 · 회원번호 열이 있는 파일 (.xls / .xlsx)</span>
+          <input type="file" id="lkFileLocker" accept=".xls,.xlsx,.csv">
+        </label>
+        <label class="upload-box" id="lkBoxMember">
+          <span class="up-title">② 유효 회원 목록 파일</span>
+          <span class="up-hint">회원이름 · 만기일자 · 회원번호 열이 있는 파일 (.xls / .xlsx)</span>
+          <input type="file" id="lkFileMember" accept=".xls,.xlsx,.csv">
+        </label>
+      </div>
+      <div class="edit-inline">
+        <button type="button" class="submit-btn small" id="lkAnalyzeBtn" disabled>대조 분석하기</button>
+        <button type="button" class="submit-btn ghost small" id="lkCsvBtn">안내 명단 CSV 내려받기</button>
+      </div>
+      <p class="form-status" id="lkStatus" aria-live="polite"></p>
+    </section>
+
+    <section class="panel" style="margin-top:24px;">
+      <div class="list-header">
+        <div>
+          <h2>사물함 대조 결과</h2>
+          <p class="snapshot-meta" id="lkSnapshotMeta">아직 불러온 파일이 없습니다.</p>
+        </div>
+        <div class="filters">
+          <select id="lkFilterStatus" aria-label="상태 필터">
+            <option value="target">재등록 안내 대상</option>
+            <option value="soon">곧 만료 (30일 이내)</option>
+            <option value="orphan">정리 대상</option>
+            <option value="ok">정상</option>
+            <option value="used">사용 중 전체</option>
+            <option value="all">전체 (빈 칸 포함)</option>
+          </select>
+          <input type="text" id="lkFilterSearch" placeholder="회원명·사물함번호 검색">
+        </div>
+      </div>
+      <div class="lk-legend">
+        <span><span class="badge badge-warn">재등록 안내</span> 회원권은 남아 있는데 사물함이 끝난 회원</span>
+        <span><span class="badge badge-neutral">정리 대상</span> 회원권까지 끝났는데 사물함을 쓰고 있는 회원</span>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr>
+            <th>사물함</th><th>회원명</th><th>연락처</th><th>사물함 종료일</th><th>회원권 만기일</th>
+            <th>남은 회원권</th><th>상태</th><th>문자발송</th>
+          </tr></thead>
+          <tbody id="lkBody"></tbody>
+        </table>
+        <p class="empty-state" id="lkTableEmpty" hidden>표시할 사물함이 없습니다.</p>
+      </div>
+    </section>
+
+    <div class="kpi-row" style="margin-top:32px;">
+      <div class="stat-tile"><span class="stat-tile-label">직접 등록 인원</span><span class="stat-tile-value" id="lTotal">–</span></div>
       <div class="stat-tile"><span class="stat-tile-label">불일치 인원</span><span class="stat-tile-value c-warn" id="lMismatch">–</span></div>
       <div class="stat-tile"><span class="stat-tile-label">문자 발송 대기</span><span class="stat-tile-value c-warn" id="lPending">–</span></div>
       <div class="stat-tile"><span class="stat-tile-label">문자 발송 완료</span><span class="stat-tile-value c-good" id="lSent">–</span></div>
@@ -818,8 +1060,8 @@
 
     <div class="layout">
       <section class="panel">
-        <h2>사물함 이용자 등록</h2>
-        <p class="panel-sub">회원권 종료일과 사물함 종료일을 입력하면 자동으로 일치 여부를 확인합니다</p>
+        <h2>직접 등록</h2>
+        <p class="panel-sub">엑셀에 없는 사물함을 손으로 관리할 때 사용합니다</p>
         <form id="lockerForm">
           <div class="field-block"><span class="field-label">회원명</span><input type="text" id="lName" placeholder="회원명" required autocomplete="off"></div>
           <label>연락처 (선택)<input type="tel" id="lPhone" placeholder="010-0000-0000"></label>
@@ -839,7 +1081,7 @@
 
       <section class="panel">
         <div class="list-header">
-          <h2>사물함 관리 현황</h2>
+          <h2>직접 등록 목록</h2>
           <div class="filters">
             <select id="lFilterStatus" aria-label="상태 필터">
               <option value="all">전체</option>
@@ -862,7 +1104,6 @@
       </section>
     </div>
   </section>
-
   <p class="conn-status" id="connStatus"><span class="conn-dot"></span><span id="connStatusText">연결 중…</span></p>
 </div>
 
@@ -870,6 +1111,8 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
+<!-- 엑셀(.xls/.xlsx) 판독용 SheetJS. 브라우저 안에서만 읽고 서버로 보내지 않습니다. -->
+<script src="vendor/xlsx.full.min.js"></script>
 <script src="firebase-config.js"></script>
 
 <script>
@@ -887,6 +1130,89 @@
   ];
   var FOCUS_TYPES = ['프로모션', '이벤트', '중점사항'];
   var LOCKER_SECTIONS = ['여탈의실', '남탈의실'];
+
+  // ---- 근무·당직 ----
+  var LEAVE_TYPES = ['월차', '연차', '휴무'];
+  var DEFAULT_DUTY_STAFF = ['고범수', '이새한', '김지윤', '김재연', '안지운', '염태석', '김중섭', '최민영'];
+
+  // 2026년 공휴일 (첨부해 주신 '26년 휴일 정리' 시트 기준)
+  var HOLIDAYS = {
+    '2026-01-01': '신정',
+    '2026-02-16': '설날 연휴', '2026-02-17': '설날', '2026-02-18': '설날 연휴',
+    '2026-03-01': '삼일절', '2026-03-02': '대체휴일',
+    '2026-05-01': '근로자의 날', '2026-05-05': '어린이날',
+    '2026-05-24': '부처님 오신 날', '2026-05-25': '대체휴일',
+    '2026-06-03': '지방선거', '2026-06-06': '현충일',
+    '2026-08-15': '광복절', '2026-08-17': '대체휴일',
+    '2026-09-24': '추석 연휴', '2026-09-25': '추석', '2026-09-26': '추석 연휴',
+    '2026-10-03': '개천절', '2026-10-05': '대체휴일', '2026-10-09': '한글날',
+    '2026-12-25': '크리스마스',
+    '2027-01-01': '신정'
+  };
+
+  // 첨부해 주신 2026년 스케줄표에서 읽어온 당직·휴가 기록 (한 번만 불러오면 됩니다)
+  var DUTY_SEED = [
+    { date: '2025-11-29', person: '고범수', note: '' },
+    { date: '2025-12-06', person: '김재연', note: '안지운 → 김재연' },
+    { date: '2025-12-13', person: '안지운', note: '김지윤 → 김재연 → 안지운' },
+    { date: '2025-12-20', person: '김지윤', note: '김재연 → 김지윤' },
+    { date: '2025-12-27', person: '고범수', note: '' },
+    { date: '2026-01-01', person: '안지운', note: '' },
+    { date: '2026-01-03', person: '김재연', note: '김지윤 → 김재연' },
+    { date: '2026-01-10', person: '김지윤', note: '김재연 → 김지윤' },
+    { date: '2026-01-17', person: '고범수', note: '' },
+    { date: '2026-01-24', person: '안지운', note: '' },
+    { date: '2026-01-31', person: '김재연', note: '' },
+    { date: '2026-02-07', person: '김지윤', note: '' },
+    { date: '2026-02-14', person: '고범수', note: '' },
+    { date: '2026-02-21', person: '안지운', note: '' },
+    { date: '2026-02-28', person: '김지윤', note: '' },
+    { date: '2026-03-07', person: '고범수', note: '' },
+    { date: '2026-03-14', person: '염태석', note: '' },
+    { date: '2026-03-21', person: '김지윤', note: '' },
+    { date: '2026-03-28', person: '고범수', note: '' },
+    { date: '2026-04-04', person: '염태석', note: '' },
+    { date: '2026-04-11', person: '김중섭', note: '' },
+    { date: '2026-04-18', person: '김지윤', note: '' },
+    { date: '2026-04-25', person: '고범수', note: '' },
+    { date: '2026-05-02', person: '김지윤', note: '염태석 → 김지윤' },
+    { date: '2026-05-05', person: '염태석', note: '김중섭 → 염태석' },
+    { date: '2026-05-09', person: '김중섭', note: '김지윤 → 김중섭' },
+    { date: '2026-05-16', person: '고범수', note: '' },
+    { date: '2026-05-23', person: '염태석', note: '' },
+    { date: '2026-05-30', person: '김중섭', note: '' },
+    { date: '2026-06-06', person: '김지윤', note: '' },
+    { date: '2026-06-13', person: '고범수', note: '' },
+    { date: '2026-06-20', person: '염태석', note: '' },
+    { date: '2026-06-27', person: '안지운', note: '김중섭 → 안지운' },
+    { date: '2026-07-04', person: '김지윤', note: '' },
+    { date: '2026-07-11', person: '고범수', note: '' },
+    { date: '2026-07-18', person: '김지윤', note: '' },
+    { date: '2026-07-25', person: '안지운', note: '' },
+    { date: '2026-08-01', person: '고범수', note: '' },
+    { date: '2026-08-08', person: '김지윤', note: '' },
+    { date: '2026-08-15', person: '이새한', note: '' },
+    { date: '2026-08-22', person: '고범수', note: '' },
+    { date: '2026-08-29', person: '김지윤', note: '' },
+    { date: '2026-09-05', person: '이새한', note: '' },
+    { date: '2026-09-12', person: '고범수', note: '' },
+    { date: '2026-09-19', person: '김지윤', note: '' }
+  ];
+  var LEAVE_SEED = [
+    { date: '2025-12-04', person: '김재연', type: '월차', note: '' },
+    { date: '2025-12-19', person: '고범수', type: '월차', note: '' },
+    { date: '2025-12-24', person: '김재연', type: '월차', note: '' },
+    { date: '2025-12-26', person: '고범수', type: '월차', note: '' },
+    { date: '2026-04-17', person: '고범수', type: '연차', note: '' },
+    { date: '2026-06-15', person: '염태석', type: '월차', note: '' },
+    { date: '2026-08-03', person: '고범수', type: '연차', note: '' },
+    { date: '2026-08-17', person: '고범수', type: '연차', note: '' },
+    { date: '2026-06-24', person: '최민영', type: '휴무', note: '' }
+  ];
+
+  // ---- 사물함 엑셀 대조 ----
+  var LOCKER_SOON_DAYS = 30;
+
 
   // 매출·업무일지 탭 비밀번호 (필수: 매니저와 공유할 비밀번호로 교체하세요)
   // 주의: 이 값은 페이지 소스에 그대로 노출되므로 강력한 보안은 아닙니다. 직원이 실수로 들어가는 것을 막는 용도입니다.
@@ -908,6 +1234,9 @@
   var monthlyFocus = [];
   var editingVisitorId = null;
   var editingLockerId = null;
+  var dutyRoster = [], leaves = [], dutyStaff = DEFAULT_DUTY_STAFF.slice();
+  var lockerSnapshot = null, lockerNotified = {};
+  var pendingLockerRows = null, pendingMemberRows = null;
 
   function $(id) { return document.getElementById(id); }
   function pad2(n) { return String(n).padStart(2, '0'); }
@@ -2224,12 +2553,733 @@
     $('ovConvPct').textContent = convPct === null ? '–' : convPct + '%';
     if (convPct !== null) applyMeter($('ovConvMeter'), convPct);
     $('ovConvSub').textContent = totalDone.toLocaleString('ko-KR') + '건 / ' + totalIn.toLocaleString('ko-KR') + '건 유입';
+
+    renderOverviewDuty(monthPrefix);
+    renderOverviewLockers();
   }
+
+  // 이번 달 당직이 몇 주차인지, 누가 서는지를 개요에 집계합니다.
+  function renderOverviewDuty(monthPrefix) {
+    var weeks = weeksOfMonth(monthPrefix);
+    var byPerson = {}, assigned = 0;
+    var body = $('ovDutyBody');
+    body.innerHTML = '';
+    weeks.forEach(function (w) {
+      var entry = dutyForWeek(w);
+      if (entry && entry.person) {
+        assigned++;
+        (byPerson[entry.person] = byPerson[entry.person] || []).push(w.index);
+      }
+      var tr = document.createElement('tr');
+      [w.index + '주차',
+       entry ? entry.date : (shortDate(w.start) + ' ~ ' + shortDate(w.end)),
+       entry && entry.person ? entry.person : '미배정',
+       entry && entry.note ? entry.note : '-'].forEach(function (v, i) {
+        var td = document.createElement('td');
+        if (i < 3) td.className = 'nowrap';
+        if (i === 2 && !(entry && entry.person)) td.style.color = 'var(--text-faint)';
+        td.textContent = v;
+        tr.appendChild(td);
+      });
+      body.appendChild(tr);
+    });
+    $('ovDutyMonthLabel').textContent = monthPrefix.slice(0, 4) + '년 ' + Number(monthPrefix.slice(5, 7)) + '월 · '
+      + weeks.length + '주 중 ' + assigned + '주 배정';
+    $('ovDutyValue').textContent = assigned + ' / ' + weeks.length;
+    var summary = Object.keys(byPerson).map(function (n) {
+      return n + ' ' + byPerson[n].map(function (i) { return i + '주차'; }).join('·');
+    }).join(' / ');
+    $('ovDutySub').textContent = summary || '아직 배정된 당직이 없습니다';
+
+    var year = monthPrefix.slice(0, 4);
+    var yearLeaves = leaves.filter(function (e) { return e.date && e.date.slice(0, 4) === year; });
+    var m = yearLeaves.filter(function (e) { return e.type === '월차'; }).length;
+    var a = yearLeaves.filter(function (e) { return e.type === '연차'; }).length;
+    $('ovLeaveValue').textContent = (m + a) + '일';
+    $('ovLeaveSub').textContent = year + '년 · 월차 ' + m + '일 · 연차 ' + a + '일';
+  }
+
+  function renderOverviewLockers() {
+    var rows = lockerRowsOf();
+    $('ovLockerTargets').textContent = rows.length ? lockerCount('target') : '–';
+    $('ovLockerSub').textContent = rows.length
+      ? ((lockerSnapshot && lockerSnapshot.builtOn) || '') + ' 기준 · 곧 만료 ' + lockerCount('soon') + '명'
+      : '사물함 정리 탭에서 엑셀을 불러오면 집계됩니다';
+  }
+
+  // ============================================================
+  //  근무·당직 (당직표 · 월차/연차 누적)
+  // ============================================================
+
+  buildChips($('lvTypeChips'), LEAVE_TYPES, true);
+  var lvTypeChips = setupChips($('lvTypeChips'), '월차');
+  $('dutyMonth').value = todayStr().slice(0, 7);
+  $('lvDate').value = todayStr();
+
+  function monthInputValue() {
+    var v = $('dutyMonth').value;
+    return /^\d{4}-\d{2}$/.test(v) ? v : todayStr().slice(0, 7);
+  }
+  function shiftMonth(prefix, delta) {
+    var y = Number(prefix.slice(0, 4)), m = Number(prefix.slice(5, 7)) - 1 + delta;
+    var d = new Date(y, m, 1);
+    return d.getFullYear() + '-' + pad2(d.getMonth() + 1);
+  }
+  function sundayOf(d) {
+    var r = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+    r.setDate(r.getDate() - r.getDay());
+    return r;
+  }
+  // 일~토 한 주를 한 줄로 보는 달력(첨부해 주신 스케줄표와 같은 방식)에서
+  // 해당 달의 날짜를 하루라도 포함하는 주를 1주차부터 순서대로 돌려줍니다.
+  function weeksOfMonth(prefix) {
+    var y = Number(prefix.slice(0, 4)), m = Number(prefix.slice(5, 7)) - 1;
+    var first = new Date(y, m, 1), last = new Date(y, m + 1, 0);
+    var cur = sundayOf(first), out = [];
+    while (cur <= last) {
+      var days = [];
+      for (var i = 0; i < 7; i++) {
+        var d = new Date(cur.getFullYear(), cur.getMonth(), cur.getDate() + i);
+        days.push(d);
+      }
+      var inMonth = days.filter(function (d) { return d.getMonth() === m && d.getFullYear() === y; });
+      // 그 주의 토요일이 이 달에 속하면 토요일을, 아니면 이 달의 마지막 날을 기본 당직일로 씁니다.
+      var sat = days[6];
+      var defDate = (sat.getMonth() === m && sat.getFullYear() === y) ? sat : inMonth[inMonth.length - 1];
+      out.push({
+        index: out.length + 1,
+        days: days,
+        start: days[0],
+        end: days[6],
+        defaultDate: dateStrFromMs(defDate.getTime())
+      });
+      cur = new Date(cur.getFullYear(), cur.getMonth(), cur.getDate() + 7);
+    }
+    return out;
+  }
+  function dutyForWeek(week) {
+    var from = dateStrFromMs(week.start.getTime()), to = dateStrFromMs(week.end.getTime());
+    for (var i = 0; i < dutyRoster.length; i++) {
+      if (dutyRoster[i].date >= from && dutyRoster[i].date <= to) return dutyRoster[i];
+    }
+    return null;
+  }
+  function shortDate(d) { return (d.getMonth() + 1) + '/' + d.getDate(); }
+
+  // 당직·휴가는 settings 문서 하나에 '날짜 → 내용' 지도 형태로 담습니다.
+  // 키 단위 merge 로 쓰기 때문에 두 사람이 동시에 다른 주차를 고쳐도 서로 덮어쓰지 않습니다.
+  function fieldDelete() { return firebase.firestore.FieldValue.delete(); }
+
+  function saveDuty(dateStr, person, note, oldDate) {
+    if (!db) { setFormStatus('dutyStatus', '데이터베이스에 연결되어 있지 않습니다.', 'error'); return; }
+    var patch = {};
+    if (oldDate && oldDate !== dateStr) patch[oldDate] = fieldDelete();
+    patch[dateStr] = person ? { person: person, note: note || '', updatedAt: Date.now() } : fieldDelete();
+    db.doc('settings/dutyRoster').set(patch, { merge: true }).then(function () {
+      setFormStatus('dutyStatus', person ? '저장되었습니다.' : '당직 배정을 지웠습니다.', 'success');
+      releaseDutyFocus();
+    }).catch(function (err) { setFormStatus('dutyStatus', errMsg(err), 'error'); });
+  }
+
+  // 저장이 끝나면 입력칸에서 손을 떼고 표를 최신 상태로 다시 그립니다.
+  function releaseDutyFocus() {
+    var active = document.activeElement;
+    if (active && $('dutyBody').contains(active) && active.blur) active.blur();
+    renderDutyTable();
+  }
+
+  function deleteDuty(dateStr) {
+    if (!db) return;
+    var patch = {}; patch[dateStr] = fieldDelete();
+    db.doc('settings/dutyRoster').set(patch, { merge: true }).then(releaseDutyFocus).catch(function () {});
+  }
+
+  function deleteLeave(key, label) {
+    if (!db) return;
+    if (!window.confirm(label + ' 기록을 삭제할까요?')) return;
+    var patch = {}; patch[key] = fieldDelete();
+    db.doc('settings/leaves').set(patch, { merge: true }).catch(function () {});
+  }
+
+  function mapToList(map, extra) {
+    return Object.keys(map || {}).map(function (k) {
+      var v = map[k] || {};
+      var row = { _id: k };
+      Object.keys(v).forEach(function (f) { row[f] = v[f]; });
+      if (extra) extra(row, k);
+      return row;
+    });
+  }
+
+  function staffSelect(current) {
+    var sel = document.createElement('select');
+    var blank = document.createElement('option');
+    blank.value = ''; blank.textContent = '미배정';
+    sel.appendChild(blank);
+    var names = dutyStaff.slice();
+    if (current && names.indexOf(current) === -1) names.push(current);
+    names.forEach(function (n) {
+      var o = document.createElement('option');
+      o.value = n; o.textContent = n;
+      if (n === current) o.selected = true;
+      sel.appendChild(o);
+    });
+    return sel;
+  }
+
+  function renderDutyTable() {
+    var body = $('dutyBody');
+    // 메모/당직일을 입력하는 중에는 다시 그리지 않습니다 (한글 입력이 끊기고 커서가 튑니다).
+    // 버튼·선택상자는 다시 그려도 문제가 없으므로 INPUT 일 때만 건너뜁니다.
+    var active = document.activeElement;
+    if (active && active.tagName === 'INPUT' && body.contains(active)) return;
+    var prefix = monthInputValue();
+    $('dutyMonthSub').textContent = prefix.slice(0, 4) + '년 ' + Number(prefix.slice(5, 7)) + '월 · 주차별 당직자를 지정하면 개요에 자동으로 집계됩니다';
+    body.innerHTML = '';
+    weeksOfMonth(prefix).forEach(function (w) {
+      var entry = dutyForWeek(w);
+      var tr = document.createElement('tr');
+
+      var tdWeek = document.createElement('td');
+      tdWeek.className = 'nowrap';
+      tdWeek.textContent = w.index + '주차';
+      tr.appendChild(tdWeek);
+
+      var tdRange = document.createElement('td');
+      tdRange.className = 'nowrap';
+      tdRange.textContent = shortDate(w.start) + ' ~ ' + shortDate(w.end);
+      tr.appendChild(tdRange);
+
+      var tdDate = document.createElement('td');
+      tdDate.className = 'small-input nowrap';
+      var dateInput = document.createElement('input');
+      dateInput.type = 'date';
+      dateInput.value = entry ? entry.date : w.defaultDate;
+      dateInput.min = dateStrFromMs(w.start.getTime());
+      dateInput.max = dateStrFromMs(w.end.getTime());
+      tdDate.appendChild(dateInput);
+      tr.appendChild(tdDate);
+
+      var tdPerson = document.createElement('td');
+      tdPerson.className = 'small-input nowrap';
+      var sel = staffSelect(entry ? entry.person : '');
+      tdPerson.appendChild(sel);
+      tr.appendChild(tdPerson);
+
+      var tdNote = document.createElement('td');
+      tdNote.className = 'small-input';
+      var noteInput = document.createElement('input');
+      noteInput.type = 'text';
+      noteInput.placeholder = '예) 김지윤 → 김재연';
+      noteInput.value = entry ? (entry.note || '') : '';
+      tdNote.appendChild(noteInput);
+      tr.appendChild(tdNote);
+
+      function commit() {
+        saveDuty(dateInput.value || w.defaultDate, sel.value, noteInput.value.trim(), entry ? entry.date : null);
+      }
+      sel.addEventListener('change', commit);
+      dateInput.addEventListener('change', commit);
+      noteInput.addEventListener('change', commit);
+
+      var tdDel = document.createElement('td');
+      if (entry) {
+        var del = document.createElement('button');
+        del.type = 'button'; del.className = 'icon-btn'; del.textContent = '×';
+        del.title = '당직 배정 삭제';
+        del.addEventListener('click', function () { deleteDuty(entry.date); });
+        tdDel.appendChild(del);
+      }
+      tr.appendChild(tdDel);
+      body.appendChild(tr);
+    });
+
+    var weeks = weeksOfMonth(prefix);
+    var assigned = weeks.filter(function (w) { var e = dutyForWeek(w); return e && e.person; });
+    $('dAssigned').textContent = assigned.length;
+    $('dAssignedSub').textContent = assigned.map(function (w) { return w.index + '주차'; }).join(' · ') || '주차';
+    $('dUnassigned').textContent = weeks.length - assigned.length;
+
+    var monthLeaves = leaves.filter(function (e) { return e.date && e.date.slice(0, 7) === prefix; });
+    $('dMonthLeave').textContent = monthLeaves.length;
+  }
+
+  function renderDutyCalendar() {
+    var prefix = monthInputValue();
+    var y = Number(prefix.slice(0, 4)), m = Number(prefix.slice(5, 7)) - 1;
+    $('calTitle').textContent = y + '년 ' + (m + 1) + '월';
+    var grid = $('calGrid');
+    grid.innerHTML = '';
+    ['일', '월', '화', '수', '목', '금', '토'].forEach(function (label, i) {
+      var h = document.createElement('div');
+      h.className = 'cal-head' + (i === 0 ? ' sun' : i === 6 ? ' sat' : '');
+      h.textContent = label;
+      grid.appendChild(h);
+    });
+    var today = todayStr();
+    var dutyByDate = {}, leaveByDate = {};
+    dutyRoster.forEach(function (e) { if (e.date) dutyByDate[e.date] = e; });
+    leaves.forEach(function (e) {
+      if (!e.date) return;
+      (leaveByDate[e.date] = leaveByDate[e.date] || []).push(e);
+    });
+
+    weeksOfMonth(prefix).forEach(function (w) {
+      w.days.forEach(function (d, i) {
+        var ds = dateStrFromMs(d.getTime());
+        var cell = document.createElement('div');
+        cell.className = 'cal-cell' + (d.getMonth() === m ? '' : ' muted') + (ds === today ? ' today' : '');
+
+        var num = document.createElement('span');
+        num.className = 'cal-date' + (HOLIDAYS[ds] ? ' holiday' : i === 0 ? ' sun' : i === 6 ? ' sat' : '');
+        num.textContent = d.getDate();
+        cell.appendChild(num);
+
+        if (HOLIDAYS[ds]) {
+          var hol = document.createElement('span');
+          hol.className = 'cal-holiday';
+          hol.textContent = HOLIDAYS[ds];
+          cell.appendChild(hol);
+        }
+        if (dutyByDate[ds] && dutyByDate[ds].person) {
+          var dt = document.createElement('span');
+          dt.className = 'cal-tag duty';
+          dt.textContent = '당직 ' + dutyByDate[ds].person;
+          cell.appendChild(dt);
+        }
+        (leaveByDate[ds] || []).forEach(function (e) {
+          var lt = document.createElement('span');
+          lt.className = 'cal-tag leave';
+          lt.textContent = e.person + ' ' + e.type;
+          cell.appendChild(lt);
+        });
+        grid.appendChild(cell);
+      });
+    });
+  }
+
+  function dutyYearValue() {
+    var v = $('dYearFilter').value;
+    return v || todayStr().slice(0, 4);
+  }
+  function populateDutyYears() {
+    var years = {};
+    years[todayStr().slice(0, 4)] = true;
+    years[monthInputValue().slice(0, 4)] = true;
+    dutyRoster.forEach(function (e) { if (e.date) years[e.date.slice(0, 4)] = true; });
+    leaves.forEach(function (e) { if (e.date) years[e.date.slice(0, 4)] = true; });
+    var list = Object.keys(years).sort().reverse();
+    var sel = $('dYearFilter'), keep = sel.value;
+    sel.innerHTML = '';
+    list.forEach(function (y) {
+      var o = document.createElement('option');
+      o.value = y; o.textContent = y + '년';
+      sel.appendChild(o);
+    });
+    sel.value = (list.indexOf(keep) !== -1) ? keep : (list.indexOf(todayStr().slice(0, 4)) !== -1 ? todayStr().slice(0, 4) : list[0]);
+  }
+
+  function renderDutySummary() {
+    populateDutyYears();
+    var year = dutyYearValue();
+    var stats = {};
+    function bucket(name) {
+      if (!stats[name]) stats[name] = { duty: 0, '월차': 0, '연차': 0, '휴무': 0 };
+      return stats[name];
+    }
+    dutyStaff.forEach(bucket);
+    dutyRoster.forEach(function (e) {
+      if (e.person && e.date && e.date.slice(0, 4) === year) bucket(e.person).duty++;
+    });
+    leaves.forEach(function (e) {
+      if (!e.person || !e.date || e.date.slice(0, 4) !== year) return;
+      var b = bucket(e.person);
+      if (b[e.type] === undefined) b[e.type] = 0;
+      b[e.type]++;
+    });
+
+    var names = Object.keys(stats).filter(function (n) {
+      var b = stats[n];
+      return dutyStaff.indexOf(n) !== -1 || b.duty || b['월차'] || b['연차'] || b['휴무'];
+    });
+    var body = $('dutySummaryBody');
+    body.innerHTML = '';
+    names.forEach(function (n) {
+      var b = stats[n];
+      var tr = document.createElement('tr');
+      [n, b.duty, b['월차'], b['연차'], b['휴무'], b['월차'] + b['연차'] + b['휴무']].forEach(function (v, i) {
+        var td = document.createElement('td');
+        if (i > 0) td.className = 'num';
+        td.textContent = v;
+        tr.appendChild(td);
+      });
+      body.appendChild(tr);
+    });
+    $('dutySummaryEmpty').hidden = names.length > 0;
+
+    var yearLeaves = leaves.filter(function (e) { return e.date && e.date.slice(0, 4) === year; });
+    $('dYearMonthly').textContent = yearLeaves.filter(function (e) { return e.type === '월차'; }).length;
+    $('dYearAnnual').textContent = yearLeaves.filter(function (e) { return e.type === '연차'; }).length;
+
+    var lb = $('leaveBody');
+    lb.innerHTML = '';
+    var sorted = yearLeaves.slice().sort(function (a, b2) { return a.date < b2.date ? 1 : -1; });
+    sorted.forEach(function (e) {
+      var tr = document.createElement('tr');
+      [e.date, e.person, e.type, e.note || '-'].forEach(function (v, i) {
+        var td = document.createElement('td');
+        if (i < 3) td.className = 'nowrap';
+        td.textContent = v;
+        tr.appendChild(td);
+      });
+      var tdDel = document.createElement('td');
+      var del = document.createElement('button');
+      del.type = 'button'; del.className = 'link-btn danger'; del.textContent = '삭제';
+      (function (key, label) {
+        del.addEventListener('click', function () { deleteLeave(key, label); });
+      })(e._id, e.person + ' ' + e.date + ' ' + e.type);
+      tdDel.appendChild(del);
+      tr.appendChild(tdDel);
+      lb.appendChild(tr);
+    });
+    $('leaveEmpty').hidden = sorted.length > 0;
+  }
+
+  function renderDutyStaffInputs() {
+    var dl = $('dutyStaffList');
+    dl.innerHTML = '';
+    dutyStaff.forEach(function (n) {
+      var o = document.createElement('option');
+      o.value = n;
+      dl.appendChild(o);
+    });
+    var input = $('dutyStaffInput');
+    if (document.activeElement !== input) input.value = dutyStaff.join(', ');
+  }
+
+  function renderDuty() {
+    renderDutyStaffInputs();
+    renderDutyTable();
+    renderDutyCalendar();
+    renderDutySummary();
+  }
+
+  $('dutyMonth').addEventListener('change', renderDuty);
+  $('dPrevMonth').addEventListener('click', function () { $('dutyMonth').value = shiftMonth(monthInputValue(), -1); renderDuty(); });
+  $('dNextMonth').addEventListener('click', function () { $('dutyMonth').value = shiftMonth(monthInputValue(), 1); renderDuty(); });
+  $('dYearFilter').addEventListener('change', renderDutySummary);
+
+  $('leaveForm').addEventListener('submit', function (ev) {
+    ev.preventDefault();
+    if (!db) { setFormStatus('leaveStatus', '데이터베이스에 연결되어 있지 않습니다.', 'error'); return; }
+    var date = $('lvDate').value, person = $('lvPerson').value.trim(), type = lvTypeChips.get();
+    if (!date || !person) { setFormStatus('leaveStatus', '사용일과 직원명은 필수입니다.', 'error'); return; }
+    $('leaveSubmitBtn').disabled = true;
+    setFormStatus('leaveStatus', '등록 중…', '');
+    var patch = {};
+    patch[date + '_' + person + '_' + type] = { date: date, person: person, type: type, note: $('lvNote').value.trim(), updatedAt: Date.now() };
+    db.doc('settings/leaves').set(patch, { merge: true }).then(function () {
+      setFormStatus('leaveStatus', '등록되었습니다.', 'success');
+      flashPanel($('leaveForm'));
+      $('lvNote').value = '';
+    }).catch(function (err) {
+      setFormStatus('leaveStatus', errMsg(err), 'error');
+    }).finally(function () { $('leaveSubmitBtn').disabled = false; });
+  });
+
+  $('dutyStaffSave').addEventListener('click', function () {
+    if (!db) { setFormStatus('dutyStaffStatus', '데이터베이스에 연결되어 있지 않습니다.', 'error'); return; }
+    var names = $('dutyStaffInput').value.split(',').map(function (n) { return n.trim(); }).filter(Boolean);
+    if (!names.length) { setFormStatus('dutyStaffStatus', '직원명을 한 명 이상 입력해 주세요.', 'error'); return; }
+    db.doc('settings/dutyStaff').set({ names: names }).then(function () {
+      setFormStatus('dutyStaffStatus', '명단을 저장했습니다.', 'success');
+    }).catch(function (err) { setFormStatus('dutyStaffStatus', errMsg(err), 'error'); });
+  });
+
+  $('dutySeedBtn').addEventListener('click', function () {
+    if (!db) { setFormStatus('dutyStaffStatus', '데이터베이스에 연결되어 있지 않습니다.', 'error'); return; }
+    if (!window.confirm('첨부해 주셨던 2026년 스케줄표의 당직 ' + DUTY_SEED.length + '건과 휴가 ' + LEAVE_SEED.length + '건을 불러옵니다.\n같은 날짜의 기록은 덮어씁니다. 계속할까요?')) return;
+    setFormStatus('dutyStaffStatus', '불러오는 중…', '');
+    var dutyPatch = {}, leavePatch = {};
+    DUTY_SEED.forEach(function (e) { dutyPatch[e.date] = { person: e.person, note: e.note, updatedAt: Date.now() }; });
+    LEAVE_SEED.forEach(function (e) {
+      leavePatch[e.date + '_' + e.person + '_' + e.type] = { date: e.date, person: e.person, type: e.type, note: e.note, updatedAt: Date.now() };
+    });
+    Promise.all([
+      db.doc('settings/dutyRoster').set(dutyPatch, { merge: true }),
+      db.doc('settings/leaves').set(leavePatch, { merge: true })
+    ]).then(function () {
+      setFormStatus('dutyStaffStatus', '2026년 스케줄표를 불러왔습니다.', 'success');
+    }).catch(function (err) { setFormStatus('dutyStaffStatus', errMsg(err), 'error'); });
+  });
+
+  // ============================================================
+  //  사물함 엑셀 대조
+  // ============================================================
+
+  function normalizeHeader(h) { return String(h == null ? '' : h).replace(/\s/g, ''); }
+
+  // 엑셀 시트를 [{헤더: 값}] 배열로 바꿉니다. 첫 행을 머리글로 봅니다.
+  function sheetToRows(sheet) {
+    var aoa = XLSX.utils.sheet_to_json(sheet, { header: 1, raw: false, defval: '' });
+    if (!aoa.length) return [];
+    var head = aoa[0].map(normalizeHeader);
+    var out = [];
+    for (var i = 1; i < aoa.length; i++) {
+      var row = {}, any = false;
+      for (var j = 0; j < head.length; j++) {
+        if (!head[j]) continue;
+        var v = String(aoa[i][j] == null ? '' : aoa[i][j]).trim();
+        row[head[j]] = v;
+        if (v) any = true;
+      }
+      if (any) out.push(row);
+    }
+    return out;
+  }
+
+  function readExcel(file) {
+    return new Promise(function (resolve, reject) {
+      if (typeof XLSX === 'undefined') { reject(new Error('엑셀 판독기(vendor/xlsx.full.min.js)를 불러오지 못했습니다.')); return; }
+      var reader = new FileReader();
+      reader.onload = function () {
+        try {
+          var wb = XLSX.read(new Uint8Array(reader.result), { type: 'array' });
+          resolve(sheetToRows(wb.Sheets[wb.SheetNames[0]]));
+        } catch (e) { reject(new Error('엑셀 파일을 읽지 못했습니다. 프로그램에서 내려받은 원본 파일인지 확인해 주세요.')); }
+      };
+      reader.onerror = function () { reject(new Error('파일을 읽는 중 오류가 발생했습니다.')); };
+      reader.readAsArrayBuffer(file);
+    });
+  }
+
+  // '2026-09-04', '2026/09/04', '20260904' 등을 모두 받아 YYYY-MM-DD 로 돌려줍니다.
+  function normDate(v) {
+    var s = String(v == null ? '' : v).trim();
+    if (!s) return '';
+    var m = s.match(/(\d{4})\s*[-./]\s*(\d{1,2})\s*[-./]\s*(\d{1,2})/);
+    if (m) return m[1] + '-' + pad2(Number(m[2])) + '-' + pad2(Number(m[3]));
+    m = s.match(/^(\d{4})(\d{2})(\d{2})$/);
+    if (m) return m[1] + '-' + m[2] + '-' + m[3];
+    return '';
+  }
+  function daysBetween(fromStr, toStr) {
+    return Math.round((parseLocalDate(toStr) - parseLocalDate(fromStr)) / 86400000);
+  }
+
+  function pick(row, names) {
+    for (var i = 0; i < names.length; i++) {
+      if (row[names[i]] !== undefined && String(row[names[i]]).trim() !== '') return String(row[names[i]]).trim();
+    }
+    return '';
+  }
+
+  // 사물함 파일 × 유효회원 파일을 회원번호로 맞춰 보고 상태를 매깁니다.
+  function buildLockerSnapshot(lockerRows, memberRows) {
+    var today = todayStr();
+    var byId = {}, byName = {};
+    memberRows.forEach(function (m) {
+      var id = pick(m, ['회원번호']), name = pick(m, ['회원이름', '회원명', '이름']);
+      var rec = {
+        name: name,
+        phone: pick(m, ['휴대전화', '연락처', '전화번호']),
+        membershipEnd: normDate(pick(m, ['만기일자', '만료일자', '종료일자']))
+      };
+      if (id) byId[id] = rec;
+      if (name && byName[name] === undefined) byName[name] = rec;
+      else if (name) byName[name] = null;   // 동명이인은 이름으로 맞추지 않습니다
+    });
+
+    var rows = lockerRows.map(function (l) {
+      var no = pick(l, ['사물함번호', '사물함']);
+      var name = pick(l, ['회원이름', '회원명', '이름']);
+      var id = pick(l, ['회원번호']);
+      var lockerEnd = normDate(pick(l, ['종료일자', '사물함종료일', '만료일자']));
+      if (!name) return { no: no, name: '', status: 'empty' };
+
+      // 회원번호가 있으면 그것만 믿습니다. 회원번호가 있는데 유효회원 목록에 없다는 것은
+      // 회원권이 끝났다는 뜻이므로, 동명이인에게 잘못 붙지 않도록 이름 대조를 하지 않습니다.
+      var member = id ? (byId[id] || null) : (byName[name] || null);
+      var membershipEnd = member ? member.membershipEnd : '';
+      var memberValid = !!(membershipEnd && membershipEnd >= today);
+      var lockerValid = !!(lockerEnd && lockerEnd >= today);
+
+      var status;
+      if (!member) status = 'orphan';                 // 유효회원 목록에 없음 = 회원권 만료
+      else if (memberValid && !lockerValid) status = 'target';
+      else if (memberValid && lockerValid && daysBetween(today, lockerEnd) <= LOCKER_SOON_DAYS) status = 'soon';
+      else if (memberValid) status = 'ok';
+      else status = 'orphan';
+
+      return {
+        no: no, name: name, memberNo: id,
+        phone: member ? member.phone : '',
+        lockerEnd: lockerEnd, membershipEnd: membershipEnd,
+        remain: membershipEnd ? daysBetween(today, membershipEnd) : null,
+        status: status
+      };
+    });
+
+    return { rows: rows, builtOn: today, uploadedAt: Date.now() };
+  }
+
+  var LK_LABEL = { target: '재등록 안내', soon: '곧 만료', orphan: '정리 대상', ok: '정상', empty: '빈 칸' };
+  var LK_BADGE = { target: 'badge-warn', soon: 'badge-neutral', orphan: 'badge-neutral', ok: 'badge-good', empty: 'badge-neutral' };
+
+  function lockerRowsOf() { return (lockerSnapshot && lockerSnapshot.rows) || []; }
+  function lockerCount(status) {
+    return lockerRowsOf().filter(function (r) { return r.status === status; }).length;
+  }
+
+  function renderLockerAnalysis() {
+    var rows = lockerRowsOf();
+    var used = rows.filter(function (r) { return r.status !== 'empty'; });
+    $('lkTargets').textContent = rows.length ? lockerCount('target') : '–';
+    $('lkSoon').textContent = rows.length ? lockerCount('soon') : '–';
+    $('lkOrphan').textContent = rows.length ? lockerCount('orphan') : '–';
+    $('lkInUse').textContent = rows.length ? used.length : '–';
+    $('lkInUseSub').textContent = '전체 ' + rows.length + '칸';
+    $('lkEmpty').textContent = rows.length ? lockerCount('empty') : '–';
+
+    $('lkSnapshotMeta').textContent = lockerSnapshot
+      ? (lockerSnapshot.builtOn || '') + ' 기준 · 사물함 ' + rows.length + '칸 · ' + new Date(lockerSnapshot.uploadedAt || Date.now()).toLocaleString('ko-KR') + ' 에 불러옴'
+      : '아직 불러온 파일이 없습니다.';
+
+    var filter = $('lkFilterStatus').value;
+    var q = $('lkFilterSearch').value.trim().toLowerCase();
+    var list = rows.filter(function (r) {
+      if (filter === 'used') { if (r.status === 'empty') return false; }
+      else if (filter !== 'all' && r.status !== filter) return false;
+      if (!q) return true;
+      return (String(r.no) + ' ' + (r.name || '')).toLowerCase().indexOf(q) !== -1;
+    }).sort(function (a, b) { return Number(a.no) - Number(b.no); });
+
+    var body = $('lkBody');
+    body.innerHTML = '';
+    list.forEach(function (r) {
+      var tr = document.createElement('tr');
+      function td(text, cls) {
+        var c = document.createElement('td');
+        if (cls) c.className = cls;
+        c.textContent = text;
+        tr.appendChild(c);
+        return c;
+      }
+      td(r.no, 'nowrap');
+      td(r.name || '(빈 칸)', 'nowrap');
+      td(r.phone || '-', 'nowrap');
+      td(r.lockerEnd || '-', 'nowrap');
+      td(r.membershipEnd || '-', 'nowrap');
+      td(r.remain === null || r.remain === undefined ? '-' : (r.remain >= 0 ? r.remain + '일' : '만료'), 'num');
+
+      var tdStatus = document.createElement('td');
+      var badge = document.createElement('span');
+      badge.className = 'badge ' + (LK_BADGE[r.status] || 'badge-neutral');
+      badge.textContent = LK_LABEL[r.status] || r.status;
+      tdStatus.appendChild(badge);
+      tr.appendChild(tdStatus);
+
+      var tdSent = document.createElement('td');
+      if (r.status === 'target' || r.status === 'soon') {
+        var sent = !!lockerNotified[r.no];
+        var btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'badge badge-btn ' + (sent ? 'badge-good' : 'badge-neutral');
+        btn.textContent = sent ? '발송완료' : '발송대기';
+        btn.addEventListener('click', function () { toggleLockerNotified(r.no, sent); });
+        tdSent.appendChild(btn);
+      } else {
+        tdSent.textContent = '-';
+      }
+      tr.appendChild(tdSent);
+      body.appendChild(tr);
+    });
+    $('lkTableEmpty').hidden = list.length > 0;
+  }
+
+  function toggleLockerNotified(no, current) {
+    if (!db) return;
+    var patch = {};
+    patch[String(no)] = current ? false : todayStr();
+    db.doc('settings/lockerNotified').set(patch, { merge: true }).catch(function () {});
+  }
+
+  function lkRefreshButton() {
+    $('lkAnalyzeBtn').disabled = !(pendingLockerRows && pendingMemberRows);
+  }
+
+  function bindLockerFile(inputId, boxId, assign) {
+    $(inputId).addEventListener('change', function () {
+      var file = this.files && this.files[0];
+      if (!file) return;
+      setFormStatus('lkStatus', file.name + ' 읽는 중…', '');
+      readExcel(file).then(function (rows) {
+        assign(rows);
+        $(boxId).classList.add('filled');
+        setFormStatus('lkStatus', file.name + ' · ' + rows.length + '행을 읽었습니다.', 'success');
+        lkRefreshButton();
+      }).catch(function (err) {
+        $(boxId).classList.remove('filled');
+        assign(null);
+        setFormStatus('lkStatus', errMsg(err), 'error');
+        lkRefreshButton();
+      });
+    });
+  }
+  bindLockerFile('lkFileLocker', 'lkBoxLocker', function (r) { pendingLockerRows = r; });
+  bindLockerFile('lkFileMember', 'lkBoxMember', function (r) { pendingMemberRows = r; });
+
+  $('lkAnalyzeBtn').addEventListener('click', function () {
+    if (!pendingLockerRows || !pendingMemberRows) return;
+    var snap;
+    try {
+      snap = buildLockerSnapshot(pendingLockerRows, pendingMemberRows);
+    } catch (e) {
+      setFormStatus('lkStatus', '대조 중 오류가 발생했습니다. 파일의 열 이름을 확인해 주세요.', 'error');
+      return;
+    }
+    if (!snap.rows.length) { setFormStatus('lkStatus', '사물함 파일에서 읽을 수 있는 행이 없습니다.', 'error'); return; }
+    lockerSnapshot = snap;
+    renderLockerAnalysis();
+    renderOverview();
+    if (!db) { setFormStatus('lkStatus', '대조는 끝났지만 저장하지 못했습니다 (DB 미연결).', 'error'); return; }
+    setFormStatus('lkStatus', '저장 중…', '');
+    db.doc('settings/lockerSnapshot').set(snap).then(function () {
+      setFormStatus('lkStatus', '대조 결과를 저장했습니다. 다른 직원 화면에도 바로 반영됩니다.', 'success');
+    }).catch(function (err) {
+      setFormStatus('lkStatus', '대조는 끝났지만 저장에 실패했습니다: ' + errMsg(err), 'error');
+    });
+  });
+
+  $('lkFilterStatus').addEventListener('change', renderLockerAnalysis);
+  $('lkFilterSearch').addEventListener('input', renderLockerAnalysis);
+
+  $('lkCsvBtn').addEventListener('click', function () {
+    var rows = lockerRowsOf().filter(function (r) { return r.status === 'target' || r.status === 'soon'; });
+    if (!rows.length) { setFormStatus('lkStatus', '내려받을 안내 대상이 없습니다.', 'error'); return; }
+    var head = ['사물함번호', '회원명', '연락처', '사물함종료일', '회원권만기일', '남은회원권(일)', '상태'];
+    var lines = [head.join(',')];
+    rows.sort(function (a, b) { return Number(a.no) - Number(b.no); }).forEach(function (r) {
+      lines.push([r.no, r.name, r.phone, r.lockerEnd, r.membershipEnd, r.remain, LK_LABEL[r.status]]
+        .map(function (v) { return '"' + String(v == null ? '' : v).replace(/"/g, '""') + '"'; }).join(','));
+    });
+    var blob = new Blob(['﻿' + lines.join('\r\n')], { type: 'text/csv;charset=utf-8;' });
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'locker-renewal-' + todayStr() + '.csv';   // 한글 파일명을 지워버리는 브라우저가 있어 영문으로 씁니다
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(function () { URL.revokeObjectURL(a.href); }, 2000);
+    setFormStatus('lkStatus', rows.length + '명의 명단을 내려받았습니다.', 'success');
+  });
 
   function renderAll() {
     renderVisitors();
     renderCalls();
     renderLockers();
+    renderDuty();
+    renderLockerAnalysis();
     renderFocusView();
     renderSalesFields();
     renderWorklogList();
@@ -2329,6 +3379,36 @@
           }
         }
         renderOtFormFields(); renderOtSummary();
+      }, function () {});
+
+      db.doc('settings/dutyRoster').onSnapshot(function (snap) {
+        dutyRoster = mapToList(snap.exists ? snap.data() : {}, function (row, key) { row.date = key; })
+          .sort(function (a, b) { return a.date < b.date ? 1 : -1; });
+        renderDuty(); renderOverview();
+      }, function () {});
+
+      db.doc('settings/leaves').onSnapshot(function (snap) {
+        leaves = mapToList(snap.exists ? snap.data() : {})
+          .sort(function (a, b) { return a.date < b.date ? 1 : -1; });
+        renderDuty(); renderOverview();
+      }, function () {});
+
+      db.doc('settings/dutyStaff').onSnapshot(function (snap) {
+        if (snap.exists) {
+          var data = snap.data();
+          if (data && Array.isArray(data.names) && data.names.length) dutyStaff = data.names.slice();
+        }
+        renderDuty();
+      }, function () {});
+
+      db.doc('settings/lockerSnapshot').onSnapshot(function (snap) {
+        lockerSnapshot = snap.exists ? snap.data() : null;
+        renderLockerAnalysis(); renderOverview();
+      }, function () {});
+
+      db.doc('settings/lockerNotified').onSnapshot(function (snap) {
+        lockerNotified = snap.exists ? (snap.data() || {}) : {};
+        renderLockerAnalysis();
       }, function () {});
 
       db.doc('settings/monthlyFocus').onSnapshot(function (snap) {
