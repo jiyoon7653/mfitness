@@ -21,6 +21,85 @@ service cloud.firestore {
     // 급여 정산 (문서 하나에 전체 상태 저장)
     match /payroll/{doc}       { allow read, write: if signedIn(); }
 
+
+    // ---- 남스어프로치 레슨 대기 접수 ----
+    // 신청 폼은 로그인 없이(익명 로그인) 누구나 "쓰기만" 할 수 있고,
+    // 신청자 개인정보를 읽는 것은 관리자 계정 하나만 가능합니다.
+    //
+    // 관리자 = 이메일/비밀번호로 로그인했고, 그 이메일이 lessonSettings/owner 문서의
+    // email 필드와 같은 계정. owner 문서는 Firebase 콘솔에서만 만들고,
+    // 아래 어떤 규칙도 이 문서를 읽도록 허용하지 않습니다(규칙 안의 get 은 예외).
+    function lessonAdmin() {
+      return request.auth != null
+        && 'email' in request.auth.token
+        && request.auth.token.email == get(/databases/$(database)/documents/lessonSettings/owner).data.email;
+    }
+
+    // 폼에서 들어오는 신청서가 정상 범위인지 확인합니다.
+    function validApplication() {
+      let d = request.resource.data;
+      return d.keys().hasOnly(['code', 'seq', 'createdAt', 'name', 'phone', 'memberType',
+                               'days', 'slots', 'goals', 'experience', 'notes',
+                               'privacyAgreedAt', 'status', 'adminMemo', 'contactedAt'])
+        && d.status == '대기'
+        && d.adminMemo == ''
+        && d.createdAt == request.time
+        && d.privacyAgreedAt == request.time
+        && d.code is string && d.code.size() <= 16
+        && d.seq is int
+        && d.name is string && d.name.size() > 0 && d.name.size() <= 40
+        && d.phone is string && d.phone.size() <= 20
+        && d.memberType is string && d.memberType.size() <= 20
+        && d.experience is string && d.experience.size() <= 20
+        && d.notes is string && d.notes.size() <= 1000
+        && d.days is list && d.days.size() >= 1 && d.days.size() <= 7
+        && d.slots is list && d.slots.size() >= 1 && d.slots.size() <= 12
+        && d.goals is list && d.goals.size() >= 1 && d.goals.size() <= 12;
+    }
+
+    match /lessonApplications/{doc} {
+      allow create: if signedIn() && validApplication();
+      allow read, update, delete: if lessonAdmin();
+    }
+
+    // 같은 번호로 24시간 안에 두 번 접수하는 것을 막는 잠금 문서.
+    // 문서 이름은 연락처의 해시라서 번호 자체가 남지 않습니다.
+    match /lessonPhoneLocks/{key} {
+      allow create: if signedIn()
+        && request.resource.data.keys().hasOnly(['at'])
+        && request.resource.data.at == request.time;
+      allow update: if signedIn()
+        && request.resource.data.keys().hasOnly(['at'])
+        && request.resource.data.at == request.time
+        && request.time > resource.data.at + duration.value(24, 'h');
+      allow delete: if signedIn();          // 저장이 실패했을 때 잠금을 되돌리기 위함
+      allow read: if lessonAdmin();
+    }
+
+    // 접수번호 발급용 카운터 (개인정보 아님)
+    match /lessonSettings/counter {
+      allow read: if signedIn();
+      allow create, update: if signedIn()
+        && request.resource.data.keys().hasOnly(['value'])
+        && request.resource.data.value is int;
+    }
+
+    // 접수 중단 스위치·안내 문구. 폼은 읽기만, 변경은 관리자만.
+    match /lessonSettings/config {
+      allow read: if signedIn();
+      allow write: if lessonAdmin();
+    }
+
+    // 관리자 등록 문서. 아직 없을 때 딱 한 번, 비밀번호로 로그인한 사람이
+    // "자기 이메일로만" 만들 수 있습니다. 한 번 만들어지면 페이지에서는
+    // 읽지도 고치지도 지우지도 못합니다(바꾸려면 Firebase 콘솔에서 지우고 다시 등록).
+    match /lessonSettings/owner {
+      allow create: if request.auth != null
+        && request.auth.token.firebase.sign_in_provider == 'password'
+        && request.resource.data.keys().hasOnly(['email'])
+        && request.resource.data.email == request.auth.token.email;
+    }
+
     // 그 외 경로는 모두 차단
     match /{document=**}       { allow read, write: if false; }
   }

@@ -1,0 +1,934 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<meta name="robots" content="noindex, nofollow, noarchive">
+<title>남스어프로치 · 레슨 대기 관리</title>
+</head>
+<body>
+<style>
+  @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css');
+
+  :root {
+    --paper: #F1F4F2;
+    --surface: #FFFFFF;
+    --surface-2: #E7EDEA;
+    --ink: #151E1B;
+    --ink-2: #3C4B46;
+    --muted: #6C7B75;
+    --line: #D2DBD7;
+    --line-soft: #E2E9E6;
+    --accent: #0E6B5C;
+    --accent-ink: #0A4A3F;
+    --accent-soft: #DBEBE5;
+    --on-accent: #FFFFFF;
+    --clay: #A8482A;
+    --clay-soft: #F6E4DD;
+    --gold: #8A6D1F;
+    --gold-soft: #F6EEDA;
+    --shadow: 0 1px 2px rgba(21,30,27,.05), 0 8px 24px -16px rgba(21,30,27,.28);
+    --ease: cubic-bezier(.4, 0, .2, 1);
+    --heat-0: transparent;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --paper: #0E1412; --surface: #161F1C; --surface-2: #1E2925;
+      --ink: #E6EDE9; --ink-2: #B7C5BF; --muted: #8A9993;
+      --line: #2A3833; --line-soft: #212D29;
+      --accent: #4FC2AA; --accent-ink: #8FDCC9; --accent-soft: #12312B; --on-accent: #0E1412;
+      --clay: #E08A6A; --clay-soft: #33201A;
+      --gold: #E3C069; --gold-soft: #33290F;
+      --shadow: 0 1px 2px rgba(0,0,0,.4), 0 8px 24px -16px rgba(0,0,0,.7);
+    }
+  }
+  :root[data-theme="dark"] {
+    --paper: #0E1412; --surface: #161F1C; --surface-2: #1E2925;
+    --ink: #E6EDE9; --ink-2: #B7C5BF; --muted: #8A9993;
+    --line: #2A3833; --line-soft: #212D29;
+    --accent: #4FC2AA; --accent-ink: #8FDCC9; --accent-soft: #12312B; --on-accent: #0E1412;
+    --clay: #E08A6A; --clay-soft: #33201A;
+    --gold: #E3C069; --gold-soft: #33290F;
+    --shadow: 0 1px 2px rgba(0,0,0,.4), 0 8px 24px -16px rgba(0,0,0,.7);
+  }
+
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+
+  body {
+    margin: 0; background: var(--paper); color: var(--ink);
+    font-family: 'Pretendard Variable', Pretendard, -apple-system, BlinkMacSystemFont,
+      'Apple SD Gothic Neo', 'Malgun Gothic', system-ui, sans-serif;
+    font-size: 15px; line-height: 1.55;
+    -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale;
+  }
+  .wrap { max-width: 1180px; margin: 0 auto; padding: 0 18px 80px; }
+
+  /* ---------- 로그인 ---------- */
+  .login-wrap { max-width: 420px; margin: 0 auto; padding: 72px 18px 60px; }
+  .login-wrap .brand { font-size: 12px; letter-spacing: .3em; text-transform: uppercase; color: var(--accent); margin: 0 0 14px; font-weight: 700; }
+  .login-wrap h1 { font-size: 25px; margin: 0 0 8px; letter-spacing: -.02em; }
+  .login-wrap .sub { color: var(--muted); font-size: 14px; margin: 0 0 26px; }
+  .switch-mode { text-align: center; font-size: 13.5px; color: var(--muted); margin: 18px 0 0; }
+  .linkish {
+    border: none; background: none; padding: 4px 2px; font: inherit; font-size: 13.5px;
+    font-weight: 600; color: var(--accent-ink); text-decoration: underline; text-underline-offset: 3px;
+  }
+  .linkish:hover { color: var(--accent); }
+
+  /* ---------- 공통 ---------- */
+  .card {
+    background: var(--surface); border: 1px solid var(--line);
+    border-radius: 14px; box-shadow: var(--shadow); padding: 20px;
+  }
+  label.lab { display: block; font-size: 13px; font-weight: 600; margin-bottom: 7px; }
+  input[type="text"], input[type="email"], input[type="password"], input[type="search"], select, textarea {
+    width: 100%; min-height: 44px; padding: 10px 13px;
+    background: var(--surface); color: var(--ink);
+    border: 1px solid var(--line); border-radius: 9px;
+    font: inherit; font-size: 16px;
+    transition: border-color .15s var(--ease), box-shadow .15s var(--ease);
+  }
+  textarea { min-height: 96px; resize: vertical; }
+  select { appearance: none; -webkit-appearance: none; padding-right: 34px;
+    background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath fill='%236C7B75' d='M1 1l5 5 5-5'/%3E%3C/svg%3E");
+    background-repeat: no-repeat; background-position: right 12px center; }
+  input:focus, select:focus, textarea:focus {
+    outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft);
+  }
+  button { font: inherit; cursor: pointer; }
+  .btn {
+    min-height: 44px; padding: 10px 18px; border-radius: 10px;
+    border: 1px solid var(--line); background: var(--surface); color: var(--ink);
+    font-size: 14.5px; font-weight: 600; white-space: nowrap; transition: all .15s var(--ease);
+  }
+  .btn:hover { border-color: var(--accent); color: var(--accent-ink); }
+  .btn.primary { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
+  .btn.primary:hover { background: var(--accent-ink); border-color: var(--accent-ink); color: var(--on-accent); }
+  .btn:disabled { opacity: .5; cursor: not-allowed; }
+  .btn.full { width: 100%; }
+  .btn.sm { min-height: 34px; padding: 6px 12px; font-size: 13px; border-radius: 8px; }
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+  .msg { padding: 13px 15px; border-radius: 10px; font-size: 14px; line-height: 1.6; margin: 0 0 16px; }
+  .msg.bad { background: var(--clay-soft); color: var(--ink-2); border-left: 3px solid var(--clay); }
+  .msg.info { background: var(--accent-soft); color: var(--ink-2); border-left: 3px solid var(--accent); }
+  .msg b { color: var(--ink); }
+  .msg ol { margin: 8px 0 0; padding-left: 20px; }
+  .msg li { margin-bottom: 4px; }
+  .msg code { background: var(--surface); padding: 1px 5px; border-radius: 4px; font-size: 12.5px; }
+
+  /* ---------- 상단바 ---------- */
+  .topbar {
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 14px; flex-wrap: wrap; padding: 26px 0 20px;
+  }
+  .topbar h1 { font-size: 21px; margin: 0; letter-spacing: -.02em; }
+  .topbar .brand { font-size: 11px; letter-spacing: .28em; text-transform: uppercase; color: var(--accent); font-weight: 700; margin: 0 0 3px; }
+  .topbar .tools { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+
+  .intake {
+    display: inline-flex; align-items: center; gap: 9px;
+    padding: 8px 14px; border-radius: 999px;
+    border: 1px solid var(--line); background: var(--surface); font-size: 13.5px; font-weight: 600;
+  }
+  .intake input { width: 20px; height: 20px; margin: 0; accent-color: var(--accent); }
+  .intake.on { border-color: var(--accent); color: var(--accent-ink); background: var(--accent-soft); }
+
+  /* ---------- 요약 ---------- */
+  .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 14px; }
+  @media (max-width: 720px) { .stats { grid-template-columns: repeat(2, 1fr); } }
+  .stat { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 16px 18px; box-shadow: var(--shadow); }
+  .stat .k { font-size: 12.5px; color: var(--muted); margin: 0 0 4px; font-weight: 500; }
+  .stat .v { font-size: 28px; font-weight: 700; margin: 0; letter-spacing: -.02em; line-height: 1.15; }
+  .stat.warn .v { color: var(--clay); }
+
+  /* ---------- 히트맵 ---------- */
+  .panel { margin-bottom: 14px; }
+  .panel h2 { font-size: 16px; margin: 0 0 3px; letter-spacing: -.01em; }
+  .panel .sub { font-size: 13px; color: var(--muted); margin: 0 0 16px; }
+  .heat-scroll { overflow-x: auto; }
+  table.heat { border-collapse: separate; border-spacing: 4px; min-width: 620px; width: 100%; }
+  table.heat th { font-size: 12px; color: var(--muted); font-weight: 600; padding: 2px 4px; }
+  table.heat th.row { text-align: right; width: 34px; white-space: nowrap; }
+  table.heat td {
+    text-align: center; border-radius: 8px; padding: 11px 4px;
+    font-size: 14px; font-weight: 600; background: var(--surface-2);
+    color: var(--muted); border: 1px solid var(--line-soft);
+  }
+  table.heat td.hot { color: var(--on-accent); border-color: transparent; }
+  table.heat td.z { color: var(--muted); opacity: .45; }
+  .heat-legend { display: flex; align-items: center; gap: 8px; margin-top: 12px; font-size: 12px; color: var(--muted); }
+  .heat-legend i { width: 22px; height: 12px; border-radius: 3px; display: inline-block; }
+
+  /* ---------- 필터 ---------- */
+  .filters { display: grid; grid-template-columns: 1.4fr repeat(4, 1fr) minmax(212px, auto); gap: 10px; align-items: end; margin-bottom: 14px; }
+  @media (max-width: 900px) { .filters { grid-template-columns: 1fr 1fr; } .filters .search { grid-column: 1 / -1; } .filters .act { grid-column: 1 / -1; } }
+  .filters .f label { display: block; font-size: 12px; color: var(--muted); font-weight: 600; margin-bottom: 5px; }
+  .filters .act { display: flex; gap: 8px; }
+
+  /* ---------- 표 ---------- */
+  .table-scroll { overflow-x: auto; border: 1px solid var(--line); border-radius: 14px; background: var(--surface); box-shadow: var(--shadow); }
+  table.list { border-collapse: collapse; width: 100%; min-width: 940px; font-size: 14px; }
+  table.list th {
+    text-align: left; font-size: 11.5px; letter-spacing: .06em; text-transform: uppercase;
+    color: var(--muted); font-weight: 600; padding: 12px 14px;
+    background: var(--surface-2); border-bottom: 1px solid var(--line); white-space: nowrap;
+  }
+  table.list td { padding: 12px 14px; border-bottom: 1px solid var(--line-soft); vertical-align: middle; }
+  table.list tbody tr { cursor: pointer; transition: background .12s var(--ease); }
+  table.list tbody tr:hover { background: var(--surface-2); }
+  table.list tbody tr.sel { background: var(--accent-soft); }
+  table.list tbody tr:last-child td { border-bottom: none; }
+  td.code { font-weight: 700; color: var(--accent-ink); white-space: nowrap; }
+  td.nm { font-weight: 600; white-space: nowrap; }
+  td.when { color: var(--muted); font-size: 13px; white-space: nowrap; }
+  td.tags { font-size: 13px; color: var(--ink-2); }
+  .contact { display: flex; align-items: center; gap: 6px; white-space: nowrap; }
+  .contact a {
+    width: 30px; height: 30px; border-radius: 8px; display: inline-flex;
+    align-items: center; justify-content: center; text-decoration: none;
+    border: 1px solid var(--line); color: var(--accent-ink); background: var(--surface);
+  }
+  .contact a:hover { border-color: var(--accent); background: var(--accent-soft); }
+  .contact a svg { width: 15px; height: 15px; }
+  .contact .num { font-variant-numeric: tabular-nums; }
+  select.status { min-height: 34px; padding: 5px 28px 5px 10px; font-size: 13px; font-weight: 600; border-radius: 8px; min-width: 108px; }
+  .badge { display: inline-block; padding: 3px 9px; border-radius: 999px; font-size: 12px; font-weight: 600; }
+  .b-new { background: var(--gold-soft); color: var(--gold); }
+  .empty { padding: 40px 20px; text-align: center; color: var(--muted); font-size: 14px; }
+
+  /* ---------- 상세 패널 ---------- */
+  .drawer-bg {
+    position: fixed; inset: 0; background: rgba(21,30,27,.4);
+    z-index: 40; opacity: 0; pointer-events: none; transition: opacity .2s var(--ease);
+  }
+  .drawer-bg.on { opacity: 1; pointer-events: auto; }
+  .drawer {
+    position: fixed; top: 0; right: 0; bottom: 0; width: min(440px, 100%);
+    background: var(--surface); border-left: 1px solid var(--line);
+    z-index: 41; transform: translateX(100%); transition: transform .24s var(--ease);
+    display: flex; flex-direction: column; overflow: hidden;
+  }
+  .drawer.on { transform: none; }
+  .drawer .dhead {
+    display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    padding: 18px 20px; border-bottom: 1px solid var(--line); background: var(--surface-2);
+  }
+  .drawer .dhead h3 { margin: 0; font-size: 17px; letter-spacing: -.01em; }
+  .drawer .dhead .code { font-size: 12.5px; color: var(--accent-ink); font-weight: 700; }
+  .drawer .dbody { padding: 20px; overflow-y: auto; flex: 1; min-height: 0; }  /* min-height:0 이 없으면 저장 버튼이 화면 밖으로 밀립니다 */
+  .drawer .dfoot { padding: 14px 20px; border-top: 1px solid var(--line); display: flex; gap: 8px; }
+  .kv { margin: 0 0 18px; }
+  .kv dt { font-size: 12px; color: var(--muted); font-weight: 600; letter-spacing: .04em; margin-bottom: 4px; }
+  .kv dd { margin: 0 0 14px; font-size: 14.5px; color: var(--ink); line-height: 1.6; }
+  .kv dd:last-child { margin-bottom: 0; }
+  .kv dd.pre { white-space: pre-wrap; background: var(--surface-2); padding: 12px 14px; border-radius: 10px; font-size: 14px; }
+  .x { border: none; background: none; color: var(--muted); font-size: 22px; line-height: 1; padding: 6px 8px; border-radius: 8px; }
+  .x:hover { background: var(--line-soft); color: var(--ink); }
+  .saved { font-size: 13px; color: var(--accent-ink); font-weight: 600; align-self: center; }
+
+  .conn { display: flex; align-items: center; justify-content: center; gap: 7px; font-size: 12.5px; color: var(--muted); margin: 22px 0 0; }
+  .conn-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--muted); }
+  .conn.live .conn-dot { background: var(--accent); }
+  .conn.error { color: var(--clay); } .conn.error .conn-dot { background: var(--clay); }
+
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+
+<!-- ================= 로그인 ================= -->
+<div class="login-wrap" id="loginView" hidden>
+  <p class="brand">Nums Approach</p>
+  <h1>레슨 대기 관리</h1>
+  <p class="sub">관리자만 접근할 수 있는 화면입니다.</p>
+  <div class="card">
+    <p class="msg bad" id="loginError" hidden></p>
+    <p class="msg info" id="loginHelp" hidden></p>
+    <form id="loginForm">
+      <div style="margin-bottom:14px">
+        <label class="lab" for="email">관리자 이메일</label>
+        <input type="email" id="email" autocomplete="username" placeholder="you@example.com">
+      </div>
+      <div style="margin-bottom:14px">
+        <label class="lab" for="password">비밀번호</label>
+        <input type="password" id="password" autocomplete="current-password">
+      </div>
+      <div style="margin-bottom:18px" id="confirmWrap" hidden>
+        <label class="lab" for="password2">비밀번호 확인</label>
+        <input type="password" id="password2" autocomplete="new-password">
+      </div>
+      <button type="submit" class="btn primary full" id="loginBtn">로그인</button>
+    </form>
+    <p class="switch-mode">
+      <span id="switchText">이 화면을 처음 여시나요?</span>
+      <button type="button" class="linkish" id="modeToggle">관리자 계정 만들기</button>
+    </p>
+  </div>
+  <p class="conn" id="loginConn"><span class="conn-dot"></span><span id="loginConnText">연결 중…</span></p>
+</div>
+
+<!-- ================= 관리자 등록 (최초 1회) ================= -->
+<div class="login-wrap" id="claimView" hidden>
+  <p class="brand">Nums Approach</p>
+  <h1>관리자 등록</h1>
+  <p class="sub">이 계정을 이 화면의 관리자로 등록합니다. 한 번만 하면 됩니다.</p>
+  <div class="card">
+    <p class="msg bad" id="claimError" hidden></p>
+    <p class="msg info">
+      <b id="claimEmail"></b> 계정을 관리자로 등록하면, <b>이 계정만</b> 신청자의 이름·연락처·특이사항을
+      볼 수 있습니다. 다른 계정은 물론이고 신청 폼조차 읽지 못합니다.
+    </p>
+    <button class="btn primary full" id="claimBtn">이 계정을 관리자로 등록</button>
+    <button class="btn full" id="claimLogout" style="margin-top:10px">다른 계정으로 로그인</button>
+  </div>
+</div>
+
+<!-- ================= 콘솔 ================= -->
+<div class="wrap" id="consoleView" hidden>
+  <div class="topbar">
+    <div>
+      <p class="brand">Nums Approach</p>
+      <h1>레슨 대기 관리</h1>
+    </div>
+    <div class="tools">
+      <label class="intake" id="intakeLabel">
+        <input type="checkbox" id="intakeToggle">
+        <span id="intakeText">접수 받는 중</span>
+      </label>
+      <button class="btn" id="csvBtn">CSV 내보내기</button>
+      <button class="btn" id="logoutBtn">로그아웃</button>
+    </div>
+  </div>
+
+  <p class="msg bad" id="consoleError" hidden></p>
+
+  <div class="stats">
+    <div class="stat"><p class="k">전체 대기</p><p class="v" id="s1">0</p></div>
+    <div class="stat"><p class="k">오늘 신규</p><p class="v" id="s2">0</p></div>
+    <div class="stat"><p class="k">이번 주 신규</p><p class="v" id="s3">0</p></div>
+    <div class="stat warn"><p class="k">아직 연락 안 한 건</p><p class="v" id="s4">0</p></div>
+  </div>
+
+  <section class="card panel">
+    <h2>요일 × 시간대 히트맵</h2>
+    <p class="sub">상태가 <b>대기</b>인 신청자의 희망 일정만 셉니다. 열 머리글은 레슨 <b>시작 시각</b>입니다. 진한 칸을 먼저 열면 대기가 가장 많이 풀립니다.</p>
+    <div class="heat-scroll">
+      <table class="heat" id="heatTable"><tbody></tbody></table>
+    </div>
+    <p class="heat-legend">
+      <span>적음</span>
+      <i style="background:var(--surface-2);border:1px solid var(--line-soft)"></i>
+      <i style="background:color-mix(in srgb, var(--accent) 35%, transparent)"></i>
+      <i style="background:color-mix(in srgb, var(--accent) 68%, transparent)"></i>
+      <i style="background:var(--accent)"></i>
+      <span>많음</span>
+      <span style="margin-left:auto" id="heatTop"></span>
+    </p>
+  </section>
+
+  <div class="filters">
+    <div class="f search">
+      <label for="q">검색</label>
+      <input type="search" id="q" placeholder="이름 또는 연락처">
+    </div>
+    <div class="f"><label for="fStatus">상태</label><select id="fStatus"></select></div>
+    <div class="f"><label for="fMember">회원 여부</label><select id="fMember"></select></div>
+    <div class="f"><label for="fDay">희망 요일</label><select id="fDay"></select></div>
+    <div class="f"><label for="fSlot">희망 시간대</label><select id="fSlot"></select></div>
+    <div class="f act">
+      <select id="fSort" aria-label="정렬" style="min-width:120px">
+        <option value="new">최신순</option>
+        <option value="old">신청순</option>
+      </select>
+      <button class="btn" id="resetBtn">초기화</button>
+    </div>
+  </div>
+
+  <div class="table-scroll">
+    <table class="list">
+      <thead>
+        <tr>
+          <th>접수일</th><th>접수번호</th><th>이름</th><th>연락처</th>
+          <th>회원여부</th><th>희망 요일</th><th>희망 시간대</th><th>상태</th>
+        </tr>
+      </thead>
+      <tbody id="listBody"></tbody>
+    </table>
+    <p class="empty" id="listEmpty" hidden>조건에 맞는 신청서가 없습니다.</p>
+  </div>
+
+  <p class="conn" id="conn"><span class="conn-dot"></span><span id="connText">연결 중…</span></p>
+</div>
+
+<!-- ================= 상세 패널 ================= -->
+<div class="drawer-bg" id="drawerBg"></div>
+<aside class="drawer" id="drawer" aria-label="신청 상세" role="dialog" aria-modal="true">
+  <div class="dhead">
+    <div>
+      <span class="code" id="dCode"></span>
+      <h3 id="dName"></h3>
+    </div>
+    <button class="x" id="drawerClose" aria-label="닫기">&times;</button>
+  </div>
+  <div class="dbody">
+    <dl class="kv" id="dFields"></dl>
+    <label class="lab" for="dMemo">관리자 메모</label>
+    <textarea id="dMemo" placeholder="연락 결과, 다음에 할 일 등을 적어두세요."></textarea>
+  </div>
+  <div class="dfoot">
+    <button class="btn primary" id="dSave">메모 저장</button>
+    <span class="saved" id="dSaved" hidden>저장됨</span>
+  </div>
+</aside>
+
+<script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
+<script src="firebase-config.js"></script>
+
+<script>
+(function () {
+  'use strict';
+
+  /* lesson.html 과 같은 목록을 씁니다. 한쪽만 고치면 히트맵이 어긋납니다. */
+  var DAYS = ['월', '화', '수', '목', '금', '토', '일'];
+  var SLOTS = ['09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00'];
+  var MEMBER_TYPES = ['기존 회원', '신규'];
+  var STATUSES = ['대기', '연락완료', '상담예정', '등록완료', '보류', '취소'];
+
+  var app = null;    // 신청 폼(익명 로그인)과 로그인 상태가 섞이지 않도록 별도 앱으로 띄웁니다
+  var auth = null;
+  var db = null;
+  var rows = [];
+  var selectedId = '';
+  var config = { intakeOpen: true };
+  var filters = { q: '', status: '', member: '', day: '', slot: '', sort: 'new' };
+
+  var $ = function (id) { return document.getElementById(id); };
+  // 히트맵 열 머리글에 쓰는 짧은 표기 ('09:00' -> '09')
+  var shortSlot = function (s) { return String(s).replace(':00', ''); };
+  // 고른 순서가 아니라 항상 같은 순서(요일·시각 순)로 보여줍니다
+  function ordered(list, ref) {
+    return (list || []).slice().sort(function (a, b) { return ref.indexOf(a) - ref.indexOf(b); });
+  }
+  var esc = function (s) {
+    return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+    });
+  };
+
+  /* ---------------- 날짜 ---------------- */
+  function toDate(v) {
+    if (!v) return null;
+    if (typeof v.toDate === 'function') return v.toDate();
+    if (v instanceof Date) return v;
+    return null;
+  }
+  function pad(n) { return (n < 10 ? '0' : '') + n; }
+  function fmtDate(d) { return d ? (d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate())) : ''; }
+  function fmtDateTime(d) { return d ? (fmtDate(d) + ' ' + pad(d.getHours()) + ':' + pad(d.getMinutes())) : ''; }
+  function startOfToday() { var d = new Date(); d.setHours(0, 0, 0, 0); return d; }
+  function startOfWeek() {          // 월요일 시작
+    var d = startOfToday();
+    var wd = (d.getDay() + 6) % 7;
+    d.setDate(d.getDate() - wd);
+    return d;
+  }
+
+  /* ---------------- 요약 ---------------- */
+  function renderStats() {
+    var today = startOfToday().getTime();
+    var week = startOfWeek().getTime();
+    var waiting = 0, newToday = 0, newWeek = 0, uncontacted = 0;
+    rows.forEach(function (r) {
+      var t = toDate(r.createdAt);
+      var ts = t ? t.getTime() : 0;
+      if (r.status === '대기') waiting++;
+      if (ts >= today) newToday++;
+      if (ts >= week) newWeek++;
+      if (r.status === '대기' && !r.contactedAt) uncontacted++;
+    });
+    $('s1').textContent = waiting;
+    $('s2').textContent = newToday;
+    $('s3').textContent = newWeek;
+    $('s4').textContent = uncontacted;
+  }
+
+  /* ---------------- 히트맵 ---------------- */
+  function renderHeat() {
+    var grid = {}, max = 0, best = null;
+    DAYS.forEach(function (d) { grid[d] = {}; SLOTS.forEach(function (s) { grid[d][s] = 0; }); });
+
+    rows.forEach(function (r) {
+      if (r.status !== '대기') return;
+      (r.days || []).forEach(function (d) {
+        (r.slots || []).forEach(function (s) {
+          if (grid[d] && grid[d][s] !== undefined) {
+            grid[d][s]++;
+            if (grid[d][s] > max) { max = grid[d][s]; best = { d: d, s: s, n: grid[d][s] }; }
+          }
+        });
+      });
+    });
+
+    var short = SLOTS.map(shortSlot);
+    var html = '<tr><th class="row"></th>' + short.map(function (s) { return '<th>' + esc(s) + '</th>'; }).join('') + '</tr>';
+
+    DAYS.forEach(function (d) {
+      html += '<tr><th class="row">' + d + '</th>';
+      SLOTS.forEach(function (s) {
+        var n = grid[d][s];
+        if (!n) { html += '<td class="z">·</td>'; return; }
+        var ratio = max ? n / max : 0;
+        var pct = Math.round(22 + ratio * 78);
+        var hot = ratio >= 0.55;
+        html += '<td class="' + (hot ? 'hot' : '') + '" style="background:color-mix(in srgb, var(--accent) ' + pct + '%, transparent)"'
+             + ' title="' + esc(d + '요일 ' + s) + ' · 대기 ' + n + '명">' + n + '</td>';
+      });
+      html += '</tr>';
+    });
+
+    $('heatTable').querySelector('tbody').innerHTML = html;
+    $('heatTop').textContent = best
+      ? '가장 몰린 칸 · ' + best.d + '요일 ' + best.s + ' (' + best.n + '명)'
+      : '';
+  }
+
+  /* ---------------- 필터 ---------------- */
+  function fillSelect(id, items, allLabel) {
+    var sel = $(id);
+    sel.innerHTML = '<option value="">' + allLabel + '</option>' +
+      items.map(function (v) { return '<option value="' + esc(v) + '">' + esc(v) + '</option>'; }).join('');
+  }
+
+  function filtered() {
+    var q = filters.q.trim().toLowerCase();
+    var qDigits = q.replace(/\D/g, '');
+    var out = rows.filter(function (r) {
+      if (filters.status && r.status !== filters.status) return false;
+      if (filters.member && r.memberType !== filters.member) return false;
+      if (filters.day && (r.days || []).indexOf(filters.day) < 0) return false;
+      if (filters.slot && (r.slots || []).indexOf(filters.slot) < 0) return false;
+      if (q) {
+        var name = String(r.name || '').toLowerCase();
+        var phone = String(r.phone || '').replace(/\D/g, '');
+        var code = String(r.code || '').toLowerCase();
+        var hit = name.indexOf(q) >= 0 || code.indexOf(q) >= 0 ||
+          (qDigits && phone.indexOf(qDigits) >= 0);
+        if (!hit) return false;
+      }
+      return true;
+    });
+    out.sort(function (a, b) {
+      var ta = toDate(a.createdAt), tb = toDate(b.createdAt);
+      var va = ta ? ta.getTime() : 0, vb = tb ? tb.getTime() : 0;
+      return filters.sort === 'old' ? va - vb : vb - va;
+    });
+    return out;
+  }
+
+  /* ---------------- 목록 ---------------- */
+  var ICON_TEL = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1 1 .4 1.9.7 2.8a2 2 0 0 1-.5 2.1L8.1 9.9a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 2.1-.4c.9.3 1.8.6 2.8.7a2 2 0 0 1 1.7 2z"/></svg>';
+  var ICON_SMS = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.4 8.4 0 0 1-9 8.4 9 9 0 0 1-4.2-1L3 20l1.2-4.4A8.4 8.4 0 0 1 12 3.1a8.4 8.4 0 0 1 9 8.4z"/></svg>';
+
+  function renderList() {
+    var list = filtered();
+    var today = startOfToday().getTime();
+    var body = $('listBody');
+    body.textContent = '';
+
+    list.forEach(function (r) {
+      var created = toDate(r.createdAt);
+      var isNew = created && created.getTime() >= today;
+      var tr = document.createElement('tr');
+      if (r._id === selectedId) tr.className = 'sel';
+      tr.innerHTML =
+        '<td class="when">' + esc(fmtDate(created)) + (isNew ? ' <span class="badge b-new">NEW</span>' : '') + '</td>' +
+        '<td class="code">' + esc(r.code || '-') + '</td>' +
+        '<td class="nm">' + esc(r.name || '') + '</td>' +
+        '<td><span class="contact"><span class="num">' + esc(r.phone || '') + '</span>' +
+          '<a href="tel:' + esc(String(r.phone || '').replace(/\D/g, '')) + '" aria-label="전화 걸기" title="전화 걸기">' + ICON_TEL + '</a>' +
+          '<a href="sms:' + esc(String(r.phone || '').replace(/\D/g, '')) + '" aria-label="문자 보내기" title="문자 보내기">' + ICON_SMS + '</a>' +
+        '</span></td>' +
+        '<td>' + esc(r.memberType || '') + '</td>' +
+        '<td class="tags">' + esc(ordered(r.days, DAYS).join(' ')) + '</td>' +
+        '<td class="tags">' + esc(ordered(r.slots, SLOTS).join(', ')) + '</td>' +
+        '<td></td>';
+
+      var sel = document.createElement('select');
+      sel.className = 'status';
+      sel.innerHTML = STATUSES.map(function (s) {
+        return '<option value="' + esc(s) + '"' + (r.status === s ? ' selected' : '') + '>' + esc(s) + '</option>';
+      }).join('');
+      sel.addEventListener('click', function (e) { e.stopPropagation(); });
+      sel.addEventListener('change', function () { changeStatus(r, sel.value); });
+      tr.lastChild.appendChild(sel);
+
+      tr.addEventListener('click', function (e) {
+        if (e.target.closest('a') || e.target.closest('select')) return;
+        openDrawer(r._id);
+      });
+      body.appendChild(tr);
+    });
+
+    $('listEmpty').hidden = list.length > 0;
+  }
+
+  /* ---------------- 상태 변경 ---------------- */
+  function changeStatus(row, status) {
+    var patch = { status: status };
+    // 연락한 시점을 한 번만 기록해 둡니다.
+    if (status !== '대기' && !row.contactedAt) {
+      patch.contactedAt = firebase.firestore.FieldValue.serverTimestamp();
+    }
+    db.collection('lessonApplications').doc(row._id).update(patch).catch(function (err) {
+      showConsoleError('상태를 저장하지 못했습니다: ' + ((err && err.message) || ''));
+    });
+  }
+
+  /* ---------------- 상세 패널 ---------------- */
+  function openDrawer(id) {
+    var r = rows.filter(function (x) { return x._id === id; })[0];
+    if (!r) return;
+    selectedId = id;
+
+    $('dCode').textContent = r.code || '';
+    $('dName').textContent = r.name || '';
+
+    var created = toDate(r.createdAt);
+    var contacted = toDate(r.contactedAt);
+    var items = [
+      ['접수일시', fmtDateTime(created)],
+      ['연락처', r.phone || ''],
+      ['회원 여부', r.memberType || ''],
+      ['희망 요일', ordered(r.days, DAYS).join(', ')],
+      ['희망 시간대', ordered(r.slots, SLOTS).join(', ')],
+      ['운동 목적', (r.goals || []).join(', ')],
+      ['운동 경력', r.experience || ''],
+      ['상태', r.status || ''],
+      ['연락 일시', contacted ? fmtDateTime(contacted) : '아직 연락 전']
+    ];
+    var html = items.map(function (kv) {
+      return '<dt>' + esc(kv[0]) + '</dt><dd>' + esc(kv[1] || '-') + '</dd>';
+    }).join('');
+    html += '<dt>특이사항</dt><dd class="pre">' + esc(r.notes || '(없음)') + '</dd>';
+    $('dFields').innerHTML = html;
+
+    $('dMemo').value = r.adminMemo || '';
+    $('dSaved').hidden = true;
+    $('drawer').classList.add('on');
+    $('drawerBg').classList.add('on');
+    renderList();
+  }
+
+  function closeDrawer() {
+    $('drawer').classList.remove('on');
+    $('drawerBg').classList.remove('on');
+    selectedId = '';
+    renderList();
+  }
+
+  function saveMemo() {
+    if (!selectedId) return;
+    db.collection('lessonApplications').doc(selectedId).update({ adminMemo: $('dMemo').value })
+      .then(function () {
+        $('dSaved').hidden = false;
+        setTimeout(function () { $('dSaved').hidden = true; }, 1800);
+      })
+      .catch(function (err) { showConsoleError('메모를 저장하지 못했습니다: ' + ((err && err.message) || '')); });
+  }
+
+  /* ---------------- CSV ---------------- */
+  function csvCell(v) {
+    var s = String(v == null ? '' : v);
+    return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+  }
+  function exportCsv() {
+    var list = filtered();
+    var head = ['접수일시', '접수번호', '이름', '연락처', '회원여부', '희망요일', '희망시간대',
+      '운동목적', '운동경력', '특이사항', '상태', '연락일시', '관리자메모'];
+    var lines = [head.join(',')];
+    list.forEach(function (r) {
+      lines.push([
+        fmtDateTime(toDate(r.createdAt)), r.code, r.name, r.phone, r.memberType,
+        ordered(r.days, DAYS).join(' '), ordered(r.slots, SLOTS).join(' '), (r.goals || []).join(' '),
+        r.experience, r.notes, r.status, fmtDateTime(toDate(r.contactedAt)), r.adminMemo
+      ].map(csvCell).join(','));
+    });
+    // BOM 을 붙여야 엑셀에서 한글이 깨지지 않습니다.
+    var blob = new Blob(['﻿' + lines.join('\r\n')], { type: 'text/csv;charset=utf-8;' });
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = '레슨대기_' + fmtDate(new Date()) + '.csv';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(function () { URL.revokeObjectURL(a.href); }, 2000);
+  }
+
+  /* ---------------- 접수 스위치 ---------------- */
+  function renderIntake() {
+    $('intakeToggle').checked = config.intakeOpen !== false;
+    $('intakeLabel').className = 'intake' + (config.intakeOpen !== false ? ' on' : '');
+    $('intakeText').textContent = config.intakeOpen !== false ? '접수 받는 중' : '접수 중단됨';
+  }
+  function toggleIntake() {
+    var next = $('intakeToggle').checked;
+    db.doc('lessonSettings/config').set({ intakeOpen: next }, { merge: true })
+      .catch(function (err) {
+        showConsoleError('접수 스위치를 바꾸지 못했습니다: ' + ((err && err.message) || ''));
+        renderIntake();
+      });
+  }
+
+  /* ---------------- 상태 메시지 ---------------- */
+  function setConn(kind, text) {
+    $('conn').className = 'conn' + (kind ? ' ' + kind : '');
+    $('connText').textContent = text;
+  }
+  function showConsoleError(msg) {
+    var el = $('consoleError');
+    el.hidden = false;
+    el.innerHTML = msg;
+  }
+  function setLoginError(msg) {
+    var el = $('loginError');
+    if (!msg) { el.hidden = true; return; }
+    el.hidden = false;
+    el.innerHTML = msg;
+  }
+  function setLoginHelp(msg) {
+    var el = $('loginHelp');
+    if (!msg) { el.hidden = true; return; }
+    el.hidden = false;
+    el.innerHTML = msg;
+  }
+
+  // 콘솔에서 해야 하는 일은 이 스위치 하나뿐입니다. 계정 생성과 관리자 등록은 이 화면에서 합니다.
+  var PROVIDER_GUIDE =
+    '<b>Firebase 콘솔에서 스위치 하나만 켜주세요.</b>' +
+    '<ol>' +
+    '<li>Firebase 콘솔 → <b>Authentication</b> → <b>Sign-in method</b> 탭</li>' +
+    '<li><b>이메일/비밀번호</b> → 사용 설정(첫 번째 스위치만) → 저장</li>' +
+    '</ol>' +
+    '켠 뒤 이 화면에서 <b>관리자 계정 만들기</b>로 계정을 만드시면 됩니다.';
+
+  /* ---------------- 로그인 / 관리자 계정 만들기 ---------------- */
+  var signupMode = false;
+
+  function setMode(on) {
+    signupMode = on;
+    $('confirmWrap').hidden = !on;
+    $('password').setAttribute('autocomplete', on ? 'new-password' : 'current-password');
+    $('loginBtn').textContent = on ? '관리자 계정 만들기' : '로그인';
+    $('switchText').textContent = on ? '이미 계정이 있으신가요?' : '이 화면을 처음 여시나요?';
+    $('modeToggle').textContent = on ? '로그인하기' : '관리자 계정 만들기';
+    setLoginError('');
+    setLoginHelp('');
+  }
+
+  function authFailed(err) {
+    $('loginBtn').disabled = false;
+    setMode(signupMode);
+    var code = (err && err.code) || '';
+    if (code === 'auth/operation-not-allowed') {
+      setLoginError('이메일/비밀번호 로그인이 아직 켜져 있지 않습니다.');
+      setLoginHelp(PROVIDER_GUIDE);
+    } else if (code === 'auth/email-already-in-use') {
+      setLoginError('이미 만들어진 계정입니다. 아래 "로그인하기"로 들어가 주세요.');
+    } else if (code === 'auth/weak-password') {
+      setLoginError('비밀번호는 6자 이상이어야 합니다.');
+    } else if (code === 'auth/invalid-email') {
+      setLoginError('이메일 형식이 올바르지 않습니다.');
+    } else if (code === 'auth/user-not-found' || code === 'auth/invalid-credential' || code === 'auth/wrong-password') {
+      setLoginError('이메일 또는 비밀번호가 맞지 않습니다. 계정을 아직 안 만드셨다면 아래 "관리자 계정 만들기"를 눌러 주세요.');
+    } else if (code === 'auth/too-many-requests') {
+      setLoginError('시도가 너무 많습니다. 잠시 후 다시 시도해 주세요.');
+    } else {
+      setLoginError('처리하지 못했습니다: ' + ((err && err.message) || ''));
+    }
+  }
+
+  function login(ev) {
+    ev.preventDefault();
+    setLoginError('');
+    setLoginHelp('');
+    var email = $('email').value.trim();
+    var pw = $('password').value;
+    if (!email || !pw) { setLoginError('이메일과 비밀번호를 입력해 주세요.'); return; }
+    if (signupMode && pw !== $('password2').value) { setLoginError('비밀번호 확인이 일치하지 않습니다.'); return; }
+
+    $('loginBtn').disabled = true;
+    $('loginBtn').textContent = signupMode ? '만드는 중…' : '확인 중…';
+    var task = signupMode
+      ? auth.createUserWithEmailAndPassword(email, pw)
+      : auth.signInWithEmailAndPassword(email, pw);
+    task.catch(authFailed);
+  }
+
+  /* ---------------- 관리자 등록 (최초 1회) ---------------- */
+  function claimOwner() {
+    var user = auth.currentUser;
+    if (!user) return;
+    $('claimBtn').disabled = true;
+    $('claimBtn').textContent = '등록 중…';
+    $('claimError').hidden = true;
+    db.doc('lessonSettings/owner').set({ email: user.email }).then(function () {
+      $('claimBtn').disabled = false;
+      $('claimBtn').textContent = '이 계정을 관리자로 등록';
+      showConsole();
+    }).catch(function (err) {
+      $('claimBtn').disabled = false;
+      $('claimBtn').textContent = '이 계정을 관리자로 등록';
+      var el = $('claimError');
+      el.hidden = false;
+      if (err && err.code === 'permission-denied') {
+        el.innerHTML = '<b>이미 다른 계정이 관리자로 등록되어 있습니다.</b><br>' +
+          '그 계정으로 로그인하시거나, Firebase 콘솔 → Firestore → <code>lessonSettings</code> → ' +
+          '<code>owner</code> 문서를 지우고 다시 등록해 주세요.';
+      } else {
+        el.textContent = '등록에 실패했습니다: ' + ((err && err.message) || '') +
+          ' (보안 규칙이 아직 배포되지 않았을 수 있습니다)';
+      }
+    });
+  }
+
+  /* ---------------- 구독 ---------------- */
+  var unsub = [];
+  function subscribe() {
+    if (unsub.length) return;   // onAuthStateChanged 가 여러 번 불려도 한 번만 구독합니다
+    unsub.push(db.collection('lessonApplications').orderBy('createdAt', 'desc').limit(2000)
+      .onSnapshot(function (snap) {
+        rows = snap.docs.map(function (d) { return Object.assign({ _id: d.id }, d.data()); });
+        setConn('live', '실시간 동기화 중 · ' + rows.length + '건');
+        $('consoleError').hidden = true;
+        renderStats(); renderHeat(); renderList();
+        if (selectedId && rows.some(function (r) { return r._id === selectedId; })) {
+          if (document.activeElement !== $('dMemo')) openDrawer(selectedId);
+        } else if (selectedId) {
+          closeDrawer();
+        }
+      }, function (err) {
+        // 이 계정이 아직 관리자로 등록되지 않았으면 등록 화면으로 보냅니다.
+        if (err && err.code === 'permission-denied') { showClaim(); return; }
+        setConn('error', '목록을 읽지 못했습니다.');
+        showConsoleError('동기화 오류: ' + ((err && err.message) || ''));
+      }));
+
+    unsub.push(db.doc('lessonSettings/config').onSnapshot(function (snap) {
+      config = snap.exists ? (snap.data() || {}) : { intakeOpen: true };
+      renderIntake();
+    }, function () {}));
+  }
+
+  function teardown() {
+    unsub.forEach(function (f) { try { f(); } catch (e) {} });
+    unsub = [];
+    rows = [];
+  }
+  function hideAll() {
+    $('loginView').hidden = true;
+    $('claimView').hidden = true;
+    $('consoleView').hidden = true;
+  }
+  function showConsole() {
+    teardown();
+    hideAll();
+    $('consoleView').hidden = false;
+    subscribe();
+  }
+  function showClaim() {
+    teardown();
+    hideAll();
+    var user = auth.currentUser;
+    $('claimEmail').textContent = (user && user.email) || '';
+    $('claimError').hidden = true;
+    $('claimView').hidden = false;
+  }
+  function showLogin() {
+    teardown();
+    hideAll();
+    $('loginView').hidden = false;
+    $('loginBtn').disabled = false;
+    setMode(false);
+    $('password').value = '';
+    $('password2').value = '';
+  }
+
+  /* ---------------- 시작 ---------------- */
+  function findFirebaseConfig() {
+    if (window.FIREBASE_CONFIG && window.FIREBASE_CONFIG.projectId) return window.FIREBASE_CONFIG;
+    if (window.firebaseConfig && window.firebaseConfig.projectId) return window.firebaseConfig;
+    return null;
+  }
+
+  function bind() {
+    fillSelect('fStatus', STATUSES, '전체');
+    fillSelect('fMember', MEMBER_TYPES, '전체');
+    fillSelect('fDay', DAYS, '전체');
+    fillSelect('fSlot', SLOTS, '전체');
+
+    $('q').addEventListener('input', function () { filters.q = this.value; renderList(); });
+    $('fStatus').addEventListener('change', function () { filters.status = this.value; renderList(); });
+    $('fMember').addEventListener('change', function () { filters.member = this.value; renderList(); });
+    $('fDay').addEventListener('change', function () { filters.day = this.value; renderList(); });
+    $('fSlot').addEventListener('change', function () { filters.slot = this.value; renderList(); });
+    $('fSort').addEventListener('change', function () { filters.sort = this.value; renderList(); });
+    $('resetBtn').addEventListener('click', function () {
+      filters = { q: '', status: '', member: '', day: '', slot: '', sort: 'new' };
+      $('q').value = ''; $('fStatus').value = ''; $('fMember').value = '';
+      $('fDay').value = ''; $('fSlot').value = ''; $('fSort').value = 'new';
+      renderList();
+    });
+
+    $('csvBtn').addEventListener('click', exportCsv);
+    $('logoutBtn').addEventListener('click', function () { auth.signOut(); });
+    $('intakeToggle').addEventListener('change', toggleIntake);
+    $('drawerClose').addEventListener('click', closeDrawer);
+    $('drawerBg').addEventListener('click', closeDrawer);
+    $('dSave').addEventListener('click', saveMemo);
+    $('loginForm').addEventListener('submit', login);
+    $('modeToggle').addEventListener('click', function () { setMode(!signupMode); });
+    $('claimBtn').addEventListener('click', claimOwner);
+    $('claimLogout').addEventListener('click', function () { auth.signOut(); });
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape' && $('drawer').classList.contains('on')) closeDrawer();
+    });
+  }
+
+  function init() {
+    bind();
+    if (typeof firebase === 'undefined' || !findFirebaseConfig()) {
+      $('loginView').hidden = false;
+      $('loginConn').className = 'conn error';
+      $('loginConnText').textContent = '서버 설정을 불러오지 못했습니다.';
+      return;
+    }
+    // 같은 주소의 신청 폼·운영 보드는 익명 로그인을 씁니다. 기본 앱을 함께 쓰면
+    // 다른 탭에서 폼을 여는 순간 이 화면이 익명 계정으로 바뀌어 로그아웃됩니다.
+    // 이름 있는 앱으로 띄우면 로그인 상태가 서로 섞이지 않습니다.
+    app = firebase.initializeApp(findFirebaseConfig(), 'numsLessonAdmin');
+    db = app.firestore();
+    auth = app.auth();
+
+    auth.onAuthStateChanged(function (user) {
+      // 익명 로그인 상태로 들어온 브라우저는 관리자 권한이 없습니다.
+      if (user && !user.isAnonymous) {
+        $('loginConn').className = 'conn live';
+        $('loginConnText').textContent = '로그인됨';
+        showConsole();
+      } else {
+        $('loginConn').className = 'conn';
+        $('loginConnText').textContent = '관리자 로그인이 필요합니다.';
+        showLogin();
+      }
+    });
+  }
+
+  init();
+})();
+</script>
+</body>
+</html>

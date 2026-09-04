@@ -1,0 +1,805 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>남스어프로치 · 1:1 개인 레슨 대기 접수</title>
+<meta name="description" content="남스어프로치 1:1 개인 레슨 대기 접수. 자리가 나는 대로 순서대로 연락드립니다.">
+<meta property="og:title" content="남스어프로치 · 1:1 개인 레슨 대기 접수">
+<meta property="og:description" content="희망 요일과 시간대를 남겨주시면 자리가 나는 대로 순서대로 연락드립니다.">
+<meta property="og:type" content="website">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Gowun+Batang:wght@400;700&display=swap">
+</head>
+<body>
+<style>
+  @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css');
+
+  /* 남스어프로치 브랜드 — 딥 틸 + 밝은 뉴트럴.
+     헬스장(M휘트니스)의 블랙+골드와 겹치지 않도록 완전히 분리했습니다. */
+  :root {
+    --paper: #F1F4F2;
+    --surface: #FFFFFF;
+    --surface-2: #E7EDEA;
+    --ink: #151E1B;
+    --ink-2: #3C4B46;
+    --muted: #6C7B75;
+    --line: #D2DBD7;
+    --line-soft: #E2E9E6;
+    --accent: #0E6B5C;
+    --accent-ink: #0A4A3F;
+    --accent-soft: #DBEBE5;
+    --on-accent: #FFFFFF;
+    --clay: #A8482A;
+    --clay-soft: #F6E4DD;
+    --shadow: 0 1px 2px rgba(21,30,27,.05), 0 8px 24px -16px rgba(21,30,27,.28);
+    --ease: cubic-bezier(.4, 0, .2, 1);
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --paper: #0E1412;
+      --surface: #161F1C;
+      --surface-2: #1E2925;
+      --ink: #E6EDE9;
+      --ink-2: #B7C5BF;
+      --muted: #8A9993;
+      --line: #2A3833;
+      --line-soft: #212D29;
+      --accent: #4FC2AA;
+      --accent-ink: #8FDCC9;
+      --accent-soft: #12312B;
+      --on-accent: #0E1412;
+      --clay: #E08A6A;
+      --clay-soft: #33201A;
+      --shadow: 0 1px 2px rgba(0,0,0,.4), 0 8px 24px -16px rgba(0,0,0,.7);
+    }
+  }
+
+  :root[data-theme="dark"] {
+    --paper: #0E1412;
+    --surface: #161F1C;
+    --surface-2: #1E2925;
+    --ink: #E6EDE9;
+    --ink-2: #B7C5BF;
+    --muted: #8A9993;
+    --line: #2A3833;
+    --line-soft: #212D29;
+    --accent: #4FC2AA;
+    --accent-ink: #8FDCC9;
+    --accent-soft: #12312B;
+    --on-accent: #0E1412;
+    --clay: #E08A6A;
+    --clay-soft: #33201A;
+    --shadow: 0 1px 2px rgba(0,0,0,.4), 0 8px 24px -16px rgba(0,0,0,.7);
+  }
+
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+
+  body {
+    margin: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: 'Pretendard Variable', Pretendard, -apple-system, BlinkMacSystemFont,
+      'Apple SD Gothic Neo', 'Malgun Gothic', system-ui, sans-serif;
+    font-size: 16px;
+    line-height: 1.65;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  .wrap { max-width: 640px; margin: 0 auto; padding: 0 20px 72px; }
+
+  /* ---------- 헤더 ---------- */
+  header { padding: 52px 0 34px; }
+  .wordmark {
+    font-family: 'Gowun Batang', 'Apple SD Gothic Neo', serif;
+    font-weight: 700; font-size: 13px; letter-spacing: .3em;
+    text-transform: uppercase; color: var(--accent); margin: 0 0 18px;
+  }
+  h1 {
+    font-family: 'Gowun Batang', 'Apple SD Gothic Neo', serif;
+    font-weight: 700; font-size: clamp(28px, 6.4vw, 38px); line-height: 1.3;
+    margin: 0 0 14px; letter-spacing: -.01em;
+  }
+  .lede { font-size: 16px; color: var(--ink-2); margin: 0; }
+  .byline {
+    display: flex; flex-wrap: wrap; gap: 6px 20px; margin-top: 24px;
+    padding-top: 18px; border-top: 1px solid var(--line);
+    font-size: 13px; color: var(--muted);
+  }
+  .byline b { color: var(--ink-2); font-weight: 600; }
+  .byline a { color: var(--accent-ink); text-underline-offset: 3px; }
+
+  /* ---------- 카드 / 섹션 ---------- */
+  .card {
+    background: var(--surface); border: 1px solid var(--line);
+    border-radius: 14px; box-shadow: var(--shadow);
+    padding: 22px 20px; margin-bottom: 14px;
+  }
+  .sec-no {
+    font-size: 11px; letter-spacing: .16em; color: var(--accent);
+    font-weight: 700; margin: 0 0 6px;
+  }
+  .card > h2 {
+    font-family: 'Gowun Batang', serif; font-weight: 700;
+    font-size: 19px; margin: 0 0 4px; letter-spacing: -.01em;
+  }
+  .card > .hint { font-size: 13.5px; color: var(--muted); margin: 0 0 18px; }
+
+  /* ---------- 필드 ---------- */
+  .field { margin-bottom: 20px; }
+  .field:last-child { margin-bottom: 0; }
+  .field > label, .field > .lab {
+    display: block; font-size: 14px; font-weight: 600;
+    margin-bottom: 8px; color: var(--ink);
+  }
+  .req { color: var(--clay); font-size: 12px; font-weight: 700; margin-left: 4px; }
+  .opt { color: var(--muted); font-size: 12px; font-weight: 500; margin-left: 4px; }
+  .sublab { font-size: 12.5px; color: var(--muted); font-weight: 400; margin-top: 3px; display: block; }
+
+  input[type="text"], input[type="tel"], input[type="email"],
+  input[type="password"], select, textarea {
+    width: 100%; min-height: 48px; padding: 12px 14px;
+    background: var(--surface); color: var(--ink);
+    border: 1px solid var(--line); border-radius: 10px;
+    font: inherit; font-size: 16px; /* 16px 미만이면 iOS에서 확대됩니다 */
+    transition: border-color .15s var(--ease), box-shadow .15s var(--ease);
+  }
+  textarea { min-height: 108px; resize: vertical; line-height: 1.6; }
+  select { appearance: none; -webkit-appearance: none; padding-right: 40px;
+    background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath fill='%236C7B75' d='M1 1l5 5 5-5'/%3E%3C/svg%3E");
+    background-repeat: no-repeat; background-position: right 15px center; }
+  input:focus, select:focus, textarea:focus {
+    outline: none; border-color: var(--accent);
+    box-shadow: 0 0 0 3px var(--accent-soft);
+  }
+  .err-field input, .err-field select, .err-field textarea { border-color: var(--clay); }
+  .err {
+    display: block; font-size: 13px; color: var(--clay);
+    margin-top: 7px; font-weight: 500;
+  }
+
+  /* ---------- 칩 (다중선택 / 라디오) ---------- */
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; }
+  .chip {
+    min-height: 44px; padding: 10px 16px;
+    border: 1px solid var(--line); border-radius: 999px;
+    background: var(--surface); color: var(--ink-2);
+    font: inherit; font-size: 14.5px; font-weight: 500;
+    cursor: pointer; transition: all .15s var(--ease);
+  }
+  .chip:hover { border-color: var(--accent); color: var(--accent-ink); }
+  .chip[aria-pressed="true"], .chip[aria-checked="true"] {
+    background: var(--accent); border-color: var(--accent);
+    color: var(--on-accent); font-weight: 600;
+  }
+  .chip:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  /* 요일 7개는 한 줄에 나란히 놓습니다 */
+  .chips.day { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; }
+  .chips.day .chip { padding: 10px 2px; text-align: center; font-size: 14px; }
+  .err-field .chip { border-color: var(--clay); }
+  .err-field .chip[aria-pressed="true"], .err-field .chip[aria-checked="true"] { border-color: var(--accent); }
+
+  /* ---------- 동의 ---------- */
+  .agree {
+    display: flex; gap: 12px; align-items: flex-start;
+    padding: 14px; border: 1px solid var(--line);
+    border-radius: 10px; background: var(--surface-2); cursor: pointer;
+  }
+  .agree input { width: 22px; height: 22px; margin: 1px 0 0; accent-color: var(--accent); flex: none; }
+  .agree span { font-size: 14.5px; font-weight: 500; line-height: 1.5; }
+  details.policy { margin-top: 10px; }
+  details.policy summary {
+    cursor: pointer; font-size: 13.5px; color: var(--accent-ink);
+    padding: 8px 0; font-weight: 500; list-style: none;
+  }
+  details.policy summary::-webkit-details-marker { display: none; }
+  details.policy summary::before { content: "＋ "; font-weight: 600; }
+  details.policy[open] summary::before { content: "－ "; }
+  .policy-body {
+    font-size: 13.5px; color: var(--ink-2); line-height: 1.75;
+    background: var(--surface-2); border-radius: 10px; padding: 14px 16px;
+  }
+  .policy-body dl { margin: 0; }
+  .policy-body dt { font-weight: 600; color: var(--ink); margin-top: 10px; }
+  .policy-body dt:first-child { margin-top: 0; }
+  .policy-body dd { margin: 2px 0 0; }
+
+  /* ---------- 제출 ---------- */
+  .submit-wrap { margin-top: 6px; }
+  button.primary {
+    width: 100%; min-height: 54px; padding: 15px 20px;
+    background: var(--accent); color: var(--on-accent);
+    border: none; border-radius: 12px;
+    font: inherit; font-size: 16.5px; font-weight: 700;
+    cursor: pointer; transition: background .15s var(--ease);
+  }
+  button.primary:hover:not(:disabled) { background: var(--accent-ink); }
+  button.primary:disabled { background: var(--muted); opacity: .55; cursor: not-allowed; }
+  button.primary:focus-visible { outline: 2px solid var(--accent-ink); outline-offset: 3px; }
+  .submit-note { font-size: 13px; color: var(--muted); text-align: center; margin: 12px 0 0; }
+
+  .form-error {
+    margin: 0 0 14px; padding: 14px 16px;
+    border-left: 3px solid var(--clay); background: var(--clay-soft);
+    border-radius: 0 10px 10px 0; font-size: 14.5px; color: var(--ink-2);
+  }
+  .form-error b { color: var(--ink); }
+
+  /* ---------- 완료 화면 ---------- */
+  .done { text-align: center; padding: 44px 24px; }
+  .done .mark {
+    width: 62px; height: 62px; margin: 0 auto 22px;
+    border-radius: 50%; background: var(--accent-soft);
+    display: flex; align-items: center; justify-content: center;
+  }
+  .done .mark svg { width: 30px; height: 30px; }
+  .done h2 {
+    font-family: 'Gowun Batang', serif; font-size: 23px;
+    margin: 0 0 10px; font-weight: 700;
+  }
+  .done p { color: var(--ink-2); margin: 0 0 22px; font-size: 15.5px; }
+  .code-box {
+    background: var(--surface-2); border: 1px solid var(--line);
+    border-radius: 12px; padding: 18px; margin-bottom: 18px;
+  }
+  .code-box .k { font-size: 12px; letter-spacing: .14em; color: var(--muted); margin: 0 0 4px; }
+  .code-box .v {
+    font-size: 30px; font-weight: 700; letter-spacing: .06em;
+    color: var(--accent-ink); margin: 0;
+    font-family: 'Gowun Batang', serif;
+  }
+  .code-box .note { font-size: 12.5px; color: var(--muted); margin: 8px 0 0; line-height: 1.5; }
+  a.dm {
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+    min-height: 52px; border-radius: 12px; text-decoration: none;
+    background: var(--accent); color: var(--on-accent);
+    font-weight: 700; font-size: 16px;
+  }
+  a.dm:hover { background: var(--accent-ink); }
+  a.ghost {
+    display: block; text-align: center; margin-top: 12px;
+    font-size: 14px; color: var(--muted); text-decoration: none; padding: 10px;
+  }
+  a.ghost:hover { color: var(--accent-ink); text-decoration: underline; }
+
+  /* ---------- 접수 중단 ---------- */
+  .closed { text-align: center; padding: 44px 24px; }
+  .closed h2 { font-family: 'Gowun Batang', serif; font-size: 22px; margin: 0 0 10px; }
+  .closed p { color: var(--ink-2); margin: 0 0 20px; }
+
+  /* ---------- 상태 표시 ---------- */
+  .conn {
+    display: flex; align-items: center; justify-content: center; gap: 7px;
+    font-size: 12.5px; color: var(--muted); margin: 20px 0 0;
+  }
+  .conn-dot {
+    width: 7px; height: 7px; border-radius: 50%;
+    background: var(--muted); flex: none;
+  }
+  .conn.live .conn-dot { background: var(--accent); }
+  .conn.error { color: var(--clay); }
+  .conn.error .conn-dot { background: var(--clay); }
+
+  footer {
+    margin-top: 34px; padding-top: 18px; border-top: 1px solid var(--line);
+    font-size: 12px; color: var(--muted); text-align: center; line-height: 1.7;
+  }
+  footer a { color: var(--muted); }
+
+  .sr-only {
+    position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+    overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0;
+  }
+  .hp { position: absolute; left: -9999px; width: 1px; height: 1px; opacity: 0; }
+
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+</style>
+
+<div class="wrap">
+  <header>
+    <p class="wordmark">Nums Approach</p>
+    <h1>1:1 개인 레슨<br>대기 접수</h1>
+    <p class="lede" id="introText">몸 상태와 목표에 맞춰 설계하는 1:1 개인 레슨입니다. 지금은 대기 접수만 받고 있으며, 자리가 나는 대로 접수 순서대로 연락드립니다.</p>
+    <div class="byline">
+      <span><b>담당</b> 김지윤 코치</span>
+      <span><b>문의</b> <a href="https://instagram.com/gorani_coach" target="_blank" rel="noopener">@gorani_coach</a></span>
+    </div>
+  </header>
+
+  <!-- ========== 접수 중단 안내 ========== -->
+  <div class="card closed" id="closedView" hidden>
+    <h2>대기 접수를 잠시 중단합니다</h2>
+    <p>대기 인원이 많아 접수를 잠시 멈추었습니다. 재개되면 인스타그램으로 안내드릴게요.</p>
+    <a class="dm" href="https://instagram.com/gorani_coach" target="_blank" rel="noopener">인스타그램에서 소식 보기</a>
+  </div>
+
+  <!-- ========== 신청 폼 ========== -->
+  <form id="formView" novalidate hidden>
+    <p class="form-error" id="formError" hidden></p>
+
+    <section class="card">
+      <p class="sec-no">01</p>
+      <h2>기본 정보</h2>
+      <p class="hint">연락은 여기 남겨주신 번호로 드립니다.</p>
+
+      <div class="field" id="f-name">
+        <label for="name">이름<span class="req">필수</span></label>
+        <input type="text" id="name" name="name" autocomplete="name" maxlength="40" placeholder="홍길동" aria-describedby="e-name">
+        <span class="err" id="e-name" hidden></span>
+      </div>
+
+      <div class="field" id="f-phone">
+        <label for="phone">연락처<span class="req">필수</span></label>
+        <input type="tel" id="phone" name="phone" autocomplete="tel" inputmode="numeric" maxlength="13" placeholder="010-0000-0000" aria-describedby="e-phone">
+        <span class="err" id="e-phone" hidden></span>
+      </div>
+
+      <div class="field" id="f-member">
+        <span class="lab" id="lab-member">회원 여부<span class="req">필수</span></span>
+        <div class="chips" id="memberChips" role="radiogroup" aria-labelledby="lab-member" aria-describedby="e-member"></div>
+        <span class="err" id="e-member" hidden></span>
+      </div>
+    </section>
+
+    <section class="card">
+      <p class="sec-no">02</p>
+      <h2>희망 일정</h2>
+      <p class="hint">여러 개 선택할수록 배정이 빨라집니다.</p>
+
+      <div class="field" id="f-days">
+        <span class="lab" id="lab-days">희망 요일<span class="req">1개 이상</span></span>
+        <div class="chips day" id="dayChips" role="group" aria-labelledby="lab-days" aria-describedby="e-days"></div>
+        <span class="err" id="e-days" hidden></span>
+      </div>
+
+      <div class="field" id="f-slots">
+        <span class="lab" id="lab-slots">희망 시간대<span class="req">1개 이상</span>
+          <span class="sublab">레슨은 1시간이며, 고르신 시각에 시작합니다.</span></span>
+        <div class="chips" id="slotChips" role="group" aria-labelledby="lab-slots" aria-describedby="e-slots"></div>
+        <span class="err" id="e-slots" hidden></span>
+      </div>
+    </section>
+
+    <section class="card">
+      <p class="sec-no">03</p>
+      <h2>운동 정보</h2>
+      <p class="hint">첫 상담을 짧게 끝내기 위한 항목입니다.</p>
+
+      <div class="field" id="f-goals">
+        <span class="lab" id="lab-goals">운동 목적<span class="req">1개 이상</span></span>
+        <div class="chips" id="goalChips" role="group" aria-labelledby="lab-goals" aria-describedby="e-goals"></div>
+        <span class="err" id="e-goals" hidden></span>
+      </div>
+
+      <div class="field" id="f-exp">
+        <label for="experience">운동 경력<span class="req">필수</span></label>
+        <select id="experience" name="experience" aria-describedby="e-exp"></select>
+        <span class="err" id="e-exp" hidden></span>
+      </div>
+
+      <div class="field" id="f-notes">
+        <label for="notes">특이사항<span class="opt">선택</span></label>
+        <textarea id="notes" name="notes" maxlength="1000" placeholder="부상·수술 이력, 통증 부위, 꼭 전달하고 싶은 내용을 적어주세요."></textarea>
+      </div>
+    </section>
+
+    <section class="card">
+      <p class="sec-no">04</p>
+      <h2>개인정보 수집·이용 동의</h2>
+      <p class="hint">레슨 일정 안내 연락에만 사용합니다.</p>
+
+      <div class="field" id="f-agree" style="margin-bottom:0">
+        <label class="agree">
+          <input type="checkbox" id="agree" aria-describedby="e-agree">
+          <span>개인정보 수집·이용에 동의합니다.<span class="req">필수</span></span>
+        </label>
+        <span class="err" id="e-agree" hidden></span>
+        <details class="policy">
+          <summary>수집 항목·목적·보유 기간 보기</summary>
+          <div class="policy-body">
+            <dl>
+              <dt>수집 항목</dt>
+              <dd>이름, 연락처, 회원 여부, 희망 일정, 운동 목적·경력, 특이사항</dd>
+              <dt>수집 목적</dt>
+              <dd>레슨 대기 접수 및 일정 안내 연락</dd>
+              <dt>보유 기간</dt>
+              <dd>접수일로부터 1년. 삭제를 요청하시면 즉시 파기합니다.</dd>
+              <dt>동의 거부</dt>
+              <dd>동의하지 않으실 수 있으나, 이 경우 대기 접수가 불가합니다.</dd>
+            </dl>
+          </div>
+        </details>
+      </div>
+
+      <!-- 자동 등록 방지용 미끼 항목. 사람에게는 보이지 않습니다. -->
+      <div class="hp" aria-hidden="true">
+        <label for="website">웹사이트</label>
+        <input type="text" id="website" name="website" tabindex="-1" autocomplete="off">
+      </div>
+    </section>
+
+    <div class="submit-wrap">
+      <button type="submit" class="primary" id="submitBtn" disabled>신청서 제출하기</button>
+      <p class="submit-note" id="submitNote">개인정보 수집·이용에 동의하시면 제출할 수 있습니다.</p>
+    </div>
+
+    <p class="conn" id="conn"><span class="conn-dot"></span><span id="connText">연결 중…</span></p>
+  </form>
+
+  <!-- ========== 완료 화면 ========== -->
+  <div class="card done" id="doneView" hidden>
+    <div class="mark" aria-hidden="true">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" style="color:var(--accent)"><path d="M20 6L9 17l-5-5"/></svg>
+    </div>
+    <h2>신청이 접수되었습니다</h2>
+    <p>자리가 나는 대로 순서대로 연락드릴게요.</p>
+    <div class="code-box">
+      <p class="k">접수번호</p>
+      <p class="v" id="doneCode">A-0000</p>
+      <p class="note">접수번호는 대기 순번이 아니라 문의하실 때 쓰는 조회용 번호입니다.</p>
+    </div>
+    <a class="dm" id="dmBtn" href="https://instagram.com/gorani_coach" target="_blank" rel="noopener">
+      인스타그램 DM 보내기
+    </a>
+    <a class="ghost" href="#" id="againBtn">다른 사람 신청서 작성하기</a>
+  </div>
+
+  <footer>
+    남스어프로치 · 김지윤 코치<br>
+    남겨주신 정보는 레슨 안내 연락 외의 목적으로 사용하지 않습니다.
+  </footer>
+</div>
+
+<!-- Firebase SDK (compat 빌드: 운영 보드와 같은 방식) -->
+<script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
+<script src="firebase-config.js"></script>
+
+<script>
+(function () {
+  'use strict';
+
+  /* ============================================================
+     선택지 — 여기만 고치면 폼과 관리자 히트맵이 함께 바뀝니다.
+     ============================================================ */
+  var MEMBER_TYPES = ['기존 회원', '신규'];
+  var DAYS = ['월', '화', '수', '목', '금', '토', '일'];
+  var SLOTS = ['09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00'];
+  var GOALS = ['체형교정·통증개선', '근력 향상', '체중 감량', '바디프로필', '선수·경기력', '기타'];
+  var EXPERIENCES = ['없음', '6개월 미만', '6개월~2년', '2년 이상'];
+  var INSTAGRAM = 'gorani_coach';
+  var LOCK_SALT = 'namsworth-lesson';     // 연락처를 그대로 저장하지 않기 위한 고정 문자열
+  var MIN_FILL_MS = 3000;                 // 이보다 빨리 제출되면 자동 프로그램으로 봅니다
+
+  var db = null;
+  var ready = false;
+  var sending = false;
+  var openedAt = Date.now();
+
+  var state = { memberType: '', days: [], slots: [], goals: [] };
+
+  var $ = function (id) { return document.getElementById(id); };
+
+  /* ---------------- 연결 상태 ---------------- */
+  function setConn(kind, text) {
+    var el = $('conn');
+    el.className = 'conn' + (kind ? ' ' + kind : '');
+    $('connText').textContent = text;
+  }
+
+  /* ---------------- 칩 그리기 ---------------- */
+  function renderChips(hostId, items, mode, key) {
+    var host = $(hostId);
+    host.textContent = '';
+    items.forEach(function (label) {
+      var b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'chip';
+      b.textContent = label;
+      if (mode === 'radio') {
+        b.setAttribute('role', 'radio');
+        b.setAttribute('aria-checked', 'false');
+      } else {
+        b.setAttribute('aria-pressed', 'false');
+      }
+      b.addEventListener('click', function () {
+        if (mode === 'radio') {
+          state[key] = label;
+          Array.prototype.forEach.call(host.children, function (c) {
+            c.setAttribute('aria-checked', c === b ? 'true' : 'false');
+          });
+        } else {
+          var arr = state[key];
+          var i = arr.indexOf(label);
+          if (i >= 0) arr.splice(i, 1); else arr.push(label);
+          b.setAttribute('aria-pressed', i >= 0 ? 'false' : 'true');
+        }
+        clearError(key === 'memberType' ? 'member' : key === 'days' ? 'days' : key === 'slots' ? 'slots' : 'goals');
+      });
+      host.appendChild(b);
+    });
+  }
+
+  function renderExperience() {
+    var sel = $('experience');
+    sel.textContent = '';
+    var ph = document.createElement('option');
+    ph.value = '';
+    ph.textContent = '선택해 주세요';
+    sel.appendChild(ph);
+    EXPERIENCES.forEach(function (label) {
+      var o = document.createElement('option');
+      o.value = label;
+      o.textContent = label;
+      sel.appendChild(o);
+    });
+  }
+
+  /* ---------------- 연락처 자동 하이픈 ---------------- */
+  function formatPhone(raw) {
+    var d = String(raw || '').replace(/\D/g, '').slice(0, 11);
+    if (d.length < 4) return d;
+    if (d.length < 8) return d.slice(0, 3) + '-' + d.slice(3);
+    if (d.length === 10) return d.slice(0, 3) + '-' + d.slice(3, 6) + '-' + d.slice(6);
+    return d.slice(0, 3) + '-' + d.slice(3, 7) + '-' + d.slice(7);
+  }
+  function phoneDigits(raw) { return String(raw || '').replace(/\D/g, ''); }
+  function validPhone(raw) {
+    var d = phoneDigits(raw);
+    return /^01[016789]\d{7,8}$/.test(d);
+  }
+
+  /* ---------------- 오류 표시 ---------------- */
+  var FIELD_OF = {
+    name: 'f-name', phone: 'f-phone', member: 'f-member', days: 'f-days',
+    slots: 'f-slots', goals: 'f-goals', exp: 'f-exp', agree: 'f-agree'
+  };
+  function showError(key, msg) {
+    var e = $('e-' + key);
+    if (e) { e.textContent = msg; e.hidden = false; }
+    var f = $(FIELD_OF[key]);
+    if (f) f.classList.add('err-field');
+  }
+  function clearError(key) {
+    var e = $('e-' + key);
+    if (e) { e.textContent = ''; e.hidden = true; }
+    var f = $(FIELD_OF[key]);
+    if (f) f.classList.remove('err-field');
+  }
+  function clearAllErrors() { Object.keys(FIELD_OF).forEach(clearError); }
+
+  function setFormError(msg) {
+    var el = $('formError');
+    if (!msg) { el.hidden = true; el.textContent = ''; return; }
+    el.hidden = false;
+    el.innerHTML = msg;
+    el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }
+
+  /* ---------------- 검증 ---------------- */
+  function validate() {
+    clearAllErrors();
+    var bad = [];
+
+    if (!$('name').value.trim()) { showError('name', '이름을 입력해 주세요.'); bad.push('f-name'); }
+    if (!$('phone').value.trim()) { showError('phone', '연락처를 입력해 주세요.'); bad.push('f-phone'); }
+    else if (!validPhone($('phone').value)) { showError('phone', '010-0000-0000 형식으로 입력해 주세요.'); bad.push('f-phone'); }
+    if (!state.memberType) { showError('member', '회원 여부를 선택해 주세요.'); bad.push('f-member'); }
+    if (!state.days.length) { showError('days', '희망 요일을 1개 이상 골라 주세요.'); bad.push('f-days'); }
+    if (!state.slots.length) { showError('slots', '희망 시간대를 1개 이상 골라 주세요.'); bad.push('f-slots'); }
+    if (!state.goals.length) { showError('goals', '운동 목적을 1개 이상 골라 주세요.'); bad.push('f-goals'); }
+    if (!$('experience').value) { showError('exp', '운동 경력을 선택해 주세요.'); bad.push('f-exp'); }
+    if (!$('agree').checked) { showError('agree', '개인정보 수집·이용에 동의해 주세요.'); bad.push('f-agree'); }
+
+    if (bad.length) {
+      var first = $(bad[0]);
+      if (first) {
+        first.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        var focusable = first.querySelector('input, select, textarea, button');
+        if (focusable) setTimeout(function () { focusable.focus({ preventScroll: true }); }, 260);
+      }
+      return false;
+    }
+    return true;
+  }
+
+  /* ---------------- 중복 차단 키 ---------------- */
+  // 연락처를 그대로 남기지 않도록, 해시값을 문서 이름으로 씁니다.
+  function lockKey(phone) {
+    var text = LOCK_SALT + ':' + phoneDigits(phone);
+    if (!(window.crypto && window.crypto.subtle && window.TextEncoder)) return Promise.resolve(null);
+    return window.crypto.subtle.digest('SHA-256', new TextEncoder().encode(text)).then(function (buf) {
+      var bytes = new Uint8Array(buf), out = '';
+      for (var i = 0; i < bytes.length; i++) out += ('0' + bytes[i].toString(16)).slice(-2);
+      return out.slice(0, 40);
+    }).catch(function () { return null; });
+  }
+
+  /* ---------------- 접수번호 ---------------- */
+  function nextCode() {
+    var ref = db.doc('lessonSettings/counter');
+    return db.runTransaction(function (tx) {
+      return tx.get(ref).then(function (snap) {
+        var cur = (snap.exists && Number(snap.data().value)) || 0;
+        var next = cur + 1;
+        tx.set(ref, { value: next }, { merge: true });
+        return next;
+      });
+    }).then(function (seq) {
+      return { seq: seq, code: 'A-' + ('0000' + seq).slice(-4) };
+    });
+  }
+
+  /* ---------------- 제출 ---------------- */
+  function setSending(on) {
+    sending = on;
+    var btn = $('submitBtn');
+    btn.disabled = on || !$('agree').checked || !ready;
+    btn.textContent = on ? '보내는 중…' : '신청서 제출하기';
+  }
+
+  function submit(ev) {
+    ev.preventDefault();
+    if (sending) return;
+    setFormError('');
+
+    if (!ready) {
+      setFormError('아직 서버에 연결하지 못했습니다. 잠시 후 다시 눌러 주세요.');
+      return;
+    }
+    // 미끼 항목이 채워졌거나 너무 빨리 제출되면 자동 프로그램으로 보고 조용히 무시합니다.
+    if ($('website').value || Date.now() - openedAt < MIN_FILL_MS) {
+      setFormError('잠시 후 다시 제출해 주세요.');
+      return;
+    }
+    if (!validate()) return;
+
+    setSending(true);
+
+    var phone = formatPhone($('phone').value);
+    var lockRef = null;
+
+    lockKey(phone).then(function (key) {
+      if (!key) return null;   // 해시를 못 만드는 브라우저는 중복 검사를 건너뜁니다
+      lockRef = db.collection('lessonPhoneLocks').doc(key);
+      return lockRef.set({ at: firebase.firestore.FieldValue.serverTimestamp() });
+    }).catch(function (err) {
+      // 규칙이 막았다 = 24시간 안에 같은 번호로 이미 접수했다는 뜻입니다.
+      if (err && err.code === 'permission-denied') { throw { __dup: true }; }
+      throw err;
+    }).then(function () {
+      return nextCode();
+    }).then(function (num) {
+      var stamp = firebase.firestore.FieldValue.serverTimestamp();
+      return db.collection('lessonApplications').add({
+        code: num.code,
+        seq: num.seq,
+        createdAt: stamp,
+        name: $('name').value.trim().slice(0, 40),
+        phone: phone,
+        memberType: state.memberType,
+        days: state.days.slice(),
+        slots: state.slots.slice(),
+        goals: state.goals.slice(),
+        experience: $('experience').value,
+        notes: $('notes').value.trim().slice(0, 1000),
+        privacyAgreedAt: stamp,
+        status: '대기',
+        adminMemo: '',
+        contactedAt: null
+      }).then(function () { return num.code; });
+    }).then(function (code) {
+      $('doneCode').textContent = code;
+      $('formView').hidden = true;
+      $('doneView').hidden = false;
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      setSending(false);
+    }).catch(function (err) {
+      setSending(false);
+      if (err && err.__dup) {
+        setFormError('<b>이미 접수된 번호입니다.</b><br>같은 연락처로는 24시간에 한 번만 신청할 수 있어요. 내용을 바꾸고 싶으시면 인스타그램 DM으로 알려 주세요.');
+        return;
+      }
+      // 접수번호까지 받았는데 저장이 실패했다면 중복 잠금을 풀어 다시 시도할 수 있게 합니다.
+      if (lockRef) lockRef.delete().catch(function () {});
+      setFormError('<b>전송에 실패했습니다.</b><br>입력하신 내용은 그대로 남아 있으니 잠시 후 제출 버튼을 다시 눌러 주세요. (' + ((err && err.message) || '알 수 없는 오류') + ')');
+    });
+  }
+
+  /* ---------------- 접수 재시작 ---------------- */
+  function resetForm() {
+    $('name').value = '';
+    $('phone').value = '';
+    $('notes').value = '';
+    $('experience').value = '';
+    $('agree').checked = false;
+    state = { memberType: '', days: [], slots: [], goals: [] };
+    renderAllChips();
+    clearAllErrors();
+    setFormError('');
+    openedAt = Date.now();
+    $('submitBtn').disabled = true;
+    $('doneView').hidden = true;
+    $('formView').hidden = false;
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  function renderAllChips() {
+    renderChips('memberChips', MEMBER_TYPES, 'radio', 'memberType');
+    renderChips('dayChips', DAYS, 'multi', 'days');
+    renderChips('slotChips', SLOTS, 'multi', 'slots');
+    renderChips('goalChips', GOALS, 'multi', 'goals');
+  }
+
+  /* ---------------- 설정 읽기 ---------------- */
+  function findFirebaseConfig() {
+    if (window.FIREBASE_CONFIG && window.FIREBASE_CONFIG.projectId) return window.FIREBASE_CONFIG;
+    if (window.firebaseConfig && window.firebaseConfig.projectId) return window.firebaseConfig;
+    return null;
+  }
+
+  function init() {
+    renderAllChips();
+    renderExperience();
+
+    $('formView').hidden = false;
+    $('dmBtn').href = 'https://instagram.com/' + INSTAGRAM;
+
+    $('phone').addEventListener('input', function () {
+      var pos = this.selectionStart === this.value.length;
+      this.value = formatPhone(this.value);
+      if (pos) this.selectionStart = this.selectionEnd = this.value.length;
+      clearError('phone');
+    });
+    $('name').addEventListener('input', function () { clearError('name'); });
+    $('experience').addEventListener('change', function () { clearError('exp'); });
+    $('agree').addEventListener('change', function () {
+      clearError('agree');
+      $('submitBtn').disabled = !this.checked || sending || !ready;
+      $('submitNote').textContent = this.checked
+        ? '제출 후에는 접수번호가 표시됩니다.'
+        : '개인정보 수집·이용에 동의하시면 제출할 수 있습니다.';
+    });
+    $('formView').addEventListener('submit', submit);
+    $('againBtn').addEventListener('click', function (e) { e.preventDefault(); resetForm(); });
+
+    if (typeof firebase === 'undefined' || !findFirebaseConfig()) {
+      setConn('error', '서버 설정을 불러오지 못했습니다. 새로고침해 주세요.');
+      return;
+    }
+
+    firebase.initializeApp(findFirebaseConfig());
+    firebase.auth().signInAnonymously().then(function () {
+      db = firebase.firestore();
+      ready = true;
+      setConn('live', '접수 가능');
+      $('submitBtn').disabled = !$('agree').checked;
+
+      // 접수 중단 스위치 — 관리자 화면에서 끄면 폼 대신 안내가 나옵니다.
+      db.doc('lessonSettings/config').onSnapshot(function (snap) {
+        var open = !snap.exists || snap.data().intakeOpen !== false;
+        if (snap.exists && snap.data().introText) $('introText').textContent = snap.data().introText;
+        if (!open && $('doneView').hidden) {
+          $('formView').hidden = true;
+          $('closedView').hidden = false;
+        } else if (open) {
+          $('closedView').hidden = true;
+          if ($('doneView').hidden) $('formView').hidden = false;
+        }
+      }, function () {});
+    }).catch(function (err) {
+      setConn('error', '서버 연결 실패: ' + ((err && err.message) || '알 수 없는 오류'));
+    });
+  }
+
+  init();
+})();
+</script>
+</body>
+</html>
