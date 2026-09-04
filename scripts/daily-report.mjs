@@ -1,13 +1,13 @@
 // 운영 보드 집계를 텔레그램으로 보냅니다. 세 가지 리포트를 한 파일에서 처리합니다.
 //   REPORT_KIND=daily   (기본) 매일 22:10 KST — 그날 하루
 //   REPORT_KIND=weekly        일요일 22:20 KST — 그 주 월요일~일요일 누적
-//   REPORT_KIND=monthly       말일 22:30 KST — 그 달 마감
+//   REPORT_KIND=monthly       다음 달 1일 22:30 KST — 끝난 달 마감
 // GitHub Actions에서 실행되며, Firebase에는 익명 로그인으로 접속해 읽기만 합니다.
 //
 // 필요한 환경변수(= GitHub Secrets):
 //   TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID
 // 선택 환경변수:
-//   REPORT_KIND (daily|weekly|monthly), DRY_RUN=1 (전송 안 하고 출력만), FORCE=1 (말일 검사 건너뛰기)
+//   REPORT_KIND (daily|weekly|monthly), DRY_RUN=1 (전송 안 하고 출력만)
 // Firebase 설정(apiKey, projectId)은 public/firebase-config.js 에서 자동으로 읽습니다.
 
 import { readFileSync } from 'node:fs';
@@ -145,6 +145,12 @@ function addDays(dateStr, n) {
 function lastDayOfMonth(today) {
   const { y, m } = parseYMD(today);
   return ymd(new Date(Date.UTC(y, m, 0)));
+}
+// 지난 달의 마지막 날짜. 월간 마감은 달이 완전히 끝난 뒤(다음 달 1일) 보내므로,
+// 이 날짜를 기준으로 삼아 "지난 달"을 집계합니다.
+function lastDayOfPrevMonth(today) {
+  const { y, m } = parseYMD(today);
+  return ymd(new Date(Date.UTC(y, m - 1, 0)));
 }
 function pctOf(value, target) {
   return target > 0 ? Math.round((value / target) * 100) : null;
@@ -469,8 +475,7 @@ function buildMonthlyReport(today, data) {
 
   const L = [];
   L.push('📈 *M휘트니스 월간 마감 리포트*');
-  L.push(`${y}년 ${m}월 (${monthRange(today).start} ~ ${lastDayOfMonth(today)})`);
-  if (today < lastDayOfMonth(today)) L.push(`_※ 아직 달이 끝나지 않았습니다 (${today} 까지 집계)_`);
+  L.push(`${y}년 ${m}월 마감 (${monthRange(today).start} ~ ${lastDayOfMonth(today)})`);
   L.push('━━━━━━━━━━━━');
 
   const mPct = pctOf(monthSales.total, monthTarget);
@@ -537,20 +542,18 @@ async function main() {
   if (!botToken || !chatId) throw new Error('TELEGRAM_BOT_TOKEN / TELEGRAM_CHAT_ID 가 설정되지 않았습니다.');
 
   const today = ymd(kstNow());
-  const week = monthWeekOf(today);   // 달 경계에서 잘린 이번 주
-  const month = monthRange(today);
-
-  // 월간은 cron 으로 "말일"을 지정할 수 없어 28~31일에 매일 돌리고, 여기서 말일이 아니면 조용히 끝냅니다.
-  if (kind === 'monthly' && today !== lastDayOfMonth(today) && process.env.FORCE !== '1' && process.env.DRY_RUN !== '1') {
-    console.log('오늘은 말일이 아니라 월간 리포트를 보내지 않습니다:', today);
-    return;
-  }
+  // 월간 마감은 "끝난 달"을 다룹니다. 다음 달 1일에 실행되므로 기준일을 지난 달
+  // 마지막 날로 옮깁니다. 이렇게 하면 말일 밤 늦게 쓴 업무일지도 빠짐없이 들어갑니다.
+  const anchor = kind === 'monthly' ? lastDayOfPrevMonth(today) : today;
+  const week = monthWeekOf(today);   // 달 경계에서 잘린 이번 주 (일일·주간용)
+  const month = monthRange(anchor);
 
   const token = await signInAnonymously(apiKey);
 
   // 일일은 오늘 하루치만, 주간·월간은 기간 전체를 불러옵니다.
   const rangeStart = kind === 'daily' ? today : (kind === 'weekly' ? week.start : month.start);
   const rangeEnd = kind === 'daily' ? addDays(today, 1) : (kind === 'weekly' ? week.end : month.end);
+  // 아래에서 monthWorklogs / monthOt 는 위 month 범위(월간이면 지난 달)를 씁니다.
 
   const [visitorsRange, callsRange, monthWorklogs, lockers, catDoc, monthOt, trainerDoc, lockerSnapshot, dutyDoc] = await Promise.all([
     queryByDateRange(projectId, token, 'visitors', rangeStart, rangeEnd),
@@ -581,7 +584,7 @@ async function main() {
       weekOt, categories, otWeekTarget, lockerSnapshot, dutyDoc,
     });
   } else if (kind === 'monthly') {
-    text = buildMonthlyReport(today, {
+    text = buildMonthlyReport(anchor, {
       monthWorklogs, monthVisitors: visitorsRange, monthCalls: callsRange, monthOt,
       categories, otTarget, lockerSnapshot,
     });
@@ -597,7 +600,7 @@ async function main() {
     return;
   }
   await sendTelegram(botToken, chatId, text);
-  console.log(`전송 완료 (${kind}):`, today);
+  console.log(`전송 완료 (${kind}):`, kind === 'monthly' ? `${anchor} 기준 (실행일 ${today})` : today);
 }
 
 main().catch((e) => {

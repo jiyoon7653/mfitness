@@ -5,7 +5,7 @@ on:
     # cron 은 UTC 기준입니다. KST = UTC + 9.
     - cron: '10 13 * * *'       # 매일 22:10 KST — 일일 리포트
     - cron: '20 13 * * 0'       # 일요일 22:20 KST — 주간 리포트 (월~일 누적)
-    - cron: '30 13 28-31 * *'   # 말일 후보일 22:30 KST — 월간 마감 (스크립트가 말일만 통과시킵니다)
+    - cron: '30 13 1 * *'       # 매월 1일 22:30 KST — 지난 달 마감 (달이 끝난 뒤에 집계)
   workflow_dispatch:            # 수동 실행 버튼
     inputs:
       kind:
@@ -34,7 +34,5 @@ jobs:
           DRY_RUN: ${{ github.event.inputs.dry_run }}
           # 예약 실행일 때는 어떤 cron 이 울렸는지로 종류를 정하고,
           # 수동 실행일 때는 위에서 고른 값을 씁니다.
-          REPORT_KIND: ${{ github.event.inputs.kind || (github.event.schedule == '20 13 * * 0' && 'weekly') || (github.event.schedule == '30 13 28-31 * *' && 'monthly') || 'daily' }}
-          # 월간은 말일에만 나갑니다. 수동 실행은 날짜 검사를 건너뜁니다.
-          FORCE: ${{ github.event_name == 'workflow_dispatch' && '1' || '0' }}
+          REPORT_KIND: ${{ github.event.inputs.kind || (github.event.schedule == '20 13 * * 0' && 'weekly') || (github.event.schedule == '30 13 1 * *' && 'monthly') || 'daily' }}
         run: node scripts/daily-report.mjs
