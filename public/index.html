@@ -391,7 +391,11 @@
   .upload-box.filled { border-style: solid; border-color: var(--good); background: var(--good-bg); }
   .upload-box .up-title { font-size: 13.5px; font-weight: 600; color: var(--text); letter-spacing: -0.01em; }
   .upload-box .up-hint { font-size: 11.5px; color: var(--text-faint); line-height: 1.45; }
-  .upload-box input[type="file"] { font-size: 12px; padding: 7px 0; border: none; background: none; }
+  .upload-box.dragover { border-color: var(--accent); background: var(--accent-bg); border-style: solid; }
+  .up-actions { display: flex; align-items: center; gap: 10px; margin-top: 4px; flex-wrap: wrap; }
+  .up-file { font-size: 12px; color: var(--text-faint); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+  .upload-box.filled .up-file { color: var(--good); font-weight: 500; }
+  .up-drop-hint { font-size: 11.5px; color: var(--text-faint); margin: 0 0 16px; }
   .snapshot-meta { font-size: 12.5px; color: var(--text-muted); margin: 0 0 18px; }
   .lk-legend { display: flex; flex-wrap: wrap; gap: 14px; margin: 0 0 16px; font-size: 12px; color: var(--text-muted); }
   .lk-legend span { display: flex; align-items: center; gap: 6px; }
@@ -1029,17 +1033,26 @@
       <h2>엑셀 불러오기</h2>
       <p class="panel-sub">헬스장 프로그램에서 <strong>사물함 관리</strong>와 <strong>유효 회원 목록</strong>을 엑셀로 내보낸 뒤 그대로 올려 주세요. 회원번호로 두 파일을 대조해 사물함만 만료된 회원을 찾아냅니다.</p>
       <div class="upload-row">
-        <label class="upload-box" id="lkBoxLocker">
+        <div class="upload-box" id="lkBoxLocker">
           <span class="up-title">① 사물함 관리 파일</span>
-          <span class="up-hint">사물함번호 · 회원이름 · 종료일자 · 회원번호 열이 있는 파일 (.xls / .xlsx)</span>
-          <input type="file" id="lkFileLocker" accept=".xls,.xlsx,.csv">
-        </label>
-        <label class="upload-box" id="lkBoxMember">
+          <span class="up-hint">사물함번호 · 회원이름 · 종료일자 · 회원번호 열이 있는 파일</span>
+          <div class="up-actions">
+            <button type="button" class="submit-btn ghost small" id="lkPickLocker">파일 선택</button>
+            <span class="up-file" id="lkNameLocker">선택된 파일 없음</span>
+          </div>
+          <input type="file" id="lkFileLocker" accept=".xls,.xlsx,.xlsm,.csv" hidden>
+        </div>
+        <div class="upload-box" id="lkBoxMember">
           <span class="up-title">② 유효 회원 목록 파일</span>
-          <span class="up-hint">회원이름 · 만기일자 · 회원번호 열이 있는 파일 (.xls / .xlsx)</span>
-          <input type="file" id="lkFileMember" accept=".xls,.xlsx,.csv">
-        </label>
+          <span class="up-hint">회원이름 · 만기일자 · 회원번호 열이 있는 파일</span>
+          <div class="up-actions">
+            <button type="button" class="submit-btn ghost small" id="lkPickMember">파일 선택</button>
+            <span class="up-file" id="lkNameMember">선택된 파일 없음</span>
+          </div>
+          <input type="file" id="lkFileMember" accept=".xls,.xlsx,.xlsm,.csv" hidden>
+        </div>
       </div>
+      <p class="up-drop-hint">파일을 이 상자 위로 끌어다 놓아도 됩니다.</p>
       <div class="edit-inline">
         <button type="button" class="submit-btn small" id="lkAnalyzeBtn" disabled>대조 분석하기</button>
         <button type="button" class="submit-btn ghost small" id="lkCsvBtn">안내 명단 CSV 내려받기</button>
@@ -3246,26 +3259,76 @@
     $('lkAnalyzeBtn').disabled = !(pendingLockerRows && pendingMemberRows);
   }
 
-  function bindLockerFile(inputId, boxId, assign) {
-    $(inputId).addEventListener('change', function () {
-      var file = this.files && this.files[0];
-      if (!file) return;
-      setFormStatus('lkStatus', file.name + ' 읽는 중…', '');
-      readExcel(file).then(function (rows) {
-        assign(rows);
-        $(boxId).classList.add('filled');
-        setFormStatus('lkStatus', file.name + ' · ' + rows.length + '행을 읽었습니다.', 'success');
-        lkRefreshButton();
-      }).catch(function (err) {
-        $(boxId).classList.remove('filled');
-        assign(null);
-        setFormStatus('lkStatus', errMsg(err), 'error');
-        lkRefreshButton();
-      });
+  // 열 이름이 맞는지 미리 확인해, 엉뚱한 파일을 올렸을 때 조용히 실패하지 않도록 합니다.
+  function missingColumns(rows, needed) {
+    var head = rows[0];
+    return needed.filter(function (group) {
+      return !group.some(function (name) { return head[name] !== undefined; });
+    }).map(function (group) { return group[0]; });
+  }
+  var LOCKER_COLS = [['사물함번호', '사물함'], ['회원이름', '회원명', '이름'], ['종료일자', '사물함종료일', '만료일자']];
+  var MEMBER_COLS = [['회원이름', '회원명', '이름'], ['만기일자', '만료일자', '종료일자']];
+
+  function handleLockerFile(file, kind) {
+    var isLocker = kind === 'locker';
+    var boxId = isLocker ? 'lkBoxLocker' : 'lkBoxMember';
+    var nameId = isLocker ? 'lkNameLocker' : 'lkNameMember';
+    if (!file) return;
+    if (typeof XLSX === 'undefined') {
+      setFormStatus('lkStatus', '엑셀 판독기를 불러오지 못했습니다. 페이지를 새로고침해 주세요.', 'error');
+      return;
+    }
+    $(nameId).textContent = file.name;
+    setFormStatus('lkStatus', file.name + ' 읽는 중…', '');
+    readExcel(file).then(function (rows) {
+      var what = isLocker ? '사물함 관리' : '유효 회원 목록';
+      if (!rows.length) throw new Error('이 파일의 첫 시트에서 읽을 수 있는 표를 찾지 못했습니다. ' + what + ' 파일이 맞는지 확인해 주세요.');
+      var missing = missingColumns(rows, isLocker ? LOCKER_COLS : MEMBER_COLS);
+      if (missing.length) {
+        throw new Error('이 파일에서 ' + missing.join(', ') + ' 열을 찾지 못했습니다. ' + what + ' 파일이 맞는지 확인해 주세요.');
+      }
+      if (isLocker) pendingLockerRows = rows; else pendingMemberRows = rows;
+      $(boxId).classList.add('filled');
+      $(nameId).textContent = file.name + ' · ' + rows.length + '행';
+      setFormStatus('lkStatus', file.name + ' 에서 ' + rows.length + '행을 읽었습니다.'
+        + (pendingLockerRows && pendingMemberRows ? ' 이제 "대조 분석하기"를 눌러 주세요.' : ''), 'success');
+      lkRefreshButton();
+    }).catch(function (err) {
+      if (isLocker) pendingLockerRows = null; else pendingMemberRows = null;
+      $(boxId).classList.remove('filled');
+      $(nameId).textContent = '선택된 파일 없음';
+      setFormStatus('lkStatus', (err && err.message) || '파일을 읽지 못했습니다.', 'error');
+      lkRefreshButton();
     });
   }
-  bindLockerFile('lkFileLocker', 'lkBoxLocker', function (r) { pendingLockerRows = r; });
-  bindLockerFile('lkFileMember', 'lkBoxMember', function (r) { pendingMemberRows = r; });
+
+  function bindLockerFile(kind, inputId, boxId, pickId) {
+    var input = $(inputId), box = $(boxId);
+    $(pickId).addEventListener('click', function () { input.click(); });
+    input.addEventListener('change', function () {
+      var file = this.files && this.files[0];
+      // 같은 파일을 다시 고를 때도 change 가 일어나도록 값을 비웁니다.
+      this.value = '';
+      handleLockerFile(file, kind);
+    });
+    ['dragenter', 'dragover'].forEach(function (ev) {
+      box.addEventListener(ev, function (e) { e.preventDefault(); box.classList.add('dragover'); });
+    });
+    ['dragleave', 'drop'].forEach(function (ev) {
+      box.addEventListener(ev, function (e) { e.preventDefault(); box.classList.remove('dragover'); });
+    });
+    box.addEventListener('drop', function (e) {
+      var file = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+      handleLockerFile(file, kind);
+    });
+  }
+  bindLockerFile('locker', 'lkFileLocker', 'lkBoxLocker', 'lkPickLocker');
+  bindLockerFile('member', 'lkFileMember', 'lkBoxMember', 'lkPickMember');
+
+  if (typeof XLSX === 'undefined') {
+    ['lkPickLocker', 'lkPickMember'].forEach(function (id) { $(id).disabled = true; });
+    setFormStatus('lkStatus', '엑셀 판독기(vendor/xlsx.full.min.js)를 불러오지 못했습니다. 페이지를 새로고침해 주세요.', 'error');
+  }
 
   $('lkAnalyzeBtn').addEventListener('click', function () {
     if (!pendingLockerRows || !pendingMemberRows) return;
@@ -3285,7 +3348,7 @@
     db.doc('settings/lockerSnapshot').set(snap).then(function () {
       setFormStatus('lkStatus', '대조 결과를 저장했습니다. 다른 직원 화면에도 바로 반영됩니다.', 'success');
     }).catch(function (err) {
-      setFormStatus('lkStatus', '대조는 끝났지만 저장에 실패했습니다: ' + errMsg(err), 'error');
+      setFormStatus('lkStatus', '대조는 끝났지만 저장에 실패했습니다: ' + ((err && err.message) || errMsg(err)), 'error');
     });
   });
 
