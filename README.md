@@ -165,7 +165,7 @@ Netlify가 1분 내로 같은 주소에 새 버전을 올립니다. Netlify 대�
 
 | 컬렉션/문서 | 내용 |
 |---|---|
-| `lessonApplications` | 레슨 신청서 (건별 문서: 접수번호, 이름, 연락처, 회원여부, 희망요일·시간대, 목적, 경력, 특이사항, 상태, 관리자 메모) |
+| `lessonApplications` | 레슨 신청서 (건별 문서: 접수번호, 이름, 연락처, 희망요일·시간대, 단기·장기 목표, 통증·일상생활 패턴, 상태, 관리자 메모) |
 | `lessonPhoneLocks` | 24시간 중복 접수 차단용 잠금. 문서 이름이 **연락처의 해시**라 번호 자체가 남지 않습니다 |
 | `lessonSettings/counter` | 접수번호(`A-0001`) 발급용 카운터 |
 | `lessonSettings/config` | 접수 중단 스위치(`intakeOpen`), 폼 상단 소개 문구(`introText`) |
@@ -480,7 +480,7 @@ function signedIn() {
 (`17:00` 은 17시에 시작하는 마지막 타임). 바꾸시려면 `public/lesson.html` 와
 `public/lesson-admin.html` 맨 아래 스크립트 위쪽의 `SLOTS` 배열을 **두 파일 모두** 같은 값으로
 고치세요. 한쪽만 고치면 히트맵이 어긋납니다.
-`DAYS` `GOALS` `EXPERIENCES` `MEMBER_TYPES` 도 같은 방식입니다.
+`DAYS` 도 같은 방식입니다.
 
 **폼 상단 소개 문구** — 코드를 안 고쳐도 됩니다.
 Firestore `lessonSettings/config` 문서에 `introText` 필드(문자열)를 넣으면 그 문장이 폼 상단에 나옵니다.

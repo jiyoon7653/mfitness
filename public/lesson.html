@@ -4,9 +4,9 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="color-scheme" content="light dark">
-<title>남스어프로치 · 1:1 개인 레슨 대기 접수</title>
-<meta name="description" content="남스어프로치 1:1 개인 레슨 대기 접수. 자리가 나는 대로 순서대로 연락드립니다.">
-<meta property="og:title" content="남스어프로치 · 1:1 개인 레슨 대기 접수">
+<title>개인레슨 신청서</title>
+<meta name="description" content="개인레슨 신청서. 자리가 나는 대로 순서대로 연락드립니다.">
+<meta property="og:title" content="개인레슨 신청서">
 <meta property="og:description" content="희망 요일과 시간대를 남겨주시면 자리가 나는 대로 순서대로 연락드립니다.">
 <meta property="og:type" content="website">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -95,11 +95,6 @@
 
   /* ---------- 헤더 ---------- */
   header { padding: 52px 0 34px; }
-  .wordmark {
-    font-family: 'Gowun Batang', 'Apple SD Gothic Neo', serif;
-    font-weight: 700; font-size: 13px; letter-spacing: .3em;
-    text-transform: uppercase; color: var(--accent); margin: 0 0 18px;
-  }
   h1 {
     font-family: 'Gowun Batang', 'Apple SD Gothic Neo', serif;
     font-weight: 700; font-size: clamp(28px, 6.4vw, 38px); line-height: 1.3;
@@ -302,8 +297,7 @@
 
 <div class="wrap">
   <header>
-    <p class="wordmark">Nums Approach</p>
-    <h1>1:1 개인 레슨<br>대기 접수</h1>
+    <h1>개인레슨 신청서</h1>
     <p class="lede" id="introText">몸 상태와 목표에 맞춰 설계하는 1:1 개인 레슨입니다. 지금은 대기 접수만 받고 있으며, 자리가 나는 대로 접수 순서대로 연락드립니다.</p>
     <div class="byline">
       <span><b>담당</b> 김지윤 코치</span>
@@ -338,12 +332,6 @@
         <input type="tel" id="phone" name="phone" autocomplete="tel" inputmode="numeric" maxlength="13" placeholder="010-0000-0000" aria-describedby="e-phone">
         <span class="err" id="e-phone" hidden></span>
       </div>
-
-      <div class="field" id="f-member">
-        <span class="lab" id="lab-member">회원 여부<span class="req">필수</span></span>
-        <div class="chips" id="memberChips" role="radiogroup" aria-labelledby="lab-member" aria-describedby="e-member"></div>
-        <span class="err" id="e-member" hidden></span>
-      </div>
     </section>
 
     <section class="card">
@@ -359,7 +347,7 @@
 
       <div class="field" id="f-slots">
         <span class="lab" id="lab-slots">희망 시간대<span class="req">1개 이상</span>
-          <span class="sublab">레슨은 1시간이며, 고르신 시각에 시작합니다.</span></span>
+          <span class="sublab">레슨은 50~55분 진행되며, 고르신 시각에 시작합니다.</span></span>
         <div class="chips" id="slotChips" role="group" aria-labelledby="lab-slots" aria-describedby="e-slots"></div>
         <span class="err" id="e-slots" hidden></span>
       </div>
@@ -370,21 +358,25 @@
       <h2>운동 정보</h2>
       <p class="hint">첫 상담을 짧게 끝내기 위한 항목입니다.</p>
 
-      <div class="field" id="f-goals">
-        <span class="lab" id="lab-goals">운동 목적<span class="req">1개 이상</span></span>
-        <div class="chips" id="goalChips" role="group" aria-labelledby="lab-goals" aria-describedby="e-goals"></div>
-        <span class="err" id="e-goals" hidden></span>
+      <div class="field" id="f-shortGoal">
+        <label for="shortGoal">단기 목표<span class="req">필수</span>
+          <span class="sublab">가까운 1~3개월 안에 이루고 싶은 것</span></label>
+        <input type="text" id="shortGoal" name="shortGoal" maxlength="120" placeholder="예) 계단 오를 때 무릎 안 아프기" aria-describedby="e-shortGoal">
+        <span class="err" id="e-shortGoal" hidden></span>
       </div>
 
-      <div class="field" id="f-exp">
-        <label for="experience">운동 경력<span class="req">필수</span></label>
-        <select id="experience" name="experience" aria-describedby="e-exp"></select>
-        <span class="err" id="e-exp" hidden></span>
+      <div class="field" id="f-longGoal">
+        <label for="longGoal">장기 목표<span class="req">필수</span>
+          <span class="sublab">6개월 이후까지 바라보는 것</span></label>
+        <input type="text" id="longGoal" name="longGoal" maxlength="120" placeholder="예) 통증 없이 주 3회 운동 습관 만들기" aria-describedby="e-longGoal">
+        <span class="err" id="e-longGoal" hidden></span>
       </div>
 
       <div class="field" id="f-notes">
-        <label for="notes">특이사항<span class="opt">선택</span></label>
-        <textarea id="notes" name="notes" maxlength="1000" placeholder="부상·수술 이력, 통증 부위, 꼭 전달하고 싶은 내용을 적어주세요."></textarea>
+        <label for="notes">통증·일상생활 패턴<span class="req">필수</span>
+          <span class="sublab">자세히 적어주실수록 첫 수업이 정확해집니다.</span></label>
+        <textarea id="notes" name="notes" maxlength="1000" rows="8" placeholder="· 아픈 곳과 언제 아픈지 (예: 오른쪽 어깨, 팔 들어올릴 때)&#10;· 부상·수술 이력, 진단받은 내용&#10;· 하루를 어떻게 보내시는지 (앉아있는 시간, 서서 일하는지, 자주 하는 자세)&#10;· 수면·활동량, 그 밖에 꼭 전달하고 싶은 내용" aria-describedby="e-notes"></textarea>
+        <span class="err" id="e-notes" hidden></span>
       </div>
     </section>
 
@@ -404,7 +396,7 @@
           <div class="policy-body">
             <dl>
               <dt>수집 항목</dt>
-              <dd>이름, 연락처, 회원 여부, 희망 일정, 운동 목적·경력, 특이사항</dd>
+              <dd>이름, 연락처, 희망 일정, 단기·장기 목표, 통증·일상생활 패턴</dd>
               <dt>수집 목적</dt>
               <dd>레슨 대기 접수 및 일정 안내 연락</dd>
               <dt>보유 기간</dt>
@@ -468,11 +460,8 @@
   /* ============================================================
      선택지 — 여기만 고치면 폼과 관리자 히트맵이 함께 바뀝니다.
      ============================================================ */
-  var MEMBER_TYPES = ['기존 회원', '신규'];
   var DAYS = ['월', '화', '수', '목', '금', '토', '일'];
   var SLOTS = ['09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00'];
-  var GOALS = ['체형교정·통증개선', '근력 향상', '체중 감량', '바디프로필', '선수·경기력', '기타'];
-  var EXPERIENCES = ['없음', '6개월 미만', '6개월~2년', '2년 이상'];
   var INSTAGRAM = 'gorani_coach';
   var LOCK_SALT = 'namsworth-lesson';     // 연락처를 그대로 저장하지 않기 위한 고정 문자열
   var MIN_FILL_MS = 3000;                 // 이보다 빨리 제출되면 자동 프로그램으로 봅니다
@@ -482,7 +471,7 @@
   var sending = false;
   var openedAt = Date.now();
 
-  var state = { memberType: '', days: [], slots: [], goals: [] };
+  var state = { days: [], slots: [] };
 
   var $ = function (id) { return document.getElementById(id); };
 
@@ -520,24 +509,9 @@
           if (i >= 0) arr.splice(i, 1); else arr.push(label);
           b.setAttribute('aria-pressed', i >= 0 ? 'false' : 'true');
         }
-        clearError(key === 'memberType' ? 'member' : key === 'days' ? 'days' : key === 'slots' ? 'slots' : 'goals');
+        clearError(key);
       });
       host.appendChild(b);
-    });
-  }
-
-  function renderExperience() {
-    var sel = $('experience');
-    sel.textContent = '';
-    var ph = document.createElement('option');
-    ph.value = '';
-    ph.textContent = '선택해 주세요';
-    sel.appendChild(ph);
-    EXPERIENCES.forEach(function (label) {
-      var o = document.createElement('option');
-      o.value = label;
-      o.textContent = label;
-      sel.appendChild(o);
     });
   }
 
@@ -557,8 +531,8 @@
 
   /* ---------------- 오류 표시 ---------------- */
   var FIELD_OF = {
-    name: 'f-name', phone: 'f-phone', member: 'f-member', days: 'f-days',
-    slots: 'f-slots', goals: 'f-goals', exp: 'f-exp', agree: 'f-agree'
+    name: 'f-name', phone: 'f-phone', days: 'f-days', slots: 'f-slots',
+    shortGoal: 'f-shortGoal', longGoal: 'f-longGoal', notes: 'f-notes', agree: 'f-agree'
   };
   function showError(key, msg) {
     var e = $('e-' + key);
@@ -590,11 +564,11 @@
     if (!$('name').value.trim()) { showError('name', '이름을 입력해 주세요.'); bad.push('f-name'); }
     if (!$('phone').value.trim()) { showError('phone', '연락처를 입력해 주세요.'); bad.push('f-phone'); }
     else if (!validPhone($('phone').value)) { showError('phone', '010-0000-0000 형식으로 입력해 주세요.'); bad.push('f-phone'); }
-    if (!state.memberType) { showError('member', '회원 여부를 선택해 주세요.'); bad.push('f-member'); }
     if (!state.days.length) { showError('days', '희망 요일을 1개 이상 골라 주세요.'); bad.push('f-days'); }
     if (!state.slots.length) { showError('slots', '희망 시간대를 1개 이상 골라 주세요.'); bad.push('f-slots'); }
-    if (!state.goals.length) { showError('goals', '운동 목적을 1개 이상 골라 주세요.'); bad.push('f-goals'); }
-    if (!$('experience').value) { showError('exp', '운동 경력을 선택해 주세요.'); bad.push('f-exp'); }
+    if (!$('shortGoal').value.trim()) { showError('shortGoal', '단기 목표를 적어 주세요.'); bad.push('f-shortGoal'); }
+    if (!$('longGoal').value.trim()) { showError('longGoal', '장기 목표를 적어 주세요.'); bad.push('f-longGoal'); }
+    if (!$('notes').value.trim()) { showError('notes', '통증과 일상생활 패턴을 적어 주세요.'); bad.push('f-notes'); }
     if (!$('agree').checked) { showError('agree', '개인정보 수집·이용에 동의해 주세요.'); bad.push('f-agree'); }
 
     if (bad.length) {
@@ -683,11 +657,10 @@
         createdAt: stamp,
         name: $('name').value.trim().slice(0, 40),
         phone: phone,
-        memberType: state.memberType,
         days: state.days.slice(),
         slots: state.slots.slice(),
-        goals: state.goals.slice(),
-        experience: $('experience').value,
+        shortGoal: $('shortGoal').value.trim().slice(0, 120),
+        longGoal: $('longGoal').value.trim().slice(0, 120),
         notes: $('notes').value.trim().slice(0, 1000),
         privacyAgreedAt: stamp,
         status: '대기',
@@ -716,10 +689,11 @@
   function resetForm() {
     $('name').value = '';
     $('phone').value = '';
+    $('shortGoal').value = '';
+    $('longGoal').value = '';
     $('notes').value = '';
-    $('experience').value = '';
     $('agree').checked = false;
-    state = { memberType: '', days: [], slots: [], goals: [] };
+    state = { days: [], slots: [] };
     renderAllChips();
     clearAllErrors();
     setFormError('');
@@ -731,10 +705,8 @@
   }
 
   function renderAllChips() {
-    renderChips('memberChips', MEMBER_TYPES, 'radio', 'memberType');
     renderChips('dayChips', DAYS, 'multi', 'days');
     renderChips('slotChips', SLOTS, 'multi', 'slots');
-    renderChips('goalChips', GOALS, 'multi', 'goals');
   }
 
   /* ---------------- 설정 읽기 ---------------- */
@@ -746,7 +718,6 @@
 
   function init() {
     renderAllChips();
-    renderExperience();
 
     $('formView').hidden = false;
     $('dmBtn').href = 'https://instagram.com/' + INSTAGRAM;
@@ -758,7 +729,9 @@
       clearError('phone');
     });
     $('name').addEventListener('input', function () { clearError('name'); });
-    $('experience').addEventListener('change', function () { clearError('exp'); });
+    ['shortGoal', 'longGoal', 'notes'].forEach(function (id) {
+      $(id).addEventListener('input', function () { clearError(id); });
+    });
     $('agree').addEventListener('change', function () {
       clearError('agree');
       $('submitBtn').disabled = !this.checked || sending || !ready;
