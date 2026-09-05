@@ -41,7 +41,7 @@
         "destination": "/lesson.html"
       },
       {
-        "source": "/lesson/admin",
+        "source": "/lesson-admin",
         "destination": "/lesson-admin.html"
       }
     ]

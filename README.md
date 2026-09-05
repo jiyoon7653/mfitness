@@ -8,7 +8,7 @@ Claude 아티팩트로 쓰던 두 화면을 **Firebase Hosting + Firestore** 로
 | `public/index.html` | 운영 보드 (방문자·문의·업무일지·OT·회의록·근무당직·사물함) | `https://<프로젝트id>.web.app/` |
 | `public/payroll.html` | 급여 정산 (직원/관리자 PIN 로그인) | `https://<프로젝트id>.web.app/payroll.html` |
 | `public/lesson.html` | **남스어프로치** 1:1 레슨 대기 접수 폼 (회원 공개) | `https://<프로젝트id>.web.app/lesson` |
-| `public/lesson-admin.html` | 남스어프로치 레슨 대기 관리 (관리자 로그인) | `https://<프로젝트id>.web.app/lesson/admin` |
+| `public/lesson-admin.html` | 남스어프로치 레슨 대기 관리 (관리자 로그인) | `https://<프로젝트id>.web.app/lesson-admin` |
 
 > 남스어프로치 레슨 접수는 **헬스장 업무와 데이터가 완전히 분리된 별도 브랜드 화면**입니다.
 > 호스팅과 데이터베이스만 같은 Firebase 프로젝트를 나눠 쓰고, 컬렉션·디자인·접근 권한은 서로 겹치지 않습니다.
@@ -421,7 +421,7 @@ function signedIn() {
 | 주소 | 누가 | 하는 일 |
 |---|---|---|
 | `.../lesson` | 회원 누구나, 로그인 없이 | 신청서 작성 → 접수번호 받기 |
-| `.../lesson/admin` | 관리자만 (이메일·비밀번호) | 대기 관리, 히트맵, 상태 변경, CSV |
+| `.../lesson-admin` | 관리자만 (이메일·비밀번호) | 대기 관리, 히트맵, 상태 변경, CSV |
 
 인스타그램 프로필 링크에는 `https://<프로젝트id>.web.app/lesson` 을 넣으면 됩니다.
 
@@ -437,7 +437,7 @@ function signedIn() {
 
 **나머지는 관리자 화면에서 합니다.**
 
-2. `.../lesson/admin` 접속 → 아래 **"관리자 계정 만들기"** → 쓰실 이메일과 비밀번호 입력
+2. `.../lesson-admin` 접속 → 아래 **"관리자 계정 만들기"** → 쓰실 이메일과 비밀번호 입력
    (메일을 실제로 받지 않는 주소여도 됩니다. 비밀번호는 이 저장소나 채팅에 적지 마세요.)
 3. 계정이 만들어지면 **"이 계정을 관리자로 등록"** 버튼이 나옵니다 → 누르면 끝
 
@@ -501,14 +501,28 @@ Firestore `lessonSettings/config` 문서에 `introText` 필드(문자열)를 넣
 ### 규칙 배포 (중요)
 
 이 화면들은 `firestore.rules` 에 새로 추가된 규칙이 있어야 동작합니다.
-`main` 에 올라가면 `.github/workflows/deploy-firestore-rules.yml` 이 자동으로 배포합니다.
-그 워크플로가 권한 문제로 실패하면 한 번만 수동으로 올려주세요:
+**규칙이 올라가기 전에는 신청 폼이 저장에 실패하고 관리자 화면도 열리지 않습니다.**
 
-```bash
-firebase deploy --only firestore:rules
-```
+`main` 에 올라가면 `.github/workflows/deploy-firestore-rules.yml` 이 자동으로 배포하는데,
+**서비스 계정에 규칙 배포 권한이 따로 있어야 합니다.** 호스팅 배포 권한만으로는
+`403 The caller does not have permission` 으로 실패합니다.
 
-또는 콘솔 → Firestore Database → **규칙** 탭에 `firestore.rules` 내용을 붙여넣고 **게시**.
+**한 번만 권한을 주면 그 뒤로는 자동입니다.**
+
+1. https://console.cloud.google.com/iam-admin/iam?project=mfitness-d4a16
+2. `FIREBASE_SERVICE_ACCOUNT` 에 넣은 서비스 계정
+   (보통 `firebase-adminsdk-...@mfitness-d4a16.iam.gserviceaccount.com`) 의 연필(역할 수정) 아이콘
+3. **다른 역할 추가** → `Firebase Rules 관리자` (Firebase Rules Admin) → 저장
+4. GitHub → Actions → **Firestore 보안 규칙 자동 배포** → **Run workflow** 로 다시 실행
+
+**권한을 주기 전에 지금 당장 올리고 싶다면** — 콘솔에 붙여넣는 방법이 제일 빠릅니다.
+
+1. https://console.firebase.google.com/project/mfitness-d4a16/firestore/rules
+2. 저장소의 `firestore.rules` 내용을 **전체 복사해서** 편집기에 붙여넣기
+   (https://github.com/jiyoon7653/mfitness/blob/main/firestore.rules)
+3. **게시** 클릭
+
+CLI 를 쓰신다면 `firebase deploy --only firestore:rules` 한 줄로도 됩니다.
 
 ---
 
