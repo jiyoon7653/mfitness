@@ -38,8 +38,8 @@ service cloud.firestore {
     // 폼에서 들어오는 신청서가 정상 범위인지 확인합니다.
     function validApplication() {
       let d = request.resource.data;
-      return d.keys().hasOnly(['code', 'seq', 'createdAt', 'name', 'phone', 'memberType',
-                               'days', 'slots', 'goals', 'experience', 'notes',
+      return d.keys().hasOnly(['code', 'seq', 'createdAt', 'name', 'phone',
+                               'days', 'slots', 'shortGoal', 'longGoal', 'notes',
                                'privacyAgreedAt', 'status', 'adminMemo', 'contactedAt'])
         && d.status == '대기'
         && d.adminMemo == ''
@@ -49,12 +49,11 @@ service cloud.firestore {
         && d.seq is int
         && d.name is string && d.name.size() > 0 && d.name.size() <= 40
         && d.phone is string && d.phone.size() <= 20
-        && d.memberType is string && d.memberType.size() <= 20
-        && d.experience is string && d.experience.size() <= 20
-        && d.notes is string && d.notes.size() <= 1000
+        && d.shortGoal is string && d.shortGoal.size() > 0 && d.shortGoal.size() <= 120
+        && d.longGoal is string && d.longGoal.size() > 0 && d.longGoal.size() <= 120
+        && d.notes is string && d.notes.size() > 0 && d.notes.size() <= 1000
         && d.days is list && d.days.size() >= 1 && d.days.size() <= 7
-        && d.slots is list && d.slots.size() >= 1 && d.slots.size() <= 12
-        && d.goals is list && d.goals.size() >= 1 && d.goals.size() <= 12;
+        && d.slots is list && d.slots.size() >= 1 && d.slots.size() <= 12;
     }
 
     match /lessonApplications/{doc} {

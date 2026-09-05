@@ -164,14 +164,14 @@
   .heat-legend i { width: 22px; height: 12px; border-radius: 3px; display: inline-block; }
 
   /* ---------- 필터 ---------- */
-  .filters { display: grid; grid-template-columns: 1.4fr repeat(4, 1fr) minmax(212px, auto); gap: 10px; align-items: end; margin-bottom: 14px; }
+  .filters { display: grid; grid-template-columns: 1.4fr repeat(3, 1fr) minmax(212px, auto); gap: 10px; align-items: end; margin-bottom: 14px; }
   @media (max-width: 900px) { .filters { grid-template-columns: 1fr 1fr; } .filters .search { grid-column: 1 / -1; } .filters .act { grid-column: 1 / -1; } }
   .filters .f label { display: block; font-size: 12px; color: var(--muted); font-weight: 600; margin-bottom: 5px; }
   .filters .act { display: flex; gap: 8px; }
 
   /* ---------- 표 ---------- */
   .table-scroll { overflow-x: auto; border: 1px solid var(--line); border-radius: 14px; background: var(--surface); box-shadow: var(--shadow); }
-  table.list { border-collapse: collapse; width: 100%; min-width: 940px; font-size: 14px; }
+  table.list { border-collapse: collapse; width: 100%; min-width: 860px; font-size: 14px; }
   table.list th {
     text-align: left; font-size: 11.5px; letter-spacing: .06em; text-transform: uppercase;
     color: var(--muted); font-weight: 600; padding: 12px 14px;
@@ -334,7 +334,6 @@
       <input type="search" id="q" placeholder="이름 또는 연락처">
     </div>
     <div class="f"><label for="fStatus">상태</label><select id="fStatus"></select></div>
-    <div class="f"><label for="fMember">회원 여부</label><select id="fMember"></select></div>
     <div class="f"><label for="fDay">희망 요일</label><select id="fDay"></select></div>
     <div class="f"><label for="fSlot">희망 시간대</label><select id="fSlot"></select></div>
     <div class="f act">
@@ -351,7 +350,7 @@
       <thead>
         <tr>
           <th>접수일</th><th>접수번호</th><th>이름</th><th>연락처</th>
-          <th>회원여부</th><th>희망 요일</th><th>희망 시간대</th><th>상태</th>
+          <th>희망 요일</th><th>희망 시간대</th><th>상태</th>
         </tr>
       </thead>
       <tbody id="listBody"></tbody>
@@ -395,7 +394,6 @@
   /* lesson.html 과 같은 목록을 씁니다. 한쪽만 고치면 히트맵이 어긋납니다. */
   var DAYS = ['월', '화', '수', '목', '금', '토', '일'];
   var SLOTS = ['09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00'];
-  var MEMBER_TYPES = ['기존 회원', '신규'];
   var STATUSES = ['대기', '연락완료', '상담예정', '등록완료', '보류', '취소'];
 
   var app = null;    // 신청 폼(익명 로그인)과 로그인 상태가 섞이지 않도록 별도 앱으로 띄웁니다
@@ -404,7 +402,7 @@
   var rows = [];
   var selectedId = '';
   var config = { intakeOpen: true };
-  var filters = { q: '', status: '', member: '', day: '', slot: '', sort: 'new' };
+  var filters = { q: '', status: '', day: '', slot: '', sort: 'new' };
 
   var $ = function (id) { return document.getElementById(id); };
   // 히트맵 열 머리글에 쓰는 짧은 표기 ('09:00' -> '09')
@@ -508,7 +506,6 @@
     var qDigits = q.replace(/\D/g, '');
     var out = rows.filter(function (r) {
       if (filters.status && r.status !== filters.status) return false;
-      if (filters.member && r.memberType !== filters.member) return false;
       if (filters.day && (r.days || []).indexOf(filters.day) < 0) return false;
       if (filters.slot && (r.slots || []).indexOf(filters.slot) < 0) return false;
       if (q) {
@@ -552,7 +549,6 @@
           '<a href="tel:' + esc(String(r.phone || '').replace(/\D/g, '')) + '" aria-label="전화 걸기" title="전화 걸기">' + ICON_TEL + '</a>' +
           '<a href="sms:' + esc(String(r.phone || '').replace(/\D/g, '')) + '" aria-label="문자 보내기" title="문자 보내기">' + ICON_SMS + '</a>' +
         '</span></td>' +
-        '<td>' + esc(r.memberType || '') + '</td>' +
         '<td class="tags">' + esc(ordered(r.days, DAYS).join(' ')) + '</td>' +
         '<td class="tags">' + esc(ordered(r.slots, SLOTS).join(', ')) + '</td>' +
         '<td></td>';
@@ -602,18 +598,17 @@
     var items = [
       ['접수일시', fmtDateTime(created)],
       ['연락처', r.phone || ''],
-      ['회원 여부', r.memberType || ''],
       ['희망 요일', ordered(r.days, DAYS).join(', ')],
       ['희망 시간대', ordered(r.slots, SLOTS).join(', ')],
-      ['운동 목적', (r.goals || []).join(', ')],
-      ['운동 경력', r.experience || ''],
+      ['단기 목표', r.shortGoal || ''],
+      ['장기 목표', r.longGoal || ''],
       ['상태', r.status || ''],
       ['연락 일시', contacted ? fmtDateTime(contacted) : '아직 연락 전']
     ];
     var html = items.map(function (kv) {
       return '<dt>' + esc(kv[0]) + '</dt><dd>' + esc(kv[1] || '-') + '</dd>';
     }).join('');
-    html += '<dt>특이사항</dt><dd class="pre">' + esc(r.notes || '(없음)') + '</dd>';
+    html += '<dt>통증·일상생활 패턴</dt><dd class="pre">' + esc(r.notes || '(없음)') + '</dd>';
     $('dFields').innerHTML = html;
 
     $('dMemo').value = r.adminMemo || '';
@@ -647,14 +642,14 @@
   }
   function exportCsv() {
     var list = filtered();
-    var head = ['접수일시', '접수번호', '이름', '연락처', '회원여부', '희망요일', '희망시간대',
-      '운동목적', '운동경력', '특이사항', '상태', '연락일시', '관리자메모'];
+    var head = ['접수일시', '접수번호', '이름', '연락처', '희망요일', '희망시간대',
+      '단기목표', '장기목표', '통증·일상생활패턴', '상태', '연락일시', '관리자메모'];
     var lines = [head.join(',')];
     list.forEach(function (r) {
       lines.push([
-        fmtDateTime(toDate(r.createdAt)), r.code, r.name, r.phone, r.memberType,
-        ordered(r.days, DAYS).join(' '), ordered(r.slots, SLOTS).join(' '), (r.goals || []).join(' '),
-        r.experience, r.notes, r.status, fmtDateTime(toDate(r.contactedAt)), r.adminMemo
+        fmtDateTime(toDate(r.createdAt)), r.code, r.name, r.phone,
+        ordered(r.days, DAYS).join(' '), ordered(r.slots, SLOTS).join(' '),
+        r.shortGoal, r.longGoal, r.notes, r.status, fmtDateTime(toDate(r.contactedAt)), r.adminMemo
       ].map(csvCell).join(','));
     });
     // BOM 을 붙여야 엑셀에서 한글이 깨지지 않습니다.
@@ -866,19 +861,17 @@
 
   function bind() {
     fillSelect('fStatus', STATUSES, '전체');
-    fillSelect('fMember', MEMBER_TYPES, '전체');
     fillSelect('fDay', DAYS, '전체');
     fillSelect('fSlot', SLOTS, '전체');
 
     $('q').addEventListener('input', function () { filters.q = this.value; renderList(); });
     $('fStatus').addEventListener('change', function () { filters.status = this.value; renderList(); });
-    $('fMember').addEventListener('change', function () { filters.member = this.value; renderList(); });
     $('fDay').addEventListener('change', function () { filters.day = this.value; renderList(); });
     $('fSlot').addEventListener('change', function () { filters.slot = this.value; renderList(); });
     $('fSort').addEventListener('change', function () { filters.sort = this.value; renderList(); });
     $('resetBtn').addEventListener('click', function () {
-      filters = { q: '', status: '', member: '', day: '', slot: '', sort: 'new' };
-      $('q').value = ''; $('fStatus').value = ''; $('fMember').value = '';
+      filters = { q: '', status: '', day: '', slot: '', sort: 'new' };
+      $('q').value = ''; $('fStatus').value = '';
       $('fDay').value = ''; $('fSlot').value = ''; $('fSort').value = 'new';
       renderList();
     });
