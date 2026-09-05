@@ -8,7 +8,7 @@ Claude 아티팩트로 쓰던 두 화면을 **Firebase Hosting + Firestore** 로
 | `public/index.html` | 운영 보드 (방문자·문의·업무일지·OT·회의록·근무당직·사물함) | `https://<프로젝트id>.web.app/` |
 | `public/payroll.html` | 급여 정산 (직원/관리자 PIN 로그인) | `https://<프로젝트id>.web.app/payroll.html` |
 | `public/lesson.html` | **남스어프로치** 1:1 레슨 대기 접수 폼 (회원 공개) | `https://<프로젝트id>.web.app/lesson` |
-| `public/lesson-admin.html` | 남스어프로치 레슨 대기 관리 (관리자 로그인) | `https://<프로젝트id>.web.app/lesson/admin` |
+| `public/lesson-admin.html` | 남스어프로치 레슨 대기 관리 (관리자 로그인) | `https://<프로젝트id>.web.app/lesson-admin` |
 
 > 남스어프로치 레슨 접수는 **헬스장 업무와 데이터가 완전히 분리된 별도 브랜드 화면**입니다.
 > 호스팅과 데이터베이스만 같은 Firebase 프로젝트를 나눠 쓰고, 컬렉션·디자인·접근 권한은 서로 겹치지 않습니다.
@@ -421,7 +421,7 @@ function signedIn() {
 | 주소 | 누가 | 하는 일 |
 |---|---|---|
 | `.../lesson` | 회원 누구나, 로그인 없이 | 신청서 작성 → 접수번호 받기 |
-| `.../lesson/admin` | 관리자만 (이메일·비밀번호) | 대기 관리, 히트맵, 상태 변경, CSV |
+| `.../lesson-admin` | 관리자만 (이메일·비밀번호) | 대기 관리, 히트맵, 상태 변경, CSV |
 
 인스타그램 프로필 링크에는 `https://<프로젝트id>.web.app/lesson` 을 넣으면 됩니다.
 
@@ -437,7 +437,7 @@ function signedIn() {
 
 **나머지는 관리자 화면에서 합니다.**
 
-2. `.../lesson/admin` 접속 → 아래 **"관리자 계정 만들기"** → 쓰실 이메일과 비밀번호 입력
+2. `.../lesson-admin` 접속 → 아래 **"관리자 계정 만들기"** → 쓰실 이메일과 비밀번호 입력
    (메일을 실제로 받지 않는 주소여도 됩니다. 비밀번호는 이 저장소나 채팅에 적지 마세요.)
 3. 계정이 만들어지면 **"이 계정을 관리자로 등록"** 버튼이 나옵니다 → 누르면 끝
 
