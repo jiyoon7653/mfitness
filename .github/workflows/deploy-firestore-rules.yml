@@ -28,6 +28,14 @@ jobs:
           printf '%s' "$FIREBASE_SERVICE_ACCOUNT" > "$RUNNER_TEMP/service-account.json"
           echo "GOOGLE_APPLICATION_CREDENTIALS=$RUNNER_TEMP/service-account.json" >> "$GITHUB_ENV"
 
+      # firebase 명령은 구글이 돌려준 오류 본문을 삼켜서 "403" 만 남깁니다.
+      # 배포 전에 같은 API 를 직접 두드려 원인을 로그에 남깁니다.
+      - name: 배포 권한 진단
+        continue-on-error: true
+        env:
+          FIREBASE_PROJECT: mfitness-d4a16
+        run: node scripts/check-rules-access.mjs
+
       - name: 규칙 배포
         id: deploy
         run: npx --yes firebase-tools@13 deploy --only firestore:rules --project mfitness-d4a16 --non-interactive
