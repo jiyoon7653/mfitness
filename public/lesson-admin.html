@@ -163,6 +163,26 @@
   .heat-legend { display: flex; align-items: center; gap: 8px; margin-top: 12px; font-size: 12px; color: var(--muted); }
   .heat-legend i { width: 22px; height: 12px; border-radius: 3px; display: inline-block; }
 
+  /* ---------- 가져오기 ---------- */
+  details.import { margin-bottom: 14px; padding: 0; }
+  details.import summary {
+    cursor: pointer; padding: 16px 20px; font-size: 15px; font-weight: 600;
+    list-style: none; display: flex; align-items: center; gap: 8px;
+  }
+  details.import summary::-webkit-details-marker { display: none; }
+  details.import summary::before { content: "＋"; color: var(--accent); font-weight: 700; }
+  details.import[open] summary::before { content: "－"; }
+  details.import[open] summary { border-bottom: 1px solid var(--line); }
+  .import-body { padding: 18px 20px 20px; }
+  .import-body .sub { font-size: 13px; color: var(--muted); margin: 0 0 14px; line-height: 1.7; }
+  .import-body .sub b { color: var(--ink-2); }
+  .import-body textarea { min-height: 130px; font-size: 13.5px; line-height: 1.6; white-space: pre; overflow-wrap: normal; overflow-x: auto; }
+  .import-actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin: 12px 0 14px; }
+  .import-msg { font-size: 13.5px; color: var(--muted); }
+  .import-msg.bad { color: var(--clay); font-weight: 600; }
+  .import-msg.good { color: var(--accent-ink); font-weight: 600; }
+  #importPreview td small { display: block; color: var(--muted); font-size: 12px; margin-top: 2px; }
+
   /* ---------- 필터 ---------- */
   .filters { display: grid; grid-template-columns: 1.4fr repeat(3, 1fr) minmax(212px, auto); gap: 10px; align-items: end; margin-bottom: 14px; }
   @media (max-width: 900px) { .filters { grid-template-columns: 1fr 1fr; } .filters .search { grid-column: 1 / -1; } .filters .act { grid-column: 1 / -1; } }
@@ -327,6 +347,26 @@
       <span style="margin-left:auto" id="heatTop"></span>
     </p>
   </section>
+
+  <details class="card import" id="importPanel">
+    <summary>시트에서 대기명단 가져오기</summary>
+    <div class="import-body">
+      <p class="sub">
+        구글 시트나 엑셀에서 <b>표의 행을 그대로 복사해</b> 아래에 붙여넣으세요.
+        열 순서는 <b>문의일자 · 이름 · 연락처 · 희망요일 및 시간 · 증상 · 레슨 시작여부 · 비고</b> 입니다.
+        맨 앞에 순번 열이 있어도 되고, 머리글 줄이 섞여 있어도 알아서 걸러냅니다.
+      </p>
+      <textarea id="importText" placeholder="2026-07-24	조남주	010-2382-6202	목요일 오후	목/어깨/등	대기중"></textarea>
+      <div class="import-actions">
+        <button class="btn" id="importPreviewBtn">미리보기</button>
+        <button class="btn primary" id="importSaveBtn" disabled>확인하고 저장</button>
+        <span class="import-msg" id="importMsg"></span>
+      </div>
+      <div class="table-scroll" id="importPreviewWrap" hidden>
+        <table class="list" id="importPreview" style="min-width:820px"></table>
+      </div>
+    </div>
+  </details>
 
   <div class="filters">
     <div class="f search">
@@ -572,6 +612,19 @@
     $('listEmpty').hidden = list.length > 0;
   }
 
+  /* ---------------- 대기 인원 수 ----------------
+     신청 폼은 이 값을 1 올려서 신청자에게 순번으로 보여줍니다.
+     실제 목록을 보는 건 이 화면뿐이라, 여기서 진짜 숫자로 맞춰 둡니다. */
+  var lastQueueWritten = null;
+  function syncQueueCount() {
+    var actual = rows.filter(function (r) { return r.status === '대기'; }).length;
+    if (lastQueueWritten === actual) return;
+    lastQueueWritten = actual;
+    db.doc('lessonSettings/queue').set({ waiting: actual }).catch(function () {
+      lastQueueWritten = null;   // 실패하면 다음 갱신 때 다시 시도합니다
+    });
+  }
+
   /* ---------------- 상태 변경 ---------------- */
   function changeStatus(row, status) {
     var patch = { status: status };
@@ -676,6 +729,201 @@
         showConsoleError('접수 스위치를 바꾸지 못했습니다: ' + ((err && err.message) || ''));
         renderIntake();
       });
+  }
+
+  /* ================= 시트에서 대기명단 가져오기 =================
+     시트에 남아 있던 예전 대기자를 옮기기 위한 기능입니다.
+     원본 표현(연락처가 "오픈 카톡" 이라거나 "금토일상관없음" 같은 것)은
+     해석해서 넣되, 원문도 관리자 메모에 그대로 남겨 아무것도 잃지 않습니다. */
+
+  var STATUS_WORDS = [
+    { has: ['받지말것', '받지 말', '거절'], to: '취소' },
+    { has: ['취소'], to: '취소' },
+    { has: ['보류'], to: '보류' },
+    { has: ['등록', '시작', '완료'], to: '등록완료' },
+    { has: ['상담'], to: '상담예정' },
+    { has: ['연락'], to: '연락완료' }
+  ];
+  var DAY_WORDS = { '월': '월', '화': '화', '수': '수', '목': '목', '금': '금', '토': '토', '일': '일' };
+  var MORNING = ['09:00', '10:00', '11:00'];
+  var AFTERNOON = ['13:00', '14:00', '15:00', '16:00', '17:00'];
+
+  function parseSheetDate(raw) {
+    var m = String(raw || '').match(/(\d{4})\D+(\d{1,2})\D+(\d{1,2})/);
+    if (!m) return null;
+    return new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]), 9, 0, 0);
+  }
+
+  function parsePhone(raw) {
+    var d = String(raw || '').replace(/\D/g, '');
+    if (!/^01[016789]\d{7,8}$/.test(d)) return '';
+    return d.length === 10
+      ? d.slice(0, 3) + '-' + d.slice(3, 6) + '-' + d.slice(6)
+      : d.slice(0, 3) + '-' + d.slice(3, 7) + '-' + d.slice(7);
+  }
+
+  function parseSchedule(raw) {
+    var t = String(raw || '');
+    var days = [];
+    // "목요일" 의 '요일' 을 먼저 떼어냅니다. 안 그러면 뒤의 '일' 까지 일요일로 잡힙니다.
+    // 떼어낸 뒤에도 "금토일상관없음" 처럼 붙어 있는 요일은 글자별로 찾아냅니다.
+    t.replace(/요일/g, ' ').replace(/[월화수목금토일]/g, function (ch) {
+      if (DAY_WORDS[ch] && days.indexOf(ch) < 0) days.push(ch);
+      return ch;
+    });
+    var slots = [];
+    if (/오전/.test(t)) slots = slots.concat(MORNING);
+    if (/오후|저녁/.test(t)) AFTERNOON.forEach(function (x) { if (slots.indexOf(x) < 0) slots.push(x); });
+    return { days: days, slots: slots };
+  }
+
+  function parseStatus(raw) {
+    var t = String(raw || '');
+    for (var i = 0; i < STATUS_WORDS.length; i++) {
+      for (var j = 0; j < STATUS_WORDS[i].has.length; j++) {
+        if (t.indexOf(STATUS_WORDS[i].has[j]) >= 0) return STATUS_WORDS[i].to;
+      }
+    }
+    return '대기';
+  }
+
+  // 시트에서 복사한 행을 읽습니다. 맨 앞 순번 열은 있어도 되고 없어도 됩니다.
+  function parseImport(text) {
+    var out = [];
+    String(text || '').split(/\r?\n/).forEach(function (raw, idx) {
+      var line = raw.replace(/\s+$/, '');
+      if (!line.trim()) return;
+      var cells = line.split('\t');
+      if (cells.length < 2) cells = line.split(/\s{2,}|,/);
+      cells = cells.map(function (c) { return String(c).trim(); });
+      // 머리글 줄 걸러내기 — 날짜가 없고 시트 머리글 낱말이 보이면 건너뜁니다.
+      if (!parseSheetDate(line) && /순번|문의일자|연락처|희망요일|레슨 시작|대기종료|비고/.test(line)) return;
+      // 맨 앞이 순번(숫자 한두 자리)이면 떼어냅니다.
+      if (/^\d{1,3}$/.test(cells[0])) cells = cells.slice(1);
+
+      var date = parseSheetDate(cells[0]);
+      var name = cells[1] || '';
+      if (!date && !name) return;
+
+      var phoneRaw = cells[2] || '';
+      var schedRaw = cells[3] || '';
+      var symptom = cells[4] || '';
+      var statusRaw = cells[5] || '';
+      var etc = cells.slice(6).filter(Boolean).join(' / ');
+      var sched = parseSchedule(schedRaw);
+      var phone = parsePhone(phoneRaw);
+
+      var memo = ['시트에서 옮김 (' + (idx + 1) + '번째 줄)'];
+      if (schedRaw) memo.push('희망 원문: ' + schedRaw);
+      if (phoneRaw && !phone) memo.push('연락처 원문: ' + phoneRaw);
+      if (statusRaw) memo.push('상태 원문: ' + statusRaw);
+      if (etc) memo.push('비고: ' + etc);
+
+      out.push({
+        createdAt: date,
+        name: name,
+        phone: phone,
+        phoneRaw: phoneRaw,
+        days: sched.days,
+        slots: sched.slots,
+        schedRaw: schedRaw,
+        notes: symptom,
+        status: parseStatus(statusRaw),
+        statusRaw: statusRaw,
+        adminMemo: memo.join(' · '),
+        warn: (!date ? '날짜를 못 읽음 ' : '') + (!name ? '이름 없음 ' : '') + (!phone ? '전화번호 없음 ' : '')
+      });
+    });
+    return out;
+  }
+
+  var importRows = [];
+
+  function setImportMsg(kind, text) {
+    var el = $('importMsg');
+    el.className = 'import-msg' + (kind ? ' ' + kind : '');
+    el.textContent = text;
+  }
+
+  function previewImport() {
+    importRows = parseImport($('importText').value);
+    var wrap = $('importPreviewWrap');
+    if (!importRows.length) {
+      wrap.hidden = true;
+      $('importSaveBtn').disabled = true;
+      setImportMsg('bad', '읽을 수 있는 줄이 없습니다. 시트에서 행을 그대로 복사해 붙여넣어 주세요.');
+      return;
+    }
+    var html = '<thead><tr><th>접수일</th><th>이름</th><th>연락처</th><th>희망 요일</th>' +
+      '<th>희망 시간대</th><th>증상</th><th>상태</th></tr></thead><tbody>';
+    importRows.forEach(function (r) {
+      html += '<tr>' +
+        '<td class="when">' + esc(fmtDate(r.createdAt)) + '</td>' +
+        '<td class="nm">' + esc(r.name) + '</td>' +
+        '<td>' + (r.phone ? esc(r.phone) : '<span style="color:var(--clay)">없음</span>' +
+          (r.phoneRaw ? '<small>' + esc(r.phoneRaw) + '</small>' : '')) + '</td>' +
+        '<td class="tags">' + (r.days.length ? esc(r.days.join(' ')) : '—') +
+          (r.schedRaw ? '<small>' + esc(r.schedRaw) + '</small>' : '') + '</td>' +
+        '<td class="tags">' + (r.slots.length ? esc(shortSlot(r.slots[0]) + '~' + shortSlot(r.slots[r.slots.length - 1])) : '—') + '</td>' +
+        '<td class="tags">' + esc(r.notes || '—') + '</td>' +
+        '<td>' + esc(r.status) + '</td>' +
+        '</tr>';
+    });
+    $('importPreview').innerHTML = html + '</tbody>';
+    wrap.hidden = false;
+    $('importSaveBtn').disabled = false;
+    var noPhone = importRows.filter(function (r) { return !r.phone; }).length;
+    setImportMsg('good', importRows.length + '건을 읽었습니다.' +
+      (noPhone ? ' 전화번호가 없는 ' + noPhone + '건은 원문을 메모에 남깁니다.' : '') +
+      ' 내용을 확인하고 저장하세요.');
+  }
+
+  function saveImport() {
+    if (!importRows.length) return;
+    $('importSaveBtn').disabled = true;
+    setImportMsg('', '저장하는 중…');
+
+    var counterRef = db.doc('lessonSettings/counter');
+    db.runTransaction(function (tx) {
+      return tx.get(counterRef).then(function (snap) {
+        var seq = (snap.exists && Number(snap.data().value)) || 0;
+        var assigned = importRows.map(function (r) {
+          seq += 1;
+          return Object.assign({}, r, { seq: seq, code: 'A-' + ('0000' + seq).slice(-4) });
+        });
+        tx.set(counterRef, { value: seq }, { merge: true });
+        return assigned;
+      });
+    }).then(function (assigned) {
+      var batch = db.batch();
+      assigned.forEach(function (r) {
+        batch.set(db.collection('lessonApplications').doc(), {
+          code: r.code,
+          seq: r.seq,
+          createdAt: firebase.firestore.Timestamp.fromDate(r.createdAt || new Date()),
+          name: r.name,
+          phone: r.phone,
+          days: r.days,
+          slots: r.slots,
+          shortGoal: '',
+          longGoal: '',
+          notes: r.notes,
+          privacyAgreedAt: null,
+          status: r.status,
+          adminMemo: r.adminMemo,
+          contactedAt: null
+        });
+      });
+      return batch.commit().then(function () { return assigned.length; });
+    }).then(function (n) {
+      setImportMsg('good', n + '건을 넣었습니다. 아래 목록에서 확인하세요.');
+      $('importText').value = '';
+      $('importPreviewWrap').hidden = true;
+      importRows = [];
+    }).catch(function (err) {
+      $('importSaveBtn').disabled = false;
+      setImportMsg('bad', '저장하지 못했습니다: ' + ((err && err.message) || ''));
+    });
   }
 
   /* ---------------- 상태 메시지 ---------------- */
@@ -799,7 +1047,7 @@
         rows = snap.docs.map(function (d) { return Object.assign({ _id: d.id }, d.data()); });
         setConn('live', '실시간 동기화 중 · ' + rows.length + '건');
         $('consoleError').hidden = true;
-        renderStats(); renderHeat(); renderList();
+        renderStats(); renderHeat(); renderList(); syncQueueCount();
         if (selectedId && rows.some(function (r) { return r._id === selectedId; })) {
           if (document.activeElement !== $('dMemo')) openDrawer(selectedId);
         } else if (selectedId) {
@@ -877,6 +1125,8 @@
     });
 
     $('csvBtn').addEventListener('click', exportCsv);
+    $('importPreviewBtn').addEventListener('click', previewImport);
+    $('importSaveBtn').addEventListener('click', saveImport);
     $('logoutBtn').addEventListener('click', function () { auth.signOut(); });
     $('intakeToggle').addEventListener('change', toggleIntake);
     $('drawerClose').addEventListener('click', closeDrawer);
