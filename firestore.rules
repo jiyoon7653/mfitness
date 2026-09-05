@@ -57,7 +57,9 @@ service cloud.firestore {
     }
 
     match /lessonApplications/{doc} {
-      allow create: if signedIn() && validApplication();
+      // 폼으로 들어오는 신청서는 검증을 통과해야 하고,
+      // 관리자는 시트에서 옮긴 예전 기록(지난 날짜·다른 상태)도 넣을 수 있습니다.
+      allow create: if (signedIn() && validApplication()) || lessonAdmin();
       allow read, update, delete: if lessonAdmin();
     }
 
@@ -81,6 +83,15 @@ service cloud.firestore {
       allow create, update: if signedIn()
         && request.resource.data.keys().hasOnly(['value'])
         && request.resource.data.value is int;
+    }
+
+    // 대기 인원 수. 신청자에게 순번을 알려주기 위한 값이라 개인정보가 아닙니다.
+    match /lessonSettings/queue {
+      allow read: if signedIn();
+      allow create, update: if signedIn()
+        && request.resource.data.keys().hasOnly(['waiting'])
+        && request.resource.data.waiting is int
+        && request.resource.data.waiting >= 0;
     }
 
     // 접수 중단 스위치·안내 문구. 폼은 읽기만, 변경은 관리자만.

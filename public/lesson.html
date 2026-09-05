@@ -248,7 +248,13 @@
     color: var(--accent-ink); margin: 0;
     font-family: 'Gowun Batang', serif;
   }
+  .code-box .v .unit { font-size: 17px; font-weight: 600; margin-left: 3px; color: var(--ink-2); font-family: 'Pretendard Variable', Pretendard, sans-serif; }
   .code-box .note { font-size: 12.5px; color: var(--muted); margin: 8px 0 0; line-height: 1.5; }
+  .code-box .code-line {
+    margin: 12px 0 0; padding-top: 10px; border-top: 1px solid var(--line);
+    font-size: 12.5px; color: var(--muted);
+  }
+  .code-box .code-line b { color: var(--ink-2); font-weight: 600; letter-spacing: .04em; }
   a.dm {
     display: flex; align-items: center; justify-content: center; gap: 8px;
     min-height: 52px; border-radius: 12px; text-decoration: none;
@@ -431,9 +437,10 @@
     <h2>신청이 접수되었습니다</h2>
     <p>자리가 나는 대로 순서대로 연락드릴게요.</p>
     <div class="code-box">
-      <p class="k">접수번호</p>
-      <p class="v" id="doneCode">A-0000</p>
-      <p class="note">접수번호는 대기 순번이 아니라 문의하실 때 쓰는 조회용 번호입니다.</p>
+      <p class="k">현재 대기 순번</p>
+      <p class="v"><span id="donePosition">-</span><span class="unit">번째</span></p>
+      <p class="note">희망하신 요일·시간에 따라 순번보다 일찍 배정될 수 있습니다.</p>
+      <p class="code-line">접수번호 <b id="doneCode">A-0000</b></p>
     </div>
     <a class="dm" id="dmBtn" href="https://instagram.com/gorani_coach" target="_blank" rel="noopener">
       인스타그램 DM 보내기
@@ -595,18 +602,22 @@
     }).catch(function () { return null; });
   }
 
-  /* ---------------- 접수번호 ---------------- */
-  function nextCode() {
-    var ref = db.doc('lessonSettings/counter');
+  /* ---------------- 접수번호 · 대기 순번 ---------------- */
+  // 대기 인원 수(lessonSettings/queue)는 관리자 화면이 실제 목록을 보고 계속 맞춰 둡니다.
+  // 여기서는 1 올린 값을 그대로 이 분의 순번으로 씁니다.
+  function nextNumbers() {
+    var counterRef = db.doc('lessonSettings/counter');
+    var queueRef = db.doc('lessonSettings/queue');
     return db.runTransaction(function (tx) {
-      return tx.get(ref).then(function (snap) {
-        var cur = (snap.exists && Number(snap.data().value)) || 0;
-        var next = cur + 1;
-        tx.set(ref, { value: next }, { merge: true });
-        return next;
+      return tx.get(counterRef).then(function (counterSnap) {
+        return tx.get(queueRef).then(function (queueSnap) {
+          var seq = ((counterSnap.exists && Number(counterSnap.data().value)) || 0) + 1;
+          var waiting = ((queueSnap.exists && Number(queueSnap.data().waiting)) || 0) + 1;
+          tx.set(counterRef, { value: seq }, { merge: true });
+          tx.set(queueRef, { waiting: waiting }, { merge: true });
+          return { seq: seq, code: 'A-' + ('0000' + seq).slice(-4), position: waiting };
+        });
       });
-    }).then(function (seq) {
-      return { seq: seq, code: 'A-' + ('0000' + seq).slice(-4) };
     });
   }
 
@@ -648,7 +659,7 @@
       if (err && err.code === 'permission-denied') { throw { __dup: true }; }
       throw err;
     }).then(function () {
-      return nextCode();
+      return nextNumbers();
     }).then(function (num) {
       var stamp = firebase.firestore.FieldValue.serverTimestamp();
       return db.collection('lessonApplications').add({
@@ -666,9 +677,10 @@
         status: '대기',
         adminMemo: '',
         contactedAt: null
-      }).then(function () { return num.code; });
-    }).then(function (code) {
-      $('doneCode').textContent = code;
+      }).then(function () { return num; });
+    }).then(function (num) {
+      $('doneCode').textContent = num.code;
+      $('donePosition').textContent = num.position;
       $('formView').hidden = true;
       $('doneView').hidden = false;
       window.scrollTo({ top: 0, behavior: 'smooth' });
