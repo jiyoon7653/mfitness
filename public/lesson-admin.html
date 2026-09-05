@@ -68,7 +68,6 @@
 
   /* ---------- 로그인 ---------- */
   .login-wrap { max-width: 420px; margin: 0 auto; padding: 72px 18px 60px; }
-  .login-wrap .brand { font-size: 12px; letter-spacing: .3em; text-transform: uppercase; color: var(--accent); margin: 0 0 14px; font-weight: 700; }
   .login-wrap h1 { font-size: 25px; margin: 0 0 8px; letter-spacing: -.02em; }
   .login-wrap .sub { color: var(--muted); font-size: 14px; margin: 0 0 26px; }
   .switch-mode { text-align: center; font-size: 13.5px; color: var(--muted); margin: 18px 0 0; }
@@ -126,7 +125,6 @@
     gap: 14px; flex-wrap: wrap; padding: 26px 0 20px;
   }
   .topbar h1 { font-size: 21px; margin: 0; letter-spacing: -.02em; }
-  .topbar .brand { font-size: 11px; letter-spacing: .28em; text-transform: uppercase; color: var(--accent); font-weight: 700; margin: 0 0 3px; }
   .topbar .tools { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
 
   .intake {
@@ -182,6 +180,9 @@
   .import-msg.bad { color: var(--clay); font-weight: 600; }
   .import-msg.good { color: var(--accent-ink); font-weight: 600; }
   #importPreview td small { display: block; color: var(--muted); font-size: 12px; margin-top: 2px; }
+  #importPreview tr.import-bad td { background: var(--clay-soft); }
+  #importPreview tr.import-bad b { color: var(--clay); }
+  #importPreview tr.import-bad small { font-family: ui-monospace, monospace; color: var(--ink-2); white-space: pre-wrap; }
 
   /* ---------- 필터 ---------- */
   .filters { display: grid; grid-template-columns: 1.4fr repeat(3, 1fr) minmax(212px, auto); gap: 10px; align-items: end; margin-bottom: 14px; }
@@ -190,8 +191,18 @@
   .filters .act { display: flex; gap: 8px; }
 
   /* ---------- 표 ---------- */
+  .bulkbar {
+    display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+    padding: 10px 14px; margin-bottom: 10px;
+    background: var(--accent-soft); border: 1px solid var(--accent);
+    border-radius: 10px; font-size: 13.5px; font-weight: 600; color: var(--accent-ink);
+  }
+  .btn.danger { border-color: var(--clay); color: var(--clay); }
+  .btn.danger:hover { background: var(--clay); border-color: var(--clay); color: var(--surface); }
+  table.list th.pick, table.list td.pick { width: 38px; padding-right: 0; }
+  table.list td.pick input, table.list th.pick input { width: 18px; height: 18px; margin: 0; accent-color: var(--accent); cursor: pointer; }
   .table-scroll { overflow-x: auto; border: 1px solid var(--line); border-radius: 14px; background: var(--surface); box-shadow: var(--shadow); }
-  table.list { border-collapse: collapse; width: 100%; min-width: 860px; font-size: 14px; }
+  table.list { border-collapse: collapse; width: 100%; min-width: 900px; font-size: 14px; }
   table.list th {
     text-align: left; font-size: 11.5px; letter-spacing: .06em; text-transform: uppercase;
     color: var(--muted); font-weight: 600; padding: 12px 14px;
@@ -260,7 +271,6 @@
 
 <!-- ================= 로그인 ================= -->
 <div class="login-wrap" id="loginView" hidden>
-  <p class="brand">Nums Approach</p>
   <h1>레슨 대기 관리</h1>
   <p class="sub">관리자만 접근할 수 있는 화면입니다.</p>
   <div class="card">
@@ -291,7 +301,6 @@
 
 <!-- ================= 관리자 등록 (최초 1회) ================= -->
 <div class="login-wrap" id="claimView" hidden>
-  <p class="brand">Nums Approach</p>
   <h1>관리자 등록</h1>
   <p class="sub">이 계정을 이 화면의 관리자로 등록합니다. 한 번만 하면 됩니다.</p>
   <div class="card">
@@ -309,7 +318,6 @@
 <div class="wrap" id="consoleView" hidden>
   <div class="topbar">
     <div>
-      <p class="brand">Nums Approach</p>
       <h1>레슨 대기 관리</h1>
     </div>
     <div class="tools">
@@ -355,6 +363,7 @@
         구글 시트나 엑셀에서 <b>표의 행을 그대로 복사해</b> 아래에 붙여넣으세요.
         열 순서는 <b>문의일자 · 이름 · 연락처 · 희망요일 및 시간 · 증상 · 레슨 시작여부 · 비고</b> 입니다.
         맨 앞에 순번 열이 있어도 되고, 머리글 줄이 섞여 있어도 알아서 걸러냅니다.
+        <b>시트에서 셀을 드래그해 복사</b>해야 열이 제대로 나뉩니다 — 손으로 옮겨 적으면 이름을 못 읽습니다.
       </p>
       <textarea id="importText" placeholder="2026-07-24	조남주	010-2382-6202	목요일 오후	목/어깨/등	대기중"></textarea>
       <div class="import-actions">
@@ -385,10 +394,17 @@
     </div>
   </div>
 
+  <div class="bulkbar" id="bulkBar" hidden>
+    <span id="bulkCount">0건 선택됨</span>
+    <button class="btn sm danger" id="bulkDeleteBtn">선택한 신청 삭제</button>
+    <button class="btn sm" id="bulkClearBtn">선택 해제</button>
+  </div>
+
   <div class="table-scroll">
     <table class="list">
       <thead>
         <tr>
+          <th class="pick"><input type="checkbox" id="pickAll" aria-label="전체 선택"></th>
           <th>접수일</th><th>접수번호</th><th>이름</th><th>연락처</th>
           <th>희망 요일</th><th>희망 시간대</th><th>상태</th>
         </tr>
@@ -418,6 +434,7 @@
   </div>
   <div class="dfoot">
     <button class="btn primary" id="dSave">메모 저장</button>
+    <button class="btn danger" id="dDelete">삭제</button>
     <span class="saved" id="dSaved" hidden>저장됨</span>
   </div>
 </aside>
@@ -441,6 +458,7 @@
   var db = null;
   var rows = [];
   var selectedId = '';
+  var picked = {};   // 선택 삭제용 체크 상태 (문서 id -> true)
   var config = { intakeOpen: true };
   var filters = { q: '', status: '', day: '', slot: '', sort: 'new' };
 
@@ -582,6 +600,8 @@
       var tr = document.createElement('tr');
       if (r._id === selectedId) tr.className = 'sel';
       tr.innerHTML =
+        '<td class="pick"><input type="checkbox"' + (picked[r._id] ? ' checked' : '') +
+          ' aria-label="' + esc(r.name || '') + ' 선택"></td>' +
         '<td class="when">' + esc(fmtDate(created)) + (isNew ? ' <span class="badge b-new">NEW</span>' : '') + '</td>' +
         '<td class="code">' + esc(r.code || '-') + '</td>' +
         '<td class="nm">' + esc(r.name || '') + '</td>' +
@@ -593,6 +613,13 @@
         '<td class="tags">' + esc(ordered(r.slots, SLOTS).join(', ')) + '</td>' +
         '<td></td>';
 
+      var box = tr.querySelector('td.pick input');
+      box.addEventListener('click', function (e) { e.stopPropagation(); });
+      box.addEventListener('change', function () {
+        if (box.checked) picked[r._id] = true; else delete picked[r._id];
+        renderBulkBar();
+      });
+
       var sel = document.createElement('select');
       sel.className = 'status';
       sel.innerHTML = STATUSES.map(function (s) {
@@ -603,13 +630,73 @@
       tr.lastChild.appendChild(sel);
 
       tr.addEventListener('click', function (e) {
-        if (e.target.closest('a') || e.target.closest('select')) return;
+        if (e.target.closest('a') || e.target.closest('select') || e.target.closest('input')) return;
         openDrawer(r._id);
       });
       body.appendChild(tr);
     });
 
     $('listEmpty').hidden = list.length > 0;
+
+    // 목록에서 사라진 건은 선택에서도 뺍니다.
+    var alive = {};
+    rows.forEach(function (r) { alive[r._id] = true; });
+    Object.keys(picked).forEach(function (id) { if (!alive[id]) delete picked[id]; });
+    var visible = list.length && list.every(function (r) { return picked[r._id]; });
+    $('pickAll').checked = !!visible;
+    renderBulkBar();
+  }
+
+  /* ---------------- 삭제 ---------------- */
+  function renderBulkBar() {
+    var n = Object.keys(picked).length;
+    $('bulkBar').hidden = n === 0;
+    $('bulkCount').textContent = n + '건 선택됨';
+  }
+
+  function deleteIds(ids) {
+    if (!ids.length) return Promise.resolve();
+    var batch = db.batch();
+    ids.forEach(function (id) { batch.delete(db.collection('lessonApplications').doc(id)); });
+    return batch.commit();
+  }
+
+  function bulkDelete() {
+    var ids = Object.keys(picked);
+    if (!ids.length) return;
+    var names = ids.map(function (id) {
+      var r = rows.filter(function (x) { return x._id === id; })[0];
+      return (r && r.name) || '(이름 없음)';
+    });
+    var preview = names.slice(0, 5).join(', ') + (names.length > 5 ? ' 외 ' + (names.length - 5) + '건' : '');
+    if (!window.confirm(ids.length + '건을 삭제합니다. 되돌릴 수 없습니다.\n\n' + preview)) return;
+    $('bulkDeleteBtn').disabled = true;
+    deleteIds(ids).then(function () {
+      picked = {};
+      renderBulkBar();
+    }).catch(function (err) {
+      showConsoleError('삭제하지 못했습니다: ' + ((err && err.message) || ''));
+    }).then(function () {
+      $('bulkDeleteBtn').disabled = false;
+    });
+  }
+
+  function deleteCurrent() {
+    if (!selectedId) return;
+    var r = rows.filter(function (x) { return x._id === selectedId; })[0];
+    if (!window.confirm(((r && r.name) || '이 신청') + ' 님의 신청을 삭제합니다. 되돌릴 수 없습니다.')) return;
+    var id = selectedId;
+    closeDrawer();
+    deleteIds([id]).catch(function (err) {
+      showConsoleError('삭제하지 못했습니다: ' + ((err && err.message) || ''));
+    });
+  }
+
+  function toggleAll() {
+    var on = $('pickAll').checked;
+    picked = {};
+    if (on) filtered().forEach(function (r) { picked[r._id] = true; });
+    renderList();
   }
 
   /* ---------------- 대기 인원 수 ----------------
@@ -788,22 +875,40 @@
   }
 
   // 시트에서 복사한 행을 읽습니다. 맨 앞 순번 열은 있어도 되고 없어도 됩니다.
+  //
+  // 시트에서 셀을 드래그해 복사하면 열이 탭으로 구분되어 붙습니다.
+  // 손으로 옮겨 적어 한 칸 띄어쓰기만 있는 글은 열을 나눌 방법이 없습니다.
+  // 그런 줄은 추측해서 넣지 않고 오류로 표시해, 이름이 빈 채로 저장되는 일을 막습니다.
+  function splitCells(line) {
+    if (line.indexOf('\t') >= 0) return line.split('\t');
+    if (/\s{2,}/.test(line)) return line.split(/\s{2,}/);
+    if (line.indexOf(',') >= 0) return line.split(',');
+    return null;
+  }
+
   function parseImport(text) {
     var out = [];
     String(text || '').split(/\r?\n/).forEach(function (raw, idx) {
       var line = raw.replace(/\s+$/, '');
       if (!line.trim()) return;
-      var cells = line.split('\t');
-      if (cells.length < 2) cells = line.split(/\s{2,}|,/);
-      cells = cells.map(function (c) { return String(c).trim(); });
       // 머리글 줄 걸러내기 — 날짜가 없고 시트 머리글 낱말이 보이면 건너뜁니다.
       if (!parseSheetDate(line) && /순번|문의일자|연락처|희망요일|레슨 시작|대기종료|비고/.test(line)) return;
+
+      var cells = splitCells(line);
+      if (!cells || cells.length < 3) {
+        out.push({ error: '열이 나뉘지 않았습니다', raw: line, lineNo: idx + 1 });
+        return;
+      }
+      cells = cells.map(function (c) { return String(c).trim(); });
       // 맨 앞이 순번(숫자 한두 자리)이면 떼어냅니다.
       if (/^\d{1,3}$/.test(cells[0])) cells = cells.slice(1);
 
       var date = parseSheetDate(cells[0]);
       var name = cells[1] || '';
-      if (!date && !name) return;
+      if (!name) {
+        out.push({ error: '이름을 찾지 못했습니다', raw: line, lineNo: idx + 1 });
+        return;
+      }
 
       var phoneRaw = cells[2] || '';
       var schedRaw = cells[3] || '';
@@ -831,7 +936,7 @@
         status: parseStatus(statusRaw),
         statusRaw: statusRaw,
         adminMemo: memo.join(' · '),
-        warn: (!date ? '날짜를 못 읽음 ' : '') + (!name ? '이름 없음 ' : '') + (!phone ? '전화번호 없음 ' : '')
+        lineNo: idx + 1
       });
     });
     return out;
@@ -846,16 +951,25 @@
   }
 
   function previewImport() {
-    importRows = parseImport($('importText').value);
+    var parsed = parseImport($('importText').value);
+    var bad = parsed.filter(function (r) { return r.error; });
+    importRows = parsed.filter(function (r) { return !r.error; });
     var wrap = $('importPreviewWrap');
-    if (!importRows.length) {
+
+    if (!parsed.length) {
       wrap.hidden = true;
       $('importSaveBtn').disabled = true;
       setImportMsg('bad', '읽을 수 있는 줄이 없습니다. 시트에서 행을 그대로 복사해 붙여넣어 주세요.');
       return;
     }
+
     var html = '<thead><tr><th>접수일</th><th>이름</th><th>연락처</th><th>희망 요일</th>' +
       '<th>희망 시간대</th><th>증상</th><th>상태</th></tr></thead><tbody>';
+    bad.forEach(function (r) {
+      html += '<tr class="import-bad"><td colspan="7">' +
+        '<b>' + r.lineNo + '번째 줄 — ' + esc(r.error) + '</b>' +
+        '<small>' + esc(r.raw) + '</small></td></tr>';
+    });
     importRows.forEach(function (r) {
       html += '<tr>' +
         '<td class="when">' + esc(fmtDate(r.createdAt)) + '</td>' +
@@ -871,6 +985,14 @@
     });
     $('importPreview').innerHTML = html + '</tbody>';
     wrap.hidden = false;
+
+    if (bad.length) {
+      $('importSaveBtn').disabled = true;
+      setImportMsg('bad', bad.length + '줄을 읽지 못해 저장할 수 없습니다. ' +
+        '엑셀·구글시트에서 그 줄들을 드래그해 복사한 뒤 다시 붙여넣어 주세요. ' +
+        '(손으로 옮겨 적어 한 칸 띄어쓰기만 있는 글은 어디까지가 이름인지 알 수 없습니다.)');
+      return;
+    }
     $('importSaveBtn').disabled = false;
     var noPhone = importRows.filter(function (r) { return !r.phone; }).length;
     setImportMsg('good', importRows.length + '건을 읽었습니다.' +
@@ -1125,6 +1247,10 @@
     });
 
     $('csvBtn').addEventListener('click', exportCsv);
+    $('pickAll').addEventListener('change', toggleAll);
+    $('bulkDeleteBtn').addEventListener('click', bulkDelete);
+    $('bulkClearBtn').addEventListener('click', function () { picked = {}; renderList(); });
+    $('dDelete').addEventListener('click', deleteCurrent);
     $('importPreviewBtn').addEventListener('click', previewImport);
     $('importSaveBtn').addEventListener('click', saveImport);
     $('logoutBtn').addEventListener('click', function () { auth.signOut(); });
