@@ -417,6 +417,17 @@
   .up-file { font-size: 12px; color: var(--text-faint); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
   .upload-box.filled .up-file { color: var(--good); font-weight: 500; }
   .up-drop-hint { font-size: 11.5px; color: var(--text-faint); margin: 0 0 16px; }
+  .divider-line { height: 1px; background: var(--border); margin: 20px 0 18px; }
+  .si-totals { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 14px; }
+  .si-total-chip {
+    display: flex; flex-direction: column; gap: 2px; padding: 10px 14px;
+    border: 1px solid var(--border); border-radius: 12px; background: var(--surface-2); min-width: 150px;
+  }
+  .si-total-chip .k { font-size: 11.5px; color: var(--text-muted); }
+  .si-total-chip .v { font-size: 15px; font-weight: 600; color: var(--text); font-variant-numeric: tabular-nums; }
+  .si-total-chip.unassigned { border-color: var(--warn); background: var(--warn-bg); }
+  .si-total-chip.unassigned .k, .si-total-chip.unassigned .v { color: var(--warn); }
+  tr.si-need select { border-color: var(--warn); box-shadow: 0 0 0 3px var(--warn-bg); }
   .snapshot-meta { font-size: 12.5px; color: var(--text-muted); margin: 0 0 18px; }
   .lk-legend { display: flex; flex-wrap: wrap; gap: 14px; margin: 0 0 16px; font-size: 12px; color: var(--text-muted); }
   .lk-legend span { display: flex; align-items: center; gap: 6px; }
@@ -681,6 +692,43 @@
       <div class="stat-tile"><span class="stat-tile-label">오늘 매출</span><span class="stat-tile-value" id="wTodaySales">–</span></div>
       <div class="stat-tile"><span class="stat-tile-label">이번 주 매출</span><span class="stat-tile-value" id="wWeekSales">–</span></div>
     </div>
+
+    <section class="panel" style="margin-bottom:24px;">
+      <h2>매출명세 엑셀 불러오기</h2>
+      <p class="panel-sub">헬스장 프로그램에서 내려받은 <strong>그날 매출명세</strong> 파일을 올리면 거래 내역을 읽어 아래 업무일지 폼에 채웁니다. 채우기만 하고 저장은 하지 않으니, 확인한 뒤 <strong>등록하기</strong>를 눌러 주세요.</p>
+      <div class="upload-box" id="siBox" style="max-width:520px;">
+        <span class="up-title">매출명세 파일</span>
+        <span class="up-hint">발생일자 · 거래내용 · 금액 열이 있는 파일 (.xls / .xlsx)</span>
+        <div class="up-actions">
+          <button type="button" class="submit-btn ghost small" id="siPick">파일 선택</button>
+          <span class="up-file" id="siName">선택된 파일 없음</span>
+        </div>
+        <input type="file" id="siFile" accept=".xls,.xlsx,.xlsm,.csv" hidden>
+      </div>
+      <p class="up-drop-hint">파일을 이 상자 위로 끌어다 놓아도 됩니다.</p>
+
+      <div id="siReview" hidden>
+        <div class="divider-line"></div>
+        <div class="list-header" style="margin-bottom:10px;">
+          <div>
+            <h3 class="sub-heading" style="margin:0;" id="siDateLabel">–</h3>
+            <p class="panel-sub" style="margin:4px 0 0;" id="siSummary">–</p>
+          </div>
+          <div class="filters">
+            <button type="button" class="submit-btn small" id="siApply">업무일지 폼에 채우기</button>
+          </div>
+        </div>
+        <p class="form-status" id="siWarn" aria-live="polite"></p>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>시간</th><th>거래내용</th><th>회원</th><th class="num">금액</th><th>분류</th></tr></thead>
+            <tbody id="siBody"></tbody>
+          </table>
+        </div>
+        <div id="siTotals" class="si-totals"></div>
+      </div>
+      <p class="form-status" id="siStatus" aria-live="polite"></p>
+    </section>
 
     <div class="layout">
       <section class="panel">
@@ -3434,6 +3482,267 @@
     setFormStatus('lkStatus', rows.length + '명의 명단을 내려받았습니다.', 'success');
   });
 
+  // ============================================================
+  //  매출명세 엑셀 → 업무일지 폼 채우기
+  // ============================================================
+
+  var siItems = [], siDate = '', siDeclaredTotal = null;
+
+  // 엑셀을 머리글로 묶지 않고 '있는 그대로'(행×열) 읽습니다.
+  // 매출명세는 셀 병합 때문에 머리글과 값의 열이 어긋나서, 위치로 직접 찾아야 합니다.
+  function readExcelGrid(file) {
+    return new Promise(function (resolve, reject) {
+      if (typeof XLSX === 'undefined') { reject(new Error('엑셀 판독기를 불러오지 못했습니다. 페이지를 새로고침해 주세요.')); return; }
+      var reader = new FileReader();
+      reader.onload = function () {
+        try {
+          var wb = XLSX.read(new Uint8Array(reader.result), { type: 'array' });
+          // raw:false 로 읽어 날짜·시간을 화면에 보이던 그대로(문자열) 받습니다.
+          // raw:true 면 엑셀이 날짜를 일련번호로, 시간을 소수로 넘겨 알아보기 어렵습니다.
+          resolve(XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header: 1, raw: false, defval: '' }));
+        } catch (e) { reject(new Error('엑셀 파일을 읽지 못했습니다. 프로그램에서 내려받은 원본 파일인지 확인해 주세요.')); }
+      };
+      reader.onerror = function () { reject(new Error('파일을 읽는 중 오류가 발생했습니다.')); };
+      reader.readAsArrayBuffer(file);
+    });
+  }
+
+  function cellText(v) { return String(v == null ? '' : v).trim(); }
+  // '16,500' · '₩16,500' · '-3,000' 같은 표기를 숫자로. 숫자로 볼 수 없으면 null.
+  function toAmount(v) {
+    var t = cellText(v);
+    if (!t) return null;
+    if (!/\d/.test(t)) return null;
+    if (!/^[₩\\\s]*-?[\d,]+(\.\d+)?[원\s]*$/.test(t)) return null;   // 이름·비고 같은 글자는 걸러냅니다
+    var n = Number(t.replace(/[^0-9.-]/g, ''));
+    return isFinite(n) ? n : null;
+  }
+
+  // 매출명세 파일을 거래 목록으로 바꿉니다.
+  function parseSalesGrid(grid) {
+    // 1) '발생일자'가 있는 줄을 머리글로 잡습니다.
+    var hRow = -1, head = null;
+    for (var i = 0; i < grid.length && i < 20; i++) {
+      var joined = (grid[i] || []).map(cellText).join('|');
+      if (joined.indexOf('발생일자') !== -1) { hRow = i; head = (grid[i] || []).map(cellText); break; }
+    }
+    if (hRow === -1) throw new Error("'발생일자' 열을 찾지 못했습니다. 매출명세 파일이 맞는지 확인해 주세요.");
+
+    function col(name) { return head.indexOf(name); }
+    var iDate = col('발생일자');
+    var iDesc = col('거래내용');
+    var iPay = col('카드금액');
+    var iMember = col('회원');
+    if (iDesc === -1) throw new Error("'거래내용' 열을 찾지 못했습니다.");
+    if (iPay === -1) throw new Error("'카드금액' 열을 찾지 못했습니다.");
+
+    // 금액은 결제수단 칸이 여러 개라 카드금액만 보면 현금 결제를 놓칩니다.
+    // 카드금액부터 회원 앞까지 구간에서 마지막 숫자(= 합계금액)를 씁니다.
+    var payEnd = iMember > iPay ? iMember : head.length;
+    function amountOf(row) {
+      var last = null;
+      for (var j = iPay; j < payEnd; j++) {
+        var n = toAmount(row[j]);
+        if (n) last = n;
+      }
+      if (last === null) last = toAmount(row[iPay]);
+      return last || 0;
+    }
+
+    var items = [], dates = {}, declared = null;
+    for (var r = hRow + 1; r < grid.length; r++) {
+      var row = grid[r] || [];
+      var dateRaw = cellText(row[iDate]);
+      var label = (row.map(cellText).join(' '));
+
+      // 일계 / 조회합계 줄은 대조용으로만 씁니다.
+      if (!dateRaw && /일계|조회합계|총합계|소계/.test(label)) {
+        var t = amountOf(row);
+        if (t) declared = t;
+        continue;
+      }
+      var d = normDate(dateRaw);
+      if (!d) continue;                       // 날짜가 없는 줄은 거래가 아닙니다
+      var amount = amountOf(row);
+      if (!amount) continue;
+
+      dates[d] = true;
+      // 시간은 머리글이 비어 있어서 형식으로 찾습니다.
+      var time = '';
+      for (var k = 0; k < row.length; k++) {
+        var c = cellText(row[k]);
+        if (/^\d{1,2}:\d{2}(:\d{2})?$/.test(c)) { time = c.slice(0, 5); break; }
+      }
+      // 한글 윈도우에서 원화 기호가 역슬래시로 넘어오는 경우가 있어 되돌립니다.
+      var desc = cellText(row[iDesc]).replace(/\\/g, '₩');
+      items.push({
+        date: d, time: time,
+        desc: desc,
+        member: iMember === -1 ? '' : cellText(row[iMember]),
+        amount: amount,
+        category: guessSalesCategory(desc)
+      });
+    }
+    if (!items.length) throw new Error('읽을 수 있는 거래 내역이 없습니다.');
+    return { items: items, dates: Object.keys(dates).sort(), declaredTotal: declared };
+  }
+
+  // 거래내용으로 카테고리를 추측합니다.
+  // PT 는 어느 트레이너 몫인지 파일에 없어서 비워 두고 직접 고르게 합니다.
+  function findCategory(re) {
+    for (var i = 0; i < categories.length; i++) if (re.test(categories[i].name)) return categories[i].name;
+    return '';
+  }
+  function guessSalesCategory(desc) {
+    var d = String(desc || '');
+    if (/PT|피티|퍼스널|개인지도/i.test(d)) return '';
+    if (/헬스|일일|입장|회원권|이벤트|락커|사물함|정지|연장/.test(d)) return findCategory(/퍼블릭|헬스|회원권/);
+    return '';
+  }
+
+  function siTotalsByCategory() {
+    var by = {}, unassigned = 0;
+    siItems.forEach(function (it) {
+      if (!it.category) { unassigned += it.amount; return; }
+      by[it.category] = (by[it.category] || 0) + it.amount;
+    });
+    return { by: by, unassigned: unassigned };
+  }
+
+  function renderSalesImport() {
+    if (!siItems.length) { $('siReview').hidden = true; return; }
+    $('siReview').hidden = false;
+
+    var t = siTotalsByCategory();
+    var sum = siItems.reduce(function (a, it) { return a + it.amount; }, 0);
+    var dObj = parseLocalDate(siDate);
+    $('siDateLabel').textContent = siDate + ' (' + ['일', '월', '화', '수', '목', '금', '토'][dObj.getDay()] + ')';
+    $('siSummary').textContent = '거래 ' + siItems.length + '건 · 합계 ' + won(sum);
+
+    // 파일의 일계와 대조 + 이미 쓴 업무일지가 있는지 확인
+    var warn = [];
+    if (siDeclaredTotal != null && Math.round(siDeclaredTotal) !== Math.round(sum)) {
+      warn.push('파일의 일계(' + won(siDeclaredTotal) + ')와 읽어낸 합계(' + won(sum) + ')가 다릅니다. 내역을 확인해 주세요.');
+    }
+    if (worklogs.some(function (w) { return w.date === siDate; })) {
+      warn.push(siDate + ' 업무일지가 이미 있습니다. 채우고 등록하면 같은 날짜가 두 건이 됩니다.');
+    }
+    setFormStatus('siWarn', warn.join(' / '), warn.length ? 'error' : '');
+
+    var body = $('siBody');
+    body.innerHTML = '';
+    siItems.forEach(function (it, idx) {
+      var tr = document.createElement('tr');
+      if (!it.category) tr.className = 'si-need';
+      [it.time || '-', it.desc || '-', it.member || '-'].forEach(function (v, i) {
+        var td = document.createElement('td');
+        if (i !== 1) td.className = 'nowrap';
+        td.textContent = v;
+        tr.appendChild(td);
+      });
+      var tdAmt = document.createElement('td');
+      tdAmt.className = 'num';
+      tdAmt.textContent = won(it.amount);
+      tr.appendChild(tdAmt);
+
+      var tdCat = document.createElement('td');
+      tdCat.className = 'small-input nowrap';
+      var sel = document.createElement('select');
+      var blank = document.createElement('option');
+      blank.value = ''; blank.textContent = '— 분류 선택 —';
+      sel.appendChild(blank);
+      categories.forEach(function (c) {
+        var o = document.createElement('option');
+        o.value = c.name; o.textContent = c.name;
+        if (c.name === it.category) o.selected = true;
+        sel.appendChild(o);
+      });
+      sel.addEventListener('change', function () {
+        siItems[idx].category = sel.value;
+        renderSalesImport();
+      });
+      tdCat.appendChild(sel);
+      tr.appendChild(tdCat);
+      body.appendChild(tr);
+    });
+
+    var wrap = $('siTotals');
+    wrap.innerHTML = '';
+    function chip(k, v, cls) {
+      var d = document.createElement('div');
+      d.className = 'si-total-chip' + (cls ? ' ' + cls : '');
+      var ke = document.createElement('span'); ke.className = 'k'; ke.textContent = k;
+      var ve = document.createElement('span'); ve.className = 'v'; ve.textContent = won(v);
+      d.appendChild(ke); d.appendChild(ve);
+      wrap.appendChild(d);
+    }
+    categories.forEach(function (c) { if (t.by[c.name]) chip(c.name, t.by[c.name]); });
+    if (t.unassigned) chip('분류 안 됨', t.unassigned, 'unassigned');
+    chip('합계', sum);
+
+    $('siApply').disabled = t.unassigned > 0;
+    $('siApply').textContent = t.unassigned > 0 ? '분류를 모두 골라 주세요' : '업무일지 폼에 채우기';
+  }
+
+  function handleSalesFile(file) {
+    if (!file) return;
+    $('siName').textContent = file.name;
+    setFormStatus('siStatus', file.name + ' 읽는 중…', '');
+    readExcelGrid(file).then(function (grid) {
+      var parsed = parseSalesGrid(grid);
+      if (parsed.dates.length > 1) {
+        throw new Error('여러 날짜(' + parsed.dates.join(', ') + ')가 섞여 있습니다. 하루치만 내려받아 올려 주세요.');
+      }
+      siItems = parsed.items;
+      siDate = parsed.dates[0];
+      siDeclaredTotal = parsed.declaredTotal;
+      $('siBox').classList.add('filled');
+      $('siName').textContent = file.name + ' · 거래 ' + siItems.length + '건';
+      setFormStatus('siStatus', '읽었습니다. 아래에서 분류를 확인한 뒤 폼에 채워 주세요.', 'success');
+      renderSalesImport();
+    }).catch(function (err) {
+      siItems = []; siDate = ''; siDeclaredTotal = null;
+      $('siBox').classList.remove('filled');
+      $('siName').textContent = '선택된 파일 없음';
+      $('siReview').hidden = true;
+      setFormStatus('siStatus', (err && err.message) || '파일을 읽지 못했습니다.', 'error');
+    });
+  }
+
+  (function bindSalesImport() {
+    var input = $('siFile'), box = $('siBox');
+    $('siPick').addEventListener('click', function () { input.click(); });
+    input.addEventListener('change', function () {
+      var f = this.files && this.files[0];
+      this.value = '';          // 같은 파일을 다시 골라도 동작하게
+      handleSalesFile(f);
+    });
+    ['dragenter', 'dragover'].forEach(function (ev) {
+      box.addEventListener(ev, function (e) { e.preventDefault(); box.classList.add('dragover'); });
+    });
+    ['dragleave', 'drop'].forEach(function (ev) {
+      box.addEventListener(ev, function (e) { e.preventDefault(); box.classList.remove('dragover'); });
+    });
+    box.addEventListener('drop', function (e) {
+      handleSalesFile(e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0]);
+    });
+
+    $('siApply').addEventListener('click', function () {
+      var t = siTotalsByCategory();
+      if (t.unassigned > 0) return;
+      $('wDate').value = siDate;
+      // 이 파일에 없는 카테고리는 0 이 아니라 빈칸으로 두어, 손으로 넣은 값을 지우지 않습니다.
+      categories.forEach(function (c, i) {
+        var el = $('wSalesInput_' + i);
+        if (!el) return;
+        if (t.by[c.name]) el.value = t.by[c.name];
+      });
+      var names = Object.keys(t.by).map(function (k) { return k + ' ' + won(t.by[k]); }).join(' · ');
+      setFormStatus('siStatus', siDate + ' 매출을 폼에 채웠습니다 — ' + names + '. 확인 후 등록하기를 눌러 주세요.', 'success');
+      $('wSummary').focus();
+    });
+  })();
+
   function renderAll() {
     renderVisitors();
     renderCalls();
@@ -3513,7 +3822,7 @@
             categories = data.items.map(function (c) { return { name: c.name, target: Number(c.target) || 0, weekTarget: c.weekTarget, weekTargets: c.weekTargets }; });
           }
         }
-        renderSalesFields(); renderGoalTable(); renderWorklogSummary();
+        renderSalesFields(); renderGoalTable(); renderWorklogSummary(); renderSalesImport();
       }, function () {});
 
       db.collection('lockers').orderBy('createdAt', 'desc').limit(1000).onSnapshot(function (snap) {
