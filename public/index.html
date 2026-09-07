@@ -19,7 +19,12 @@
     --text: #1D1D1F;
     --text-muted: #6E6E73;
     --text-faint: #86868B;
-    --accent: #0071E3;
+/* 달성률 4단계 — 막대는 진한 색, 라벨 칩은 같은 계열의 어두운 글자색 */
+    --lv4: #0071E3; --lv4-ink: #0058B0; --lv4-tint: #E3F0FD;   /* 달성 100%+  파랑 */
+    --lv3: #248A3D; --lv3-ink: #1A7F37; --lv3-tint: #E7F4EC;   /* 근접 70~99% 초록 */
+    --lv2: #EAB308; --lv2-ink: #8A6D00; --lv2-tint: #FBF3D9;   /* 주의 40~69% 노랑 */
+    --lv1: #D70015; --lv1-ink: #B00013; --lv1-tint: #FBE9EE;   /* 미달 40% 미만 빨강 */
+        --accent: #0071E3;
     --accent-hover: #0077ED;
     --accent-contrast: #FFFFFF;
     --accent-bg: rgba(0, 113, 227, .12);
@@ -51,6 +56,10 @@
       --text: #F5F5F7;
       --text-muted: #A1A1A6;
       --text-faint: #86868B;
+--lv4: #2997FF; --lv4-ink: #2997FF; --lv4-tint: rgba(41,151,255,.16);
+      --lv3: #30D158; --lv3-ink: #30D158; --lv3-tint: rgba(48,209,88,.16);
+      --lv2: #FFD60A; --lv2-ink: #FFD60A; --lv2-tint: rgba(255,214,10,.16);
+      --lv1: #FF453A; --lv1-ink: #FF453A; --lv1-tint: rgba(255,69,58,.16);
       --accent: #2997FF;
       --accent-hover: #4FAAFF;
       --accent-contrast: #FFFFFF;
@@ -82,6 +91,10 @@
     --text: #F5F5F7;
     --text-muted: #A1A1A6;
     --text-faint: #86868B;
+    --lv4: #2997FF; --lv4-ink: #2997FF; --lv4-tint: rgba(41,151,255,.16);
+    --lv3: #30D158; --lv3-ink: #30D158; --lv3-tint: rgba(48,209,88,.16);
+    --lv2: #FFD60A; --lv2-ink: #FFD60A; --lv2-tint: rgba(255,214,10,.16);
+    --lv1: #FF453A; --lv1-ink: #FF453A; --lv1-tint: rgba(255,69,58,.16);
     --accent: #2997FF;
     --accent-hover: #4FAAFF;
     --accent-contrast: #FFFFFF;
@@ -203,16 +216,42 @@
   .week-target-row label.current-week input { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-bg); }
   .week-target-row label.current-week { color: var(--accent); font-weight: 600; }
 
-  .stat-cards { display: flex; flex-wrap: wrap; gap: 14px; margin: 18px 0 26px; }
-  .stat-card {
-    background: var(--surface); border: 1px solid var(--border); border-radius: 16px;
-    padding: 18px; display: flex; flex-direction: column; gap: 12px; flex: 1 1 220px; min-width: 200px;
-  }
-  .stat-card h3 { margin: 0; font-size: 14px; font-weight: 600; letter-spacing: -0.012em; }
-  .ring-row { display: flex; gap: 16px; }
-  .ring-item { display: flex; flex-direction: column; align-items: center; gap: 5px; flex: 1; }
-  .ring-item .ring-cap { font-size: 11.5px; font-weight: 500; color: var(--text-muted); }
-  .ring-item .ring-num { font-size: 11px; color: var(--text-faint); text-align: center; line-height: 1.35; }
+  /* ---- 달성률 미터 (도넛 링을 대신합니다) ---- */
+  /* 화면 폭이 아니라 '이 패널의 폭'에 맞춰 열 수가 정해집니다.
+     업무일지 탭처럼 좁은 칸에서는 저절로 한 줄씩 쌓입니다. */
+  .goal-meters { display: grid; grid-template-columns: repeat(auto-fit, minmax(330px, 1fr)); gap: 0 30px; margin: 18px 0 0; }
+  .gm-card { padding: 15px 0; border-top: 1px solid var(--border); }
+  .gm-card:first-child { border-top: none; }
+  .gm-name { font-size: 14px; font-weight: 600; color: var(--text); letter-spacing: -0.01em; margin-bottom: 11px; }
+  .gm-row + .gm-row { margin-top: 12px; }
+  .gm-top { display: flex; align-items: baseline; gap: 8px; margin-bottom: 5px; }
+  .gm-period { font-size: 11.5px; color: var(--text-muted); width: 40px; flex: none; }
+  .gm-pct { font-size: 23px; font-weight: 700; letter-spacing: -0.03em; color: var(--text); line-height: 1; }
+  .gm-chip { font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 980px; letter-spacing: -0.005em; white-space: nowrap; flex: none; }
+  .gm-amt { margin-left: auto; font-size: 11.5px; color: var(--text-faint); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .gm-amt b { color: var(--text-muted); font-weight: 600; }
+  .gm-track { height: 12px; border-radius: 980px; background: var(--surface-2); overflow: hidden; }
+  .gm-fill { height: 100%; border-radius: 980px; min-width: 6px; transition: width .5s var(--ease); }
+
+  .lv1 .gm-fill, .meter-fill.lv1 { background: var(--lv1); }
+  .lv2 .gm-fill, .meter-fill.lv2 { background: var(--lv2); }
+  .lv3 .gm-fill, .meter-fill.lv3 { background: var(--lv3); }
+  .lv4 .gm-fill, .meter-fill.lv4 { background: var(--lv4); }
+  .gm-chip.lv1 { background: var(--lv1-tint); color: var(--lv1-ink); }
+  .gm-chip.lv2 { background: var(--lv2-tint); color: var(--lv2-ink); }
+  .gm-chip.lv3 { background: var(--lv3-tint); color: var(--lv3-ink); }
+  .gm-chip.lv4 { background: var(--lv4-tint); color: var(--lv4-ink); }
+  .badge-lv1 { background: var(--lv1-tint); color: var(--lv1-ink); }
+  .badge-lv2 { background: var(--lv2-tint); color: var(--lv2-ink); }
+  .badge-lv3 { background: var(--lv3-tint); color: var(--lv3-ink); }
+  .badge-lv4 { background: var(--lv4-tint); color: var(--lv4-ink); }
+
+  .goal-legend { display: flex; gap: 14px; flex-wrap: wrap; margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--border); }
+  .goal-legend span { display: flex; align-items: center; gap: 6px; font-size: 11.5px; color: var(--text-muted); }
+  .goal-legend .sw { width: 11px; height: 11px; border-radius: 3px; flex: none; }
+
+
+
 
   .layout { display: grid; grid-template-columns: 360px 1fr; gap: 24px; align-items: start; }
   .layout.even { grid-template-columns: 1fr 1fr; }
@@ -747,8 +786,10 @@
       <section class="panel">
         <h2 style="margin:0 0 4px;">목표 대비 달성</h2>
         <p class="panel-sub">이번 달(고정 기간)과 이번 주(자동으로 이번 주로 갱신)를 함께 보여줍니다</p>
-        <div class="stat-cards" id="goalCards"></div>
-        <div class="table-wrap">
+        <div class="goal-meters" id="goalCards"></div>
+        <div class="goal-legend" id="goalLegend"></div>
+        <button type="button" class="link-btn" id="goalTableToggle" style="margin-top:16px;">표로 보기 ▾</button>
+        <div class="table-wrap" id="goalTableWrap" hidden style="margin-top:10px;">
           <table>
             <thead><tr>
               <th rowspan="2">카테고리</th>
@@ -847,7 +888,8 @@
       <p class="form-status" id="otTrainerStatus"></p>
     </div>
 
-    <div class="stat-cards" id="otCards"></div>
+    <div class="goal-meters" id="otCards"></div>
+    <div class="goal-legend" id="otLegend"></div>
 
     <div class="table-wrap" style="margin-bottom:20px;">
       <table>
@@ -1477,12 +1519,10 @@
   }
 
   function applyMeter(fillEl, pct) {
-    var clamped = Math.max(0, Math.min(100, pct));
-    fillEl.style.width = clamped + '%';
-    fillEl.classList.remove('good', 'warn', 'critical');
-    if (pct >= 100) fillEl.classList.add('good');
-    else if (pct >= 70) fillEl.classList.add('warn');
-    else fillEl.classList.add('critical');
+    fillEl.style.width = Math.max(0, Math.min(100, pct)) + '%';
+    fillEl.classList.remove('good', 'warn', 'critical', 'lv1', 'lv2', 'lv3', 'lv4');
+    var lv = levelOf(pct);
+    if (lv) fillEl.classList.add(lv.key);
   }
 
   // ---- 목록 항목 삭제 ----
@@ -1579,33 +1619,76 @@
   }
 
   // ---- 원형 달성률 게이지 (카테고리별 "한눈에 보기" 카드용) ----
-  function ringSVG(pct) {
-    var p = pct === null ? 0 : Math.max(0, Math.min(100, pct));
-    var r = 24, c = 2 * Math.PI * r;
-    var offset = c - (p / 100) * c;
-    var color = pct === null ? 'var(--text-faint)' : (pct >= 100 ? 'var(--good)' : pct >= 70 ? 'var(--warn)' : 'var(--danger)');
-    return '<svg width="58" height="58" viewBox="0 0 58 58">' +
-      '<circle cx="29" cy="29" r="' + r + '" fill="none" stroke="var(--border)" stroke-width="6"></circle>' +
-      '<circle cx="29" cy="29" r="' + r + '" fill="none" stroke="' + color + '" stroke-width="6" stroke-linecap="round" ' +
-        'stroke-dasharray="' + c.toFixed(1) + '" stroke-dashoffset="' + offset.toFixed(1) + '" transform="rotate(-90 29 29)"></circle>' +
-      '<text x="29" y="34" text-anchor="middle" font-size="13" font-weight="700" fill="var(--text)">' + (pct === null ? '-' : pct + '%') + '</text>' +
-    '</svg>';
+  // 달성률 4단계. 색만으로 구분하지 않도록 라벨을 함께 씁니다
+  // (빨강↔노랑, 초록↔파랑을 구분하기 어려운 분들이 있습니다).
+  var LEVELS = [
+    { key: 'lv4', label: '달성', min: 100, range: '100% 이상' },
+    { key: 'lv3', label: '근접', min: 70, range: '70~99%' },
+    { key: 'lv2', label: '주의', min: 40, range: '40~69%' },
+    { key: 'lv1', label: '미달', min: 0, range: '40% 미만' }
+  ];
+  function levelOf(pct) {
+    if (pct === null || pct === undefined) return null;
+    for (var i = 0; i < LEVELS.length; i++) if (pct >= LEVELS[i].min) return LEVELS[i];
+    return LEVELS[LEVELS.length - 1];
   }
-  function ringItem(pct, cap, num) {
-    var div = document.createElement('div'); div.className = 'ring-item';
-    div.innerHTML = ringSVG(pct);
-    var capEl = document.createElement('div'); capEl.className = 'ring-cap'; capEl.textContent = cap;
-    div.appendChild(capEl);
-    if (num) { var numEl = document.createElement('div'); numEl.className = 'ring-num'; numEl.textContent = num; div.appendChild(numEl); }
-    return div;
+
+  // 한 줄짜리 가로 미터. 달성률을 크게, 목표·달성 금액은 작게 옆에 답니다.
+  function meterRow(period, achieved, target, fmt) {
+    fmt = fmt || won;
+    var pct = pctOf(achieved, target);
+    var lv = levelOf(pct);
+    var row = document.createElement('div');
+    row.className = 'gm-row' + (lv ? ' ' + lv.key : '');
+
+    var top = document.createElement('div'); top.className = 'gm-top';
+    var per = document.createElement('span'); per.className = 'gm-period'; per.textContent = period;
+    var num = document.createElement('span'); num.className = 'gm-pct'; num.textContent = pct === null ? '–' : pct + '%';
+    top.appendChild(per); top.appendChild(num);
+    if (lv) {
+      var chip = document.createElement('span');
+      chip.className = 'gm-chip ' + lv.key;
+      chip.textContent = lv.label;
+      top.appendChild(chip);
+    }
+    var amt = document.createElement('span'); amt.className = 'gm-amt';
+    var strong = document.createElement('b'); strong.textContent = fmt(achieved);
+    amt.appendChild(strong);
+    amt.appendChild(document.createTextNode(' / ' + (target > 0 ? fmt(target) : '목표 미설정')));
+    top.appendChild(amt);
+    row.appendChild(top);
+
+    var track = document.createElement('div'); track.className = 'gm-track';
+    var fill = document.createElement('div'); fill.className = 'gm-fill';
+    fill.style.width = (pct === null ? 0 : Math.max(0, Math.min(100, pct))) + '%';
+    if (pct === null) fill.style.background = 'var(--text-faint)';
+    track.appendChild(fill);
+    row.appendChild(track);
+    return row;
   }
-  function statCard(title, ringItems) {
-    var card = document.createElement('div'); card.className = 'stat-card';
-    var h = document.createElement('h3'); h.textContent = title; card.appendChild(h);
-    var row = document.createElement('div'); row.className = 'ring-row';
-    ringItems.forEach(function (ri) { row.appendChild(ri); });
-    card.appendChild(row);
+
+  function meterCard(name, monthAch, monthTarget, weekAch, weekTarget, fmt) {
+    var card = document.createElement('div'); card.className = 'gm-card';
+    var h = document.createElement('div'); h.className = 'gm-name'; h.textContent = name;
+    card.appendChild(h);
+    card.appendChild(meterRow('이번 달', monthAch, monthTarget, fmt));
+    card.appendChild(meterRow('이번 주', weekAch, weekTarget, fmt));
     return card;
+  }
+  function people(n) { return (Number(n) || 0).toLocaleString('ko-KR') + '명'; }
+
+  function renderGoalLegend(id) {
+    var wrap = $(id || 'goalLegend');
+    if (!wrap || wrap.childNodes.length) return;
+    LEVELS.slice().reverse().forEach(function (l) {
+      var sp = document.createElement('span');
+      var sw = document.createElement('span');
+      sw.className = 'sw';
+      sw.style.background = 'var(--' + l.key + ')';
+      sp.appendChild(sw);
+      sp.appendChild(document.createTextNode(l.label + ' · ' + l.range));
+      wrap.appendChild(sp);
+    });
   }
 
   function resultBadgeClass(r) {
@@ -2174,9 +2257,10 @@
 
   function appendPctBadge(td, pct) {
     if (pct === null) { td.textContent = '-'; return; }
+    var lv = levelOf(pct);
     var badge = document.createElement('span');
-    badge.className = 'badge ' + (pct >= 100 ? 'badge-good' : pct >= 70 ? 'badge-warn' : 'badge-danger');
-    badge.textContent = pct + '%';
+    badge.className = 'badge badge-' + lv.key;
+    badge.textContent = pct + '% ' + lv.label;
     td.appendChild(badge);
   }
 
@@ -2209,6 +2293,7 @@
 
     var body = $('otTrainerBody'); body.innerHTML = '';
     var cardsWrap = $('otCards'); cardsWrap.innerHTML = '';
+    renderGoalLegend('otLegend');
     otTrainers.forEach(function (t) {
       var mStat = otAchievement(monthSessions.filter(function (e) { return e.trainer === t.name; }));
       var wStat = otAchievement(weekSessions.filter(function (e) { return e.trainer === t.name; }));
@@ -2230,10 +2315,7 @@
       var tdConvRate = document.createElement('td'); tdConvRate.className = 'num'; tdConvRate.textContent = cRate === null ? '-' : cRate + '%'; tr.appendChild(tdConvRate);
       body.appendChild(tr);
 
-      cardsWrap.appendChild(statCard(t.name, [
-        ringItem(tRate, '월', mStat.achieved + '명 / ' + (Number(t.target) > 0 ? t.target + '건' : '목표 미설정')),
-        ringItem(wRate, '주', wStat.achieved + '명 / ' + (tWeekTarget > 0 ? tWeekTarget + '건' : '목표 미설정')),
-      ]));
+      cardsWrap.appendChild(meterCard(t.name, mStat.achieved, Number(t.target) || 0, wStat.achieved, tWeekTarget, people));
     });
 
     // 개요 탭: 이번 달 OT 누적 타일도 실제 등록 인원 기준으로 표시
@@ -2615,6 +2697,7 @@
     var range = monthAndWeekRange();
     var body = $('goalBody'); body.innerHTML = '';
     var cardsWrap = $('goalCards'); cardsWrap.innerHTML = '';
+    renderGoalLegend('goalLegend');
     var totalMonthTarget = 0, totalMonthAch = 0, totalWeekTarget = 0, totalWeekAch = 0;
 
     categories.forEach(function (c) {
@@ -2624,10 +2707,7 @@
       totalMonthTarget += monthTarget; totalMonthAch += monthAch;
       totalWeekTarget += weekTarget; totalWeekAch += weekAch;
       body.appendChild(goalRow(c.name, monthTarget, monthAch, weekTarget, weekAch));
-      cardsWrap.appendChild(statCard(c.name, [
-        ringItem(pctOf(monthAch, monthTarget), '월', won(monthAch) + ' / ' + (monthTarget > 0 ? won(monthTarget) : '목표 미설정')),
-        ringItem(pctOf(weekAch, weekTarget), '주', won(weekAch) + ' / ' + (weekTarget > 0 ? won(weekTarget) : '목표 미설정')),
-      ]));
+      cardsWrap.appendChild(meterCard(c.name, monthAch, monthTarget, weekAch, weekTarget));
     });
 
     var totalTr = goalRow('합계', totalMonthTarget, totalMonthAch, totalWeekTarget, totalWeekAch);
@@ -2646,8 +2726,9 @@
       var pct = pctOf(achieved, target);
       if (pct !== null) {
         var badge = document.createElement('span');
-        badge.className = 'badge ' + (pct >= 100 ? 'badge-good' : pct >= 70 ? 'badge-warn' : 'badge-danger');
-        badge.textContent = pct + '%';
+        var lv = levelOf(pct);
+        badge.className = 'badge badge-' + lv.key;
+        badge.textContent = pct + '% ' + lv.label;
         tdPct.appendChild(badge);
       } else { tdPct.textContent = '-'; }
       tr.appendChild(tdPct);
@@ -3740,6 +3821,16 @@
       var names = Object.keys(t.by).map(function (k) { return k + ' ' + won(t.by[k]); }).join(' · ');
       setFormStatus('siStatus', siDate + ' 매출을 폼에 채웠습니다 — ' + names + '. 확인 후 등록하기를 눌러 주세요.', 'success');
       $('wSummary').focus();
+    });
+  })();
+
+  // 그래프를 먼저 보고, 정확한 금액이 필요할 때만 표를 펼칩니다.
+  (function bindGoalTableToggle() {
+    var btn = $('goalTableToggle'), wrap = $('goalTableWrap');
+    if (!btn || !wrap) return;
+    btn.addEventListener('click', function () {
+      wrap.hidden = !wrap.hidden;
+      btn.textContent = wrap.hidden ? '표로 보기 ▾' : '표 접기 ▴';
     });
   })();
 
