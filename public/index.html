@@ -250,6 +250,10 @@
   .badge-lv3 { background: var(--lv3-tint); color: var(--lv3-ink); }
   .badge-lv4 { background: var(--lv4-tint); color: var(--lv4-ink); }
 
+  .cat-target-table th, .cat-target-table td { padding: 9px 12px; font-size: 13px; }
+  .cat-target-table .col-now { background: var(--accent-bg); color: var(--accent); font-weight: 600; }
+  .cat-target-table thead th.col-now { color: var(--accent); }
+
   .goal-legend { display: flex; gap: 14px; flex-wrap: wrap; margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--border); }
   .goal-legend span { display: flex; align-items: center; gap: 6px; font-size: 11.5px; color: var(--text-muted); }
   .goal-legend .sw { width: 11px; height: 11px; border-radius: 3px; flex: none; }
@@ -704,12 +708,17 @@
       <h2 style="font-size:16px;">매출 카테고리 · 월/주차 목표</h2>
       <button type="button" class="link-btn" id="catEditBtn">카테고리·목표 수정</button>
     </div>
-    <p class="panel-sub" id="catSummaryText" style="margin-bottom:14px;">불러오는 중…</p>
+    <p class="panel-sub" id="catSummaryText" style="margin-bottom:10px;">불러오는 중…</p>
+    <div class="table-wrap" id="catTargetWrap" style="margin-bottom:16px;">
+      <table class="cat-target-table">
+        <thead><tr id="catTargetHead"></tr></thead>
+        <tbody id="catTargetBody"></tbody>
+      </table>
+    </div>
 
     <div class="panel" id="catEditPanel" hidden style="margin-bottom:20px;">
       <p class="panel-sub" style="margin-top:0;">1~5주차 목표를 미리 입력해두면, 매주 해당 주차 목표가 자동으로 적용됩니다.
         (주차 기준: 그 주 <strong>월요일</strong>이 속한 달의 몇 번째 주)</p>
-      <div class="cat-editor-head"><span>카테고리명</span><span>월 목표</span><span></span></div>
       <div id="catEditorRows"></div>
       <button type="button" class="submit-btn ghost small" id="catAddBtn" style="margin-bottom:12px;">+ 카테고리 추가</button>
       <div class="edit-inline">
@@ -2549,7 +2558,7 @@
     var wrap = $('catEditorRows');
     wrap.innerHTML = '';
     var head = document.createElement('div'); head.className = 'cat-editor-head';
-    head.innerHTML = '<span>카테고리명</span><span>월 목표</span><span>주 목표</span><span></span>';
+    head.innerHTML = '<span>카테고리명</span><span>월 목표</span><span></span>';
     wrap.appendChild(head);
     categories.forEach(function (c, i) {
       var row = document.createElement('div'); row.className = 'cat-editor-row';
@@ -2723,6 +2732,64 @@
 
   function pctOf(achieved, target) { return target > 0 ? Math.round((achieved / target) * 100) : null; }
 
+  // 카테고리별 목표를 한 줄로 이어 쓰면 읽기 어려워서 표로 보여 줍니다.
+  // 이번 주에 해당하는 주차 칸은 색으로 짚어 줍니다.
+  function renderCatTargetTable() {
+    var head = $('catTargetHead'), body = $('catTargetBody'), note = $('catSummaryText');
+    if (!head || !body) return;
+    if (!categories.length) {
+      note.textContent = '설정된 카테고리가 없습니다.';
+      $('catTargetWrap').hidden = true;
+      return;
+    }
+    $('catTargetWrap').hidden = false;
+    var cur = weekOfMonthIndex();
+    note.textContent = '이번 주는 ' + cur + '주차입니다'
+      + (cur > WEEK_SLOTS ? ' — 목표 칸은 5주차까지라 이번 주는 목표가 없습니다.' : '.');
+
+    head.innerHTML = '';
+    ['카테고리', '월 목표'].concat(
+      Array.apply(null, { length: WEEK_SLOTS }).map(function (_, i) { return (i + 1) + '주차'; })
+    ).forEach(function (label, i) {
+      var th = document.createElement('th');
+      if (i >= 1) th.className = 'num';
+      if (i >= 2 && (i - 1) === cur) th.classList.add('col-now');
+      th.textContent = label + (i >= 2 && (i - 1) === cur ? ' (이번 주)' : '');
+      head.appendChild(th);
+    });
+
+    body.innerHTML = '';
+    var totals = { month: 0, weeks: [] };
+    categories.forEach(function (c) {
+      var tr = document.createElement('tr');
+      var td = document.createElement('td'); td.textContent = c.name; tr.appendChild(td);
+      var mt = Number(c.target) || 0;
+      totals.month += mt;
+      var tdM = document.createElement('td'); tdM.className = 'num'; tdM.textContent = mt > 0 ? won(mt) : '-';
+      tr.appendChild(tdM);
+      normalizeWeekTargets(c).forEach(function (v, i) {
+        totals.weeks[i] = (totals.weeks[i] || 0) + (Number(v) || 0);
+        var tdW = document.createElement('td');
+        tdW.className = 'num' + ((i + 1) === cur ? ' col-now' : '');
+        tdW.textContent = Number(v) > 0 ? won(v) : '-';
+        tr.appendChild(tdW);
+      });
+      body.appendChild(tr);
+    });
+
+    var trT = document.createElement('tr');
+    trT.style.fontWeight = '700';
+    var tdL = document.createElement('td'); tdL.textContent = '합계'; trT.appendChild(tdL);
+    var tdMT = document.createElement('td'); tdMT.className = 'num'; tdMT.textContent = won(totals.month); trT.appendChild(tdMT);
+    for (var i = 0; i < WEEK_SLOTS; i++) {
+      var tdWT = document.createElement('td');
+      tdWT.className = 'num' + ((i + 1) === cur ? ' col-now' : '');
+      tdWT.textContent = won(totals.weeks[i] || 0);
+      trT.appendChild(tdWT);
+    }
+    body.appendChild(trT);
+  }
+
   function renderGoalTable() {
     var range = monthAndWeekRange();
     var body = $('goalBody'); body.innerHTML = '';
@@ -2815,8 +2882,7 @@
     $('ovSalesWeekSub').textContent = weekTarget > 0 ? '이번 주 목표 대비 달성률' : '목표 미설정';
     $('wSalesWeekSub').textContent = won(weekAchieved) + ' / ' + (weekTarget > 0 ? won(weekTarget) : '목표 미설정');
 
-    var catSummary = categories.map(function (c) { return c.name + ' 월 ' + won(c.target) + ' · ' + weekOfMonthIndex() + '주차 ' + won(currentWeekTarget(c)); }).join(' / ');
-    $('catSummaryText').textContent = categories.length ? catSummary : '설정된 카테고리가 없습니다.';
+    renderCatTargetTable();
   }
 
   function renderOverview() {
