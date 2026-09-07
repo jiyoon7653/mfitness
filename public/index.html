@@ -224,6 +224,10 @@
   .gm-card:first-child { border-top: none; }
   .gm-name { font-size: 14px; font-weight: 600; color: var(--text); letter-spacing: -0.01em; margin-bottom: 11px; }
   .gm-row + .gm-row { margin-top: 12px; }
+  /* 지난주는 지나간 기록이라 한 톤 죽여, 이번 주에 눈이 먼저 가게 합니다. */
+  .gm-row-prev { opacity: .72; }
+  .gm-row-prev .gm-pct { font-size: 18px; }
+  .gm-row-prev .gm-track { height: 8px; }
   .gm-top { display: flex; align-items: baseline; gap: 8px; margin-bottom: 5px; }
   .gm-period { font-size: 11.5px; color: var(--text-muted); width: 40px; flex: none; }
   .gm-pct { font-size: 23px; font-weight: 700; letter-spacing: -0.03em; color: var(--text); line-height: 1; }
@@ -785,7 +789,7 @@
 
       <section class="panel">
         <h2 style="margin:0 0 4px;">목표 대비 달성</h2>
-        <p class="panel-sub">이번 달(고정 기간)과 이번 주(자동으로 이번 주로 갱신)를 함께 보여줍니다</p>
+        <p class="panel-sub">이번 달 · 이번 주와 함께 <span id="goalPrevNote"></span> 지난주 기록도 보여줍니다</p>
         <div class="goal-meters" id="goalCards"></div>
         <div class="goal-legend" id="goalLegend"></div>
         <button type="button" class="link-btn" id="goalTableToggle" style="margin-top:16px;">표로 보기 ▾</button>
@@ -795,7 +799,9 @@
               <th rowspan="2">카테고리</th>
               <th colspan="3" style="text-align:center;">이번 달</th>
               <th colspan="3" style="text-align:center;">이번 주</th>
+              <th colspan="3" style="text-align:center;">지난주</th>
             </tr><tr>
+              <th>목표</th><th>달성</th><th>달성률</th>
               <th>목표</th><th>달성</th><th>달성률</th>
               <th>목표</th><th>달성</th><th>달성률</th>
             </tr></thead>
@@ -1667,12 +1673,17 @@
     return row;
   }
 
-  function meterCard(name, monthAch, monthTarget, weekAch, weekTarget, fmt) {
+  function meterCard(name, monthAch, monthTarget, weekAch, weekTarget, fmt, prevAch, prevTarget) {
     var card = document.createElement('div'); card.className = 'gm-card';
     var h = document.createElement('div'); h.className = 'gm-name'; h.textContent = name;
     card.appendChild(h);
     card.appendChild(meterRow('이번 달', monthAch, monthTarget, fmt));
     card.appendChild(meterRow('이번 주', weekAch, weekTarget, fmt));
+    if (prevTarget !== undefined || prevAch !== undefined) {
+      var row = meterRow('지난주', prevAch || 0, prevTarget || 0, fmt);
+      row.classList.add('gm-row-prev');   // 지난 기록이라 한 톤 흐리게
+      card.appendChild(row);
+    }
     return card;
   }
   function people(n) { return (Number(n) || 0).toLocaleString('ko-KR') + '명'; }
@@ -2670,13 +2681,32 @@
   }
 
   // 이번 달(고정)과 이번 주(항상 "지금" 기준으로 자동 갱신) 범위를 함께 반환합니다.
+  // 지난주 = 달 경계로 자른 주 중 이번 주 바로 앞의 주.
+  // 이번 주가 그 달 1주차면 지난달의 마지막 주가 됩니다.
+  function prevMonthWeek(d) {
+    var base = d || new Date();
+    var cur = monthWeekOf(base);
+    if (!cur) return null;
+    if (cur.index > 1) return monthWeeksOf(base)[cur.index - 2];
+    var lastDayPrev = new Date(cur.start.getFullYear(), cur.start.getMonth(), 0);
+    var pw = monthWeeksOf(lastDayPrev);
+    return pw[pw.length - 1];
+  }
+  // 주차 배열이 있으면 그 주차 목표를, 없으면 예전 단일 weekTarget 값을 씁니다.
+  function weekTargetForIndex(item, idx) {
+    if (!Array.isArray(item.weekTargets)) return Number(item.weekTarget) || 0;
+    if (idx > WEEK_SLOTS) return 0;
+    return Number(normalizeWeekTargets(item)[idx - 1]) || 0;
+  }
   function monthAndWeekRange() {
     var now = new Date();
     var monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
     var monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 1);
     // 이번 주도 달 경계에서 자릅니다 — 이번 달 화면에 지난 달 매출이 섞이지 않게.
     var w = monthWeekOf(now);
-    return { monthStart: monthStart, monthEnd: monthEnd, weekStart: w.start, weekEnd: w.end };
+    var pw = prevMonthWeek(now);
+    return { monthStart: monthStart, monthEnd: monthEnd, weekStart: w.start, weekEnd: w.end,
+             weekIndex: w.index, prevWeek: pw };
   }
 
   function sumSalesInRange(catName, start, end) {
@@ -2698,27 +2728,35 @@
     var body = $('goalBody'); body.innerHTML = '';
     var cardsWrap = $('goalCards'); cardsWrap.innerHTML = '';
     renderGoalLegend('goalLegend');
-    var totalMonthTarget = 0, totalMonthAch = 0, totalWeekTarget = 0, totalWeekAch = 0;
+    var pw = range.prevWeek;
+    var prevLabel = pw ? '지난주 (' + (pw.start.getMonth() + 1) + '/' + pw.start.getDate() + '~'
+      + (new Date(pw.end - 86400000).getMonth() + 1) + '/' + new Date(pw.end - 86400000).getDate() + ')' : '지난주';
+    $('goalPrevNote').textContent = pw ? prevLabel + ' 기준 ·' : '';
+
+    var tot = { mT: 0, mA: 0, wT: 0, wA: 0, pT: 0, pA: 0 };
 
     categories.forEach(function (c) {
       var monthTarget = Number(c.target) || 0, weekTarget = currentWeekTarget(c);
       var monthAch = sumSalesInRange(c.name, range.monthStart, range.monthEnd);
       var weekAch = sumSalesInRange(c.name, range.weekStart, range.weekEnd);
-      totalMonthTarget += monthTarget; totalMonthAch += monthAch;
-      totalWeekTarget += weekTarget; totalWeekAch += weekAch;
-      body.appendChild(goalRow(c.name, monthTarget, monthAch, weekTarget, weekAch));
-      cardsWrap.appendChild(meterCard(c.name, monthAch, monthTarget, weekAch, weekTarget));
+      var prevTarget = pw ? weekTargetForIndex(c, pw.index) : 0;
+      var prevAch = pw ? sumSalesInRange(c.name, pw.start, pw.end) : 0;
+      tot.mT += monthTarget; tot.mA += monthAch;
+      tot.wT += weekTarget; tot.wA += weekAch;
+      tot.pT += prevTarget; tot.pA += prevAch;
+      body.appendChild(goalRow(c.name, monthTarget, monthAch, weekTarget, weekAch, prevTarget, prevAch));
+      cardsWrap.appendChild(meterCard(c.name, monthAch, monthTarget, weekAch, weekTarget, null, prevAch, prevTarget));
     });
 
-    var totalTr = goalRow('합계', totalMonthTarget, totalMonthAch, totalWeekTarget, totalWeekAch);
+    var totalTr = goalRow('합계', tot.mT, tot.mA, tot.wT, tot.wA, tot.pT, tot.pA);
     totalTr.style.fontWeight = '700';
     body.appendChild(totalTr);
   }
 
-  function goalRow(label, monthTarget, monthAch, weekTarget, weekAch) {
+  function goalRow(label, monthTarget, monthAch, weekTarget, weekAch, prevTarget, prevAch) {
     var tr = document.createElement('tr');
     var tdLabel = document.createElement('td'); tdLabel.textContent = label; tr.appendChild(tdLabel);
-    [[monthTarget, monthAch], [weekTarget, weekAch]].forEach(function (pair) {
+    [[monthTarget, monthAch], [weekTarget, weekAch], [prevTarget || 0, prevAch || 0]].forEach(function (pair) {
       var target = pair[0], achieved = pair[1];
       var tdTarget = document.createElement('td'); tdTarget.className = 'num'; tdTarget.textContent = target > 0 ? won(target) : '-'; tr.appendChild(tdTarget);
       var tdAch = document.createElement('td'); tdAch.className = 'num'; tdAch.textContent = won(achieved); tr.appendChild(tdAch);
