@@ -1,7 +1,7 @@
 name: Firebase Hosting 자동 배포
 
 # main 브랜치가 바뀔 때마다 Firebase Hosting(무료)으로 배포합니다.
-# Netlify의 배포당 크레딧 과금과 달리, Firebase Hosting은 이 규모(직원 4명)에서
+# Firebase Hosting은 배포마다 과금되지 않고, 이 규모(직원 4명)에서
 # 무료 한도(하루 전송량 360MB, 저장 10GB)에 사실상 걸리지 않습니다.
 on:
   push:
