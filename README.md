@@ -573,15 +573,20 @@ Firestore `lessonSettings/config` 문서에 `introText` 필드(문자열)를 넣
 
 **준비 (한 번만)** — GitHub → Settings → Secrets and variables → Actions
 
+**운영 리포트를 이미 쓰고 계시면 추가로 넣을 것이 없습니다.**
+같은 봇(`TELEGRAM_BOT_TOKEN`)과 같은 대화방(`TELEGRAM_CHAT_ID`)을 그대로 씁니다.
+
 | 비밀값 | 내용 |
 |---|---|
-| `TELEGRAM_BOT_TOKEN` | 운영 리포트에서 쓰던 것 그대로 (이미 있으면 추가 안 해도 됩니다) |
-| `TELEGRAM_LESSON_CHAT_ID` | **레슨 알림을 받을 대화방 ID** |
+| `TELEGRAM_BOT_TOKEN` | 운영 리포트에서 쓰던 것 그대로 |
+| `TELEGRAM_CHAT_ID` | 운영 리포트에서 쓰던 것 그대로 |
 | `FIREBASE_SERVICE_ACCOUNT` | 이미 있는 것 그대로 |
+| `TELEGRAM_LESSON_CHAT_ID` | **선택** — 레슨 알림만 다른 방으로 받고 싶을 때. 있으면 이쪽이 우선입니다 |
 
-대화방 ID 는 헬스장 운영 리포트(`TELEGRAM_CHAT_ID`)와 **일부러 분리**했습니다.
-신청자의 이름·연락처·통증 기록이 담긴 알림이라, 직원들이 함께 보는 방으로 잘못 가지 않게 하려는 것입니다.
-같은 방으로 받으시려면 `TELEGRAM_CHAT_ID` 와 같은 값을 넣으시면 됩니다.
+알림에는 신청자의 **이름·연락처·통증 기록**이 들어갑니다. 여러 사람이 보는 그룹으로 가고 있지 않은지
+확인하실 수 있게, 실행 기록 첫 줄에 `알림 대상: TELEGRAM_CHAT_ID (개인 대화 · 김지윤)` 처럼
+어디로 보내는지 찍습니다. 직원 그룹으로 가고 있다면 `TELEGRAM_LESSON_CHAT_ID` 에
+따로 받을 방을 넣으시면 그쪽으로만 갑니다.
 
 서비스 계정에 **Cloud Datastore 사용자**(Cloud Datastore User) 역할이 필요합니다.
 없으면 실행 기록에 403 과 함께 어디서 역할을 주면 되는지 주소가 찍힙니다.
@@ -595,7 +600,7 @@ Firestore `lessonSettings/config` 문서에 `introText` 필드(문자열)를 넣
 - 한 건 보낼 때마다 기준점을 옮기므로 **같은 신청을 두 번 보내지 않습니다.**
 - 알림에는 접수번호·이름·연락처·희망 일정·목표·통증 기록과 **대기 순번**, 관리자 화면 주소가 들어갑니다.
 
-`TELEGRAM_LESSON_CHAT_ID` 를 넣기 전까지 **예약 실행은 조용히 넘어갑니다.**
+대화방 ID 가 아예 없으면 **예약 실행은 조용히 넘어갑니다.**
 5분마다 빨갛게 실패해서 알림 메일만 쌓이는 걸 막으려는 것입니다.
 손으로 실행하면 무엇이 빠졌는지 오류로 알려 줍니다.
 
