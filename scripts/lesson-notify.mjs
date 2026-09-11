@@ -10,7 +10,9 @@
 //
 // 필요한 환경변수(= GitHub Secrets):
 //   TELEGRAM_BOT_TOKEN        기존 운영 리포트와 같은 봇을 씁니다
-//   TELEGRAM_LESSON_CHAT_ID   레슨 알림을 받을 대화방 ID (운영 리포트와 별도로 지정)
+//   TELEGRAM_CHAT_ID          알림을 받을 대화방 ID (운영 리포트와 같은 값을 그대로 씁니다)
+// 선택:
+//   TELEGRAM_LESSON_CHAT_ID   레슨 알림만 다른 방으로 받고 싶을 때. 있으면 이쪽이 우선입니다.
 //   GOOGLE_APPLICATION_CREDENTIALS  서비스 계정 JSON 파일 경로 (워크플로가 만들어 줍니다)
 // 선택 환경변수:
 //   DRY_RUN=1   전송하지 않고 무엇을 보낼지 출력만 합니다
@@ -172,6 +174,21 @@ function buildMessage(r, rank, waiting, adminUrl) {
   return lines.join('\n');
 }
 
+// 알림에 신청자의 이름·연락처·통증 기록이 들어갑니다. 그래서 어디로 가는지를
+// 실행 기록에 남깁니다 — 여러 사람이 보는 그룹이면 바로 알아볼 수 있게.
+async function describeChat(botToken, chatId) {
+  try {
+    const r = await fetch(`${TELEGRAM_API}/bot${botToken}/getChat?chat_id=${encodeURIComponent(chatId)}`);
+    const j = await r.json();
+    if (!j.ok) return '';
+    const type = j.result.type === 'private' ? '개인 대화' : '그룹';
+    const who = j.result.title || [j.result.first_name, j.result.last_name].filter(Boolean).join(' ') || '';
+    return type + (who ? ' · ' + who : '');
+  } catch {
+    return '';
+  }
+}
+
 async function sendTelegram(botToken, chatId, text) {
   const r = await fetch(`${TELEGRAM_API}/bot${botToken}/sendMessage`, {
     method: 'POST',
@@ -186,17 +203,19 @@ async function sendTelegram(botToken, chatId, text) {
 async function main() {
   const projectId = loadProjectId();
   const botToken = process.env.TELEGRAM_BOT_TOKEN;
-  const chatId = process.env.TELEGRAM_LESSON_CHAT_ID;
+  // 레슨 전용 방을 따로 지정했으면 그쪽으로, 아니면 운영 리포트와 같은 방으로 보냅니다.
+  const lessonChat = (process.env.TELEGRAM_LESSON_CHAT_ID || '').trim();
+  const sharedChat = (process.env.TELEGRAM_CHAT_ID || '').trim();
+  const chatId = lessonChat || sharedChat;
+  const chatSource = lessonChat ? 'TELEGRAM_LESSON_CHAT_ID' : 'TELEGRAM_CHAT_ID';
 
   if (!projectId) throw new Error('firebase-config.js 에서 projectId 를 읽지 못했습니다.');
   if (!botToken) throw new Error('TELEGRAM_BOT_TOKEN 이 설정되지 않았습니다.');
   if (!chatId) {
     const guide =
-      'TELEGRAM_LESSON_CHAT_ID 가 설정되지 않았습니다.\n' +
-      '  GitHub → Settings → Secrets and variables → Actions 에서 추가해 주세요.\n' +
-      '  신청자의 이름·연락처·통증 기록이 담긴 알림이라, 헬스장 운영 리포트가 가는 대화방과\n' +
-      '  섞이지 않도록 레슨 알림용 대화방 ID 를 따로 지정하도록 했습니다.\n' +
-      '  같은 방으로 받으시려면 TELEGRAM_CHAT_ID 와 같은 값을 넣으시면 됩니다.';
+      '보낼 대화방을 찾지 못했습니다.\n' +
+      '  GitHub → Settings → Secrets and variables → Actions 에 TELEGRAM_CHAT_ID 가 있어야 합니다.\n' +
+      '  레슨 알림만 다른 방으로 받고 싶으면 TELEGRAM_LESSON_CHAT_ID 를 따로 넣으세요.';
     // 5분마다 도는 예약 실행까지 빨갛게 실패하면 알림 메일만 쌓입니다.
     // 설정 전에는 조용히 넘어가고, 손으로 실행했을 때만 오류로 알립니다.
     if (process.env.EVENT_NAME === 'schedule') {
@@ -207,6 +226,9 @@ async function main() {
   }
 
   const adminUrl = `https://${projectId}.web.app/lesson-admin`;
+  const where = await describeChat(botToken, chatId);
+  console.log(`알림 대상: ${chatSource}${where ? ' (' + where + ')' : ''}`);
+
   const token = await accessToken();
 
   const lastSeq = await readMarker(projectId, token);
@@ -223,7 +245,9 @@ async function main() {
     if (!DRY_RUN) {
       await writeMarker(projectId, token, start);
       await sendTelegram(botToken, chatId,
-        '✅ 개인레슨 신규 신청 알림이 연결되었습니다.\n지금부터 새로 들어오는 신청을 이 방으로 보냅니다.\n\n' + adminUrl);
+        '✅ 개인레슨 신규 신청 알림이 연결되었습니다.\n' +
+        '지금부터 새로 들어오는 신청을 이 방으로 보냅니다.\n' +
+        '신청자의 이름·연락처·통증 기록이 함께 옵니다.\n\n' + adminUrl);
     }
     return;
   }

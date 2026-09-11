@@ -41,6 +41,9 @@ jobs:
       - name: 새 신청 확인하고 알림 전송
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          # 운영 리포트와 같은 방으로 보냅니다.
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          # 레슨 알림만 다른 방으로 받고 싶을 때만 넣으면 됩니다(있으면 이쪽이 우선).
           TELEGRAM_LESSON_CHAT_ID: ${{ secrets.TELEGRAM_LESSON_CHAT_ID }}
           DRY_RUN: ${{ github.event.inputs.dry_run }}
           # 대화방 ID 를 아직 안 넣었을 때, 예약 실행은 조용히 넘어가고
