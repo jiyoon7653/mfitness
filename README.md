@@ -78,8 +78,11 @@ firebase deploy           # 페이지 + 보안 규칙 한 번에 배포
 `main` 브랜치가 바뀔 때마다 `.github/workflows/deploy-hosting.yml` 이 자동으로
 **Firebase Hosting**에 배포합니다. Firebase Hosting은 이 저장소가 이미 쓰고 있는
 Firebase 프로젝트에 포함된 기능이라 **별도 가입이나 결제 수단 등록이 필요 없고**,
-Netlify처럼 배포마다 별도로 과금되는 "크레딧" 개념도 없습니다(무료 한도: 하루
+배포할 때마다 과금되는 "크레딧" 개념도 없습니다(무료 한도: 하루
 전송량 360MB, 저장 10GB — 직원 4명 사용량엔 사실상 무제한).
+
+> 예전에는 Netlify로도 배포했지만, 배포마다 크레딧이 깎여서 Firebase Hosting으로 옮겼습니다.
+> 관련 설정(`netlify.toml`)과 안내는 저장소에서 지웠습니다.
 
 한 번만 설정하면 됩니다:
 
@@ -97,45 +100,15 @@ Netlify처럼 배포마다 별도로 과금되는 "크레딧" 개념도 없습�
 (`https://<프로젝트id>.web.app`)에 새 버전이 올라갑니다. 서비스 계정 키는
 비밀번호와 같으니 GitHub Secret 외에는 어디에도 붙여넣지 마세요.
 
-**참고 — 새로 만든 이 워크플로가 방법 B-1(Netlify)의 자동 배포를 대체합니다.**
-Netlify를 계속 켜둘 필요가 없다면 Netlify 대시보드에서 **Site settings →
-Danger zone → Delete site**로 정리하고, `netlify.toml` 파일도 지워도 됩니다
-(안 지워도 동작에는 지장 없습니다 — 그냥 안 쓰는 설정 파일로 남을 뿐입니다).
-
 ### 방법 B — CLI 없이
 
 1. **보안 규칙**: 콘솔 → Firestore Database → **규칙** 탭 → `firestore.rules` 내용을 붙여넣고 **게시**
 2. **페이지**: `public/` 폴더 안의 파일(`index.html`, `payroll.html`, `lesson.html`,
    `lesson-admin.html`, `firebase-config.js`, `vendor/`)을 원하는 정적 호스팅
-   (Netlify, Cloudflare Pages, 기존 웹호스팅의 `html` 폴더 등)에 그대로 올립니다.
+   (Cloudflare Pages, 기존 웹호스팅의 `html` 폴더 등)에 그대로 올립니다.
    HTML 들과 `firebase-config.js` 는 **같은 폴더**에 있어야 합니다.
 3. Firebase 콘솔 → Authentication → **설정 → 승인된 도메인**에 그 호스팅 도메인을 추가하세요.
    (이걸 빠뜨리면 로그인이 막혀서 저장이 안 됩니다.)
-
-### 방법 B-1 — Netlify에 GitHub 저장소 연결 (더 이상 쓰지 않음, 참고용)
-
-매번 zip을 받아서 드래그하는 대신, 한 번만 연결해두면 그 뒤로는 이 저장소의
-`main` 브랜치가 바뀔 때마다 Netlify가 알아서 새로 배포합니다.
-
-**주의 — Netlify는 배포마다 "크레딧"을 씁니다.** Netlify의 최신 요금제는 빌드
-시간·대역폭 등을 통합한 크레딧 방식이라, 개발 중 자주 배포하면 무료 한도를
-금방 채울 수 있습니다(실제로 이 프로젝트도 이 문제로 방법 A-1로 옮겼습니다).
-Firebase Hosting(방법 A-1)에는 이런 배포당 과금이 없으니, 새로 설정한다면
-Netlify 대신 방법 A-1을 쓰세요.
-
-1. https://app.netlify.com 로그인 → **Add new site → Import an existing project**
-2. **Deploy with GitHub** 선택 → 처음이면 GitHub 인증 화면이 뜹니다 → 저장소 목록에서
-   `jiyoon7653/mfitness` 선택
-   (목록에 안 보이면 "Configure the Netlify GitHub App" 링크로 들어가 저장소 접근 권한을 추가하세요)
-3. 배포 설정 화면 — 저장소에 `netlify.toml` 파일이 있어서 **Publish directory가 자동으로
-   `public` 으로 채워집니다.** Build command는 비워둔 채로 **Deploy** 클릭
-4. 몇 초 뒤 배포되고 주소가 나옵니다. Site settings에서 **Change site name** 으로
-   원하는 이름으로 바꿀 수 있습니다 (예: `mfitness.netlify.app`)
-5. Firebase 콘솔 → Authentication → **설정 → 승인된 도메인**에 이 Netlify 주소를 추가하세요
-
-이후로는 **아무것도 안 하셔도** 됩니다 — 코드가 고쳐져서 `main`에 올라갈 때마다
-Netlify가 1분 내로 같은 주소에 새 버전을 올립니다. Netlify 대시보드의 **Deploys** 탭에서
-배포 이력을 볼 수 있습니다.
 
 ---
 
