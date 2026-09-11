@@ -191,11 +191,19 @@ async function main() {
   if (!projectId) throw new Error('firebase-config.js 에서 projectId 를 읽지 못했습니다.');
   if (!botToken) throw new Error('TELEGRAM_BOT_TOKEN 이 설정되지 않았습니다.');
   if (!chatId) {
-    throw new Error(
+    const guide =
       'TELEGRAM_LESSON_CHAT_ID 가 설정되지 않았습니다.\n' +
+      '  GitHub → Settings → Secrets and variables → Actions 에서 추가해 주세요.\n' +
       '  신청자의 이름·연락처·통증 기록이 담긴 알림이라, 헬스장 운영 리포트가 가는 대화방과\n' +
       '  섞이지 않도록 레슨 알림용 대화방 ID 를 따로 지정하도록 했습니다.\n' +
-      '  같은 방으로 받으시려면 TELEGRAM_CHAT_ID 와 같은 값을 넣으시면 됩니다.');
+      '  같은 방으로 받으시려면 TELEGRAM_CHAT_ID 와 같은 값을 넣으시면 됩니다.';
+    // 5분마다 도는 예약 실행까지 빨갛게 실패하면 알림 메일만 쌓입니다.
+    // 설정 전에는 조용히 넘어가고, 손으로 실행했을 때만 오류로 알립니다.
+    if (process.env.EVENT_NAME === 'schedule') {
+      console.log('아직 설정 전이라 건너뜁니다.\n' + guide);
+      return;
+    }
+    throw new Error(guide);
   }
 
   const adminUrl = `https://${projectId}.web.app/lesson-admin`;

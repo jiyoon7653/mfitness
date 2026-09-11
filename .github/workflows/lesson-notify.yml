@@ -43,4 +43,7 @@ jobs:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_LESSON_CHAT_ID: ${{ secrets.TELEGRAM_LESSON_CHAT_ID }}
           DRY_RUN: ${{ github.event.inputs.dry_run }}
+          # 대화방 ID 를 아직 안 넣었을 때, 예약 실행은 조용히 넘어가고
+          # 손으로 실행했을 때만 오류로 알려 주기 위한 값입니다.
+          EVENT_NAME: ${{ github.event_name }}
         run: node scripts/lesson-notify.mjs
