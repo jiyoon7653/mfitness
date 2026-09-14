@@ -629,7 +629,7 @@
           <table>
             <thead><tr>
               <th>일자</th><th>유입경로</th><th>상담분류</th><th>고객명</th><th>연락처</th>
-              <th>최종결과</th><th>등록상품</th><th>담당자</th><th></th>
+              <th>최종결과</th><th>사유/메모</th><th>등록상품</th><th>담당자</th><th></th>
             </tr></thead>
             <tbody id="visitorBody"></tbody>
           </table>
@@ -1782,10 +1782,10 @@
 
   function startEditVisitor(id) { editingVisitorId = id; renderVisitors(); }
   function cancelEditVisitor() { editingVisitorId = null; renderVisitors(); }
-  function saveEditVisitor(id, resultVal, productVal) {
+  function saveEditVisitor(id, resultVal, productVal, noteVal) {
     if (!db) return;
     db.collection('visitors').doc(id).update({
-      result: resultVal, product: productVal
+      result: resultVal, product: productVal, note: noteVal
     }).then(function () { editingVisitorId = null; renderVisitors(); }).catch(function () { /* keep editing on failure */ });
   }
 
@@ -1823,6 +1823,7 @@
       var isEditing = editingVisitorId === e._id;
 
       var tdResult = document.createElement('td'); tdResult.className = 'nowrap';
+      var tdNote = document.createElement('td');
       var tdProduct = document.createElement('td');
       var tdStaff = document.createElement('td'); tdStaff.className = 'nowrap'; tdStaff.textContent = e.staff || '-';
       var tdAction = document.createElement('td'); tdAction.className = 'nowrap';
@@ -1833,12 +1834,16 @@
         RESULTS.forEach(function (r) { var o = document.createElement('option'); o.value = r; o.textContent = r; if (r === e.result) o.selected = true; sel.appendChild(o); });
         tdResult.appendChild(sel);
 
+        tdNote.classList.add('small-input');
+        var nInput = document.createElement('textarea'); nInput.rows = 2; nInput.value = e.note || '';
+        tdNote.appendChild(nInput);
+
         tdProduct.classList.add('small-input');
         var pInput = document.createElement('input'); pInput.type = 'text'; pInput.value = e.product || '';
         tdProduct.appendChild(pInput);
 
         var saveBtn = document.createElement('button'); saveBtn.type = 'button'; saveBtn.className = 'link-btn'; saveBtn.textContent = '저장';
-        saveBtn.addEventListener('click', function () { saveEditVisitor(e._id, sel.value, pInput.value.trim()); });
+        saveBtn.addEventListener('click', function () { saveEditVisitor(e._id, sel.value, pInput.value.trim(), nInput.value.trim()); });
         var cancelBtn = document.createElement('button'); cancelBtn.type = 'button'; cancelBtn.className = 'link-btn'; cancelBtn.textContent = '취소';
         cancelBtn.addEventListener('click', cancelEditVisitor);
         tdAction.appendChild(saveBtn); tdAction.appendChild(cancelBtn);
@@ -1849,6 +1854,9 @@
         badge.addEventListener('click', function () { startEditVisitor(e._id); });
         tdResult.appendChild(badge);
 
+        tdNote.textContent = e.note || '-';
+        tdNote.title = e.note || '';
+
         tdProduct.textContent = e.product || '-';
 
         var editBtn = document.createElement('button'); editBtn.type = 'button'; editBtn.className = 'link-btn'; editBtn.textContent = '수정';
@@ -1857,7 +1865,7 @@
         tdAction.appendChild(deleteBtn('visitors', e._id, (e.date || '') + ' ' + (e.customer || '방문자 기록')));
       }
 
-      tr.appendChild(tdResult); tr.appendChild(tdProduct); tr.appendChild(tdStaff); tr.appendChild(tdAction);
+      tr.appendChild(tdResult); tr.appendChild(tdNote); tr.appendChild(tdProduct); tr.appendChild(tdStaff); tr.appendChild(tdAction);
       body.appendChild(tr);
     });
 
