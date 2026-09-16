@@ -11,110 +11,123 @@
   @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css');
 
   :root {
-    /* Apple 팔레트 — 밝은 회색 배경 + 순백 카드 + 헤어라인 보더 */
-    --bg: #F5F5F7;
-    --surface: #FFFFFF;
-    --surface-2: #F5F5F7;
-    --border: #D2D2D7;
-    --text: #1D1D1F;
-    --text-muted: #6E6E73;
-    --text-faint: #86868B;
+    /* 샌드 팔레트 — 따뜻한 베이지 배경 + 아이보리 카드 + 그림자로 띄운 박스 */
+    --bg: #F0ECE5;
+    --surface: #FFFDFA;
+    --surface-2: #F6F2EB;
+    --border: #DED6C9;
+    --text: #241F1A;
+    --text-muted: #6B6158;
+    --text-faint: #988D82;
 /* 달성률 4단계 — 막대는 진한 색, 라벨 칩은 같은 계열의 어두운 글자색 */
-    --lv4: #0071E3; --lv4-ink: #0058B0; --lv4-tint: #E3F0FD;   /* 달성 100%+  파랑 */
-    --lv3: #248A3D; --lv3-ink: #1A7F37; --lv3-tint: #E7F4EC;   /* 근접 70~99% 초록 */
-    --lv2: #EAB308; --lv2-ink: #8A6D00; --lv2-tint: #FBF3D9;   /* 주의 40~69% 노랑 */
-    --lv1: #D70015; --lv1-ink: #B00013; --lv1-tint: #FBE9EE;   /* 미달 40% 미만 빨강 */
-        --accent: #0071E3;
-    --accent-hover: #0077ED;
+    --lv4: #2F6E7B; --lv4-ink: #245A65; --lv4-tint: #E2EFF1;   /* 달성 100%+  청록 */
+    --lv3: #4F7A3B; --lv3-ink: #41652F; --lv3-tint: #EAF0E4;   /* 근접 70~99% 초록 */
+    --lv2: #B98514; --lv2-ink: #8A620B; --lv2-tint: #F8EED8;   /* 주의 40~69% 황금 */
+    --lv1: #B03A2E; --lv1-ink: #8E2D23; --lv1-tint: #F7E4E1;   /* 미달 40% 미만 벽돌 */
+        --accent: #9A5B2C;
+    --accent-hover: #AC6733;
     --accent-contrast: #FFFFFF;
-    --accent-bg: rgba(0, 113, 227, .12);
-    --good: #248A3D;
-    --good-bg: #E8F7EC;
-    --warn: #A85400;
-    --warn-bg: #FFF4E5;
-    --neutral-badge: #6E6E73;
-    --neutral-badge-bg: #F0F0F2;
-    --danger: #D70015;
-    --danger-bg: #FFEBE9;
-    --shadow: rgba(0, 0, 0, .06);
-    --focus-ring: rgba(0, 113, 227, .35);
+    --accent-bg: rgba(154, 91, 44, .12);
+    --good: #4F7A3B;
+    --good-bg: #EAF0E4;
+    --warn: #8A620B;
+    --warn-bg: #F8EED8;
+    --neutral-badge: #6B6158;
+    --neutral-badge-bg: #EDE7DD;
+    --danger: #B03A2E;
+    --danger-bg: #F7E4E1;
+    --shadow: rgba(74, 56, 38, .10);
+    --focus-ring: rgba(154, 91, 44, .35);
     --ease: cubic-bezier(.4, 0, .2, 1);
-    --series-1: #0071E3;
-    --series-2: #FF6B35;
-    --series-3: #16A46B;
-    --series-4: #E8A317;
-    --series-5: #E1699B;
-    --series-6: #7D57D6;
+    /* 히어로 밴드 — 개요 맨 위 한 덩어리에만 색을 몰아줍니다 */
+    --band-bg: linear-gradient(135deg, #3A2A1C 0%, #9A5B2C 100%);
+    --band-ink: #FDF8F2;
+    --band-dim: rgba(253, 248, 242, .74);
+    --band-track: rgba(255, 255, 255, .22);
+    --series-1: #9A5B2C;
+    --series-2: #4F7A3B;
+    --series-3: #B98514;
+    --series-4: #2F6E7B;
+    --series-5: #A8556B;
+    --series-6: #6B5B93;
   }
 
   @media (prefers-color-scheme: dark) {
     :root:not([data-theme="light"]) {
-      --bg: #000000;
-      --surface: #1D1D1F;
-      --surface-2: #2C2C2E;
-      --border: #38383A;
-      --text: #F5F5F7;
-      --text-muted: #A1A1A6;
-      --text-faint: #86868B;
---lv4: #2997FF; --lv4-ink: #2997FF; --lv4-tint: rgba(41,151,255,.16);
-      --lv3: #30D158; --lv3-ink: #30D158; --lv3-tint: rgba(48,209,88,.16);
-      --lv2: #FFD60A; --lv2-ink: #FFD60A; --lv2-tint: rgba(255,214,10,.16);
-      --lv1: #FF453A; --lv1-ink: #FF453A; --lv1-tint: rgba(255,69,58,.16);
-      --accent: #2997FF;
-      --accent-hover: #4FAAFF;
-      --accent-contrast: #FFFFFF;
-      --accent-bg: rgba(41, 151, 255, .18);
-      --good: #30D158;
-      --good-bg: #0E3319;
-      --warn: #FF9F0A;
-      --warn-bg: #3A2A0B;
-      --neutral-badge: #A1A1A6;
-      --neutral-badge-bg: #2C2C2E;
-      --danger: #FF453A;
-      --danger-bg: #3A1614;
+      --bg: #0E1424;
+      --surface: #18203A;
+      --surface-2: #1C2542;
+      --border: #2A3555;
+      --text: #EDF1FA;
+      --text-muted: #9AA6C2;
+      --text-faint: #74809C;
+--lv4: #5AA9FF; --lv4-ink: #5AA9FF; --lv4-tint: rgba(90,169,255,.16);
+      --lv3: #47D07F; --lv3-ink: #47D07F; --lv3-tint: rgba(71,208,127,.16);
+      --lv2: #F0A93B; --lv2-ink: #F0A93B; --lv2-tint: rgba(240,169,59,.16);
+      --lv1: #FF6B6B; --lv1-ink: #FF6B6B; --lv1-tint: rgba(255,107,107,.16);
+      --accent: #F0A93B;
+      --accent-hover: #F7BC5E;
+      --accent-contrast: #17120A;
+      --accent-bg: rgba(240, 169, 59, .18);
+      --good: #47D07F;
+      --good-bg: rgba(71, 208, 127, .16);
+      --warn: #F0A93B;
+      --warn-bg: rgba(240, 169, 59, .16);
+      --neutral-badge: #9AA6C2;
+      --neutral-badge-bg: #1C2542;
+      --danger: #FF6B6B;
+      --danger-bg: rgba(255, 107, 107, .16);
       --shadow: rgba(0, 0, 0, .5);
-      --focus-ring: rgba(41, 151, 255, .45);
-      --series-1: #2997FF;
-      --series-2: #FF7A45;
-      --series-3: #30D158;
-      --series-4: #FFD426;
-      --series-5: #FF7EB6;
-      --series-6: #A78BFA;
+      --focus-ring: rgba(240, 169, 59, .45);
+      --band-bg: linear-gradient(135deg, #060A14 0%, #23305A 100%);
+      --band-ink: #FFFFFF;
+      --band-dim: rgba(255, 255, 255, .7);
+      --band-track: rgba(255, 255, 255, .18);
+      --series-1: #5AA9FF;
+      --series-2: #F0A93B;
+      --series-3: #47D07F;
+      --series-4: #7FD9E8;
+      --series-5: #FF8FB1;
+      --series-6: #B98CF5;
     }
   }
 
   :root[data-theme="dark"] {
-    --bg: #000000;
-    --surface: #1D1D1F;
-    --surface-2: #2C2C2E;
-    --border: #38383A;
-    --text: #F5F5F7;
-    --text-muted: #A1A1A6;
-    --text-faint: #86868B;
-    --lv4: #2997FF; --lv4-ink: #2997FF; --lv4-tint: rgba(41,151,255,.16);
-    --lv3: #30D158; --lv3-ink: #30D158; --lv3-tint: rgba(48,209,88,.16);
-    --lv2: #FFD60A; --lv2-ink: #FFD60A; --lv2-tint: rgba(255,214,10,.16);
-    --lv1: #FF453A; --lv1-ink: #FF453A; --lv1-tint: rgba(255,69,58,.16);
-    --accent: #2997FF;
-    --accent-hover: #4FAAFF;
-    --accent-contrast: #FFFFFF;
-    --accent-bg: rgba(41, 151, 255, .18);
-    --good: #30D158;
-    --good-bg: #0E3319;
-    --warn: #FF9F0A;
-    --warn-bg: #3A2A0B;
-    --neutral-badge: #A1A1A6;
-    --neutral-badge-bg: #2C2C2E;
-    --danger: #FF453A;
-    --danger-bg: #3A1614;
+    --bg: #0E1424;
+    --surface: #18203A;
+    --surface-2: #1C2542;
+    --border: #2A3555;
+    --text: #EDF1FA;
+    --text-muted: #9AA6C2;
+    --text-faint: #74809C;
+    --lv4: #5AA9FF; --lv4-ink: #5AA9FF; --lv4-tint: rgba(90,169,255,.16);
+    --lv3: #47D07F; --lv3-ink: #47D07F; --lv3-tint: rgba(71,208,127,.16);
+    --lv2: #F0A93B; --lv2-ink: #F0A93B; --lv2-tint: rgba(240,169,59,.16);
+    --lv1: #FF6B6B; --lv1-ink: #FF6B6B; --lv1-tint: rgba(255,107,107,.16);
+    --accent: #F0A93B;
+    --accent-hover: #F7BC5E;
+    --accent-contrast: #17120A;
+    --accent-bg: rgba(240, 169, 59, .18);
+    --good: #47D07F;
+    --good-bg: rgba(71, 208, 127, .16);
+    --warn: #F0A93B;
+    --warn-bg: rgba(240, 169, 59, .16);
+    --neutral-badge: #9AA6C2;
+    --neutral-badge-bg: #1C2542;
+    --danger: #FF6B6B;
+    --danger-bg: rgba(255, 107, 107, .16);
     --shadow: rgba(0, 0, 0, .5);
-    --focus-ring: rgba(41, 151, 255, .45);
-    --series-1: #2997FF;
-    --series-2: #FF7A45;
-    --series-3: #30D158;
-    --series-4: #FFD426;
-    --series-5: #FF7EB6;
-    --series-6: #A78BFA;
+    --focus-ring: rgba(240, 169, 59, .45);
+    --band-bg: linear-gradient(135deg, #060A14 0%, #23305A 100%);
+    --band-ink: #FFFFFF;
+    --band-dim: rgba(255, 255, 255, .7);
+    --band-track: rgba(255, 255, 255, .18);
+    --series-1: #5AA9FF;
+    --series-2: #F0A93B;
+    --series-3: #47D07F;
+    --series-4: #7FD9E8;
+    --series-5: #FF8FB1;
+    --series-6: #B98CF5;
   }
 
   * { box-sizing: border-box; }
@@ -131,6 +144,55 @@
     letter-spacing: -0.011em;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+    /* 한글은 단어 중간에서 끊지 않습니다 ("김지 윤", "오늘 문의 전 화" 방지).
+       긴 영문·숫자만 예외적으로 끊기게 overflow-wrap 을 같이 둡니다. */
+    word-break: keep-all;
+    overflow-wrap: break-word;
+  }
+
+  /* ---- 개요 히어로 밴드 — 중요한 숫자와 카테고리를 한 덩어리에 모읍니다 ---- */
+  .hero-band {
+    background: var(--band-bg); color: var(--band-ink);
+    border-radius: 18px; padding: 24px 26px; margin-bottom: 14px;
+    box-shadow: 0 1px 2px var(--shadow), 0 10px 26px var(--shadow);
+  }
+  .hero-grid { display: grid; grid-template-columns: minmax(0, 230px) 1fr; gap: 30px; align-items: start; }
+  .hero-label { font-size: 12px; color: var(--band-dim); }
+  .hero-value {
+    font-size: 54px; font-weight: 700; letter-spacing: -0.035em; line-height: 1;
+    font-variant-numeric: tabular-nums; margin-top: 4px;
+  }
+  .hero-meta { font-size: 12px; color: var(--band-dim); margin-top: 8px; }
+  .hero-split { display: flex; gap: 24px; margin-top: 18px; }
+  .hero-split-v { font-size: 22px; font-weight: 600; font-variant-numeric: tabular-nums; margin-top: 2px; }
+  .hero-split-sub { font-size: 11px; color: var(--band-dim); margin-top: 2px; }
+  .hero-sec-label {
+    font-size: 11px; font-weight: 700; letter-spacing: .1em;
+    color: var(--band-dim); margin: 0 0 12px;
+  }
+  .hero-cat-list { display: grid; gap: 12px; }
+  .hero-cat {
+    display: grid; grid-template-columns: 1fr auto; gap: 5px 12px; align-items: baseline;
+  }
+  .hero-cat-name { font-size: 13px; }
+  .hero-cat-pct { font-size: 12.5px; color: var(--band-dim); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .hero-cat-track {
+    grid-column: 1 / -1; height: 7px; border-radius: 999px;
+    background: var(--band-track); overflow: hidden;
+  }
+  .hero-cat-fill { display: block; height: 100%; border-radius: 999px; transition: width .5s var(--ease); }
+  .hero-empty { font-size: 13px; color: var(--band-dim); }
+
+  /* 밴드 안에서는 달성률 색을 밝은 쪽으로 씁니다 (어두운 바탕 위라서) */
+  .hero-band .lvf-lv4 { background: #7FC4FF; }
+  .hero-band .lvf-lv3 { background: #7FE0A4; }
+  .hero-band .lvf-lv2 { background: #FFD27A; }
+  .hero-band .lvf-lv1 { background: #FF9A9A; }
+
+  @media (max-width: 720px) {
+    .hero-grid { grid-template-columns: 1fr; gap: 22px; }
+    .hero-value { font-size: 44px; }
+    .hero-band { padding: 20px; }
   }
 
   h1, h2, h3 {
@@ -154,6 +216,21 @@
   }
   .brand h1 { font-size: 34px; font-weight: 600; letter-spacing: -0.024em; line-height: 1.12; }
   .tagline { margin: 8px 0 0; font-size: 15px; color: var(--text-muted); letter-spacing: -0.01em; }
+  .topbar-tools { display: flex; flex-direction: column; align-items: flex-end; gap: 9px; }
+  .theme-switch {
+    display: flex; gap: 2px; padding: 3px; border-radius: 980px;
+    background: var(--surface-2); border: 1px solid var(--border);
+  }
+  .theme-btn {
+    border: none; background: transparent; cursor: pointer; font-family: inherit;
+    font-size: 12px; font-weight: 500; color: var(--text-muted);
+    padding: 5px 12px; border-radius: 980px; transition: background .2s var(--ease), color .2s var(--ease);
+  }
+  .theme-btn:hover { color: var(--text); }
+  .theme-btn[aria-pressed="true"] {
+    background: var(--surface); color: var(--text); font-weight: 600; box-shadow: 0 1px 3px var(--shadow);
+  }
+  .theme-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
   .conn-inline { display: flex; align-items: center; gap: 7px; font-size: 12.5px; color: var(--text-faint); }
   .conn-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--text-faint); flex-shrink: 0; }
   .conn-inline.live .conn-dot { background: var(--good); }
@@ -190,10 +267,11 @@
   .kpi-row.cols-6 { grid-template-columns: repeat(6, 1fr); }
 
   .stat-tile {
-    background: var(--surface); border: 1px solid var(--border); border-radius: 16px;
+    background: var(--surface); border-radius: 16px;
+    box-shadow: 0 1px 2px var(--shadow), 0 6px 16px var(--shadow);
     padding: 18px 20px; display: flex; flex-direction: column; gap: 8px;
   }
-  .stat-tile-label { font-size: 12.5px; color: var(--text-muted); letter-spacing: -0.004em; }
+  .stat-tile-label { font-size: 12.5px; color: var(--text-muted); letter-spacing: -0.004em; word-break: keep-all; }
   .stat-tile-value {
     font-size: 28px; font-weight: 600; letter-spacing: -0.022em; line-height: 1.15;
     font-variant-numeric: tabular-nums; color: var(--text);
@@ -265,7 +343,8 @@
   .layout.even { grid-template-columns: 1fr 1fr; }
 
   .panel {
-    background: var(--surface); border: 1px solid var(--border); border-radius: 18px;
+    background: var(--surface); border-radius: 18px;
+    box-shadow: 0 1px 2px var(--shadow), 0 8px 22px var(--shadow);
     padding: 26px; transition: box-shadow .35s var(--ease);
   }
   .panel h2 { font-size: 21px; font-weight: 600; margin-bottom: 6px; letter-spacing: -0.018em; }
@@ -500,13 +579,50 @@
   }
 </style>
 
+<script>
+  // 화면 테마. 저장된 값이 없으면 기기 설정(시스템)을 따릅니다.
+  // data-theme 을 먼저 꽂아 두어야 새로고침할 때 흰 화면이 번쩍이지 않습니다.
+  (function () {
+    var KEY = 'mfitness-theme';
+    function read() {
+      try { return localStorage.getItem(KEY); } catch (e) { return null; }
+    }
+    function apply(mode) {
+      if (mode === 'light' || mode === 'dark') document.documentElement.setAttribute('data-theme', mode);
+      else document.documentElement.removeAttribute('data-theme');
+      var buttons = document.querySelectorAll('.theme-btn');
+      for (var i = 0; i < buttons.length; i++) {
+        buttons[i].setAttribute('aria-pressed', String(buttons[i].getAttribute('data-theme-val') === (mode || 'system')));
+      }
+    }
+    apply(read() || 'system');
+    document.addEventListener('DOMContentLoaded', function () {
+      apply(read() || 'system');
+      document.querySelectorAll('.theme-btn').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+          var mode = btn.getAttribute('data-theme-val');
+          try { localStorage.setItem(KEY, mode); } catch (e) { /* 저장 못 해도 이번 세션은 적용됩니다 */ }
+          apply(mode);
+        });
+      });
+    });
+  })();
+</script>
+
 <div class="app">
   <header class="topbar">
     <div class="brand">
       <h1>M휘트니스 운영 보드</h1>
       <p class="tagline">방문자·예약자 · 문의 전화 · 매출 목표와 업무일지를 전 직원이 함께 누적합니다</p>
     </div>
-    <div class="conn-inline" id="connInline"><span class="conn-dot"></span><span id="connText">연결 중…</span></div>
+    <div class="topbar-tools">
+      <div class="theme-switch" role="group" aria-label="화면 테마">
+        <button type="button" class="theme-btn" id="themeLight" data-theme-val="light">라이트</button>
+        <button type="button" class="theme-btn" id="themeDark" data-theme-val="dark">다크</button>
+        <button type="button" class="theme-btn" id="themeSystem" data-theme-val="system">시스템</button>
+      </div>
+      <div class="conn-inline" id="connInline"><span class="conn-dot"></span><span id="connText">연결 중…</span></div>
+    </div>
   </header>
 
   <div class="shell">
@@ -528,25 +644,42 @@
 
   <!-- ===================== 개요 ===================== -->
   <section class="tab-panel" id="tab-overview">
-    <div class="kpi-row cols-5">
-      <div class="stat-tile">
-        <span class="stat-tile-label">이번 달 매출 달성률</span>
-        <span class="stat-tile-value" id="ovSalesPct">–</span>
-        <div class="meter-track"><div class="meter-fill" id="ovSalesMeter"></div></div>
-        <span class="goal-sub" id="ovSalesSub">–</span>
+    <div class="hero-band">
+      <div class="hero-grid">
+        <div>
+          <span class="hero-label">이번 달 매출 달성률</span>
+          <div class="hero-value" id="ovSalesPct">–</div>
+          <div class="meter-track" style="margin-top:10px;"><div class="meter-fill" id="ovSalesMeter"></div></div>
+          <div class="hero-meta" id="ovSalesSub">–</div>
+          <div class="hero-split">
+            <div>
+              <span class="hero-label">이번 주</span>
+              <div class="hero-split-v" id="ovSalesWeekPct">–</div>
+              <div class="hero-split-sub" id="ovSalesWeekSub">–</div>
+              <div class="meter-track" hidden><div class="meter-fill" id="ovSalesWeekMeter"></div></div>
+            </div>
+            <div>
+              <span class="hero-label">등록 전환</span>
+              <div class="hero-split-v" id="ovConvPct">–</div>
+              <div class="hero-split-sub" id="ovConvSub">–</div>
+              <div class="meter-track" hidden><div class="meter-fill" id="ovConvMeter"></div></div>
+            </div>
+          </div>
+        </div>
+        <div>
+          <p class="hero-sec-label">카테고리별 · 이번 달 / 이번 주</p>
+          <div class="hero-cat-list" id="ovCatList">
+            <span class="hero-empty">불러오는 중…</span>
+          </div>
+        </div>
       </div>
-      <div class="stat-tile">
-        <span class="stat-tile-label">이번 주 매출 달성률</span>
-        <span class="stat-tile-value" id="ovSalesWeekPct">–</span>
-        <div class="meter-track"><div class="meter-fill" id="ovSalesWeekMeter"></div></div>
-        <span class="goal-sub" id="ovSalesWeekSub">–</span>
-      </div>
-      <div class="stat-tile">
-        <span class="stat-tile-label">등록 전환율 (누적)</span>
-        <span class="stat-tile-value" id="ovConvPct">–</span>
-        <div class="meter-track"><div class="meter-fill" id="ovConvMeter"></div></div>
-        <span class="goal-sub" id="ovConvSub">–</span>
-      </div>
+    </div>
+    <div class="kpi-row cols-6">
+      <div class="stat-tile"><span class="stat-tile-label">오늘 유입</span><span class="stat-tile-value" id="ovTodayVisitors">–</span></div>
+      <div class="stat-tile"><span class="stat-tile-label">이번 달 유입</span><span class="stat-tile-value" id="ovMonthVisitors">–</span></div>
+      <div class="stat-tile"><span class="stat-tile-label">오늘 문의 전화</span><span class="stat-tile-value" id="ovTodayCalls">–</span></div>
+      <div class="stat-tile"><span class="stat-tile-label">이번 달 문의 전화</span><span class="stat-tile-value" id="ovMonthCalls">–</span></div>
+      <div class="stat-tile"><span class="stat-tile-label">이번 달 등록완료</span><span class="stat-tile-value c-good" id="ovMonthRegistered">–</span></div>
       <div class="stat-tile">
         <span class="stat-tile-label">이번 달 OT 누적</span>
         <span class="stat-tile-value" id="ovOtCount">–</span>
@@ -557,13 +690,6 @@
         <span class="stat-tile-value c-warn" id="ovLockerTargets">–</span>
         <span class="goal-sub" id="ovLockerSub">엑셀을 불러오면 집계됩니다</span>
       </div>
-    </div>
-    <div class="kpi-row cols-6">
-      <div class="stat-tile"><span class="stat-tile-label">오늘 유입</span><span class="stat-tile-value" id="ovTodayVisitors">–</span></div>
-      <div class="stat-tile"><span class="stat-tile-label">이번 달 유입</span><span class="stat-tile-value" id="ovMonthVisitors">–</span></div>
-      <div class="stat-tile"><span class="stat-tile-label">오늘 문의 전화</span><span class="stat-tile-value" id="ovTodayCalls">–</span></div>
-      <div class="stat-tile"><span class="stat-tile-label">이번 달 문의 전화</span><span class="stat-tile-value" id="ovMonthCalls">–</span></div>
-      <div class="stat-tile"><span class="stat-tile-label">이번 달 등록완료</span><span class="stat-tile-value c-good" id="ovMonthRegistered">–</span></div>
       <div class="stat-tile">
         <span class="stat-tile-label">이번 주 당직</span>
         <span class="stat-tile-value" id="ovDutyValue">–</span>
@@ -2890,7 +3016,51 @@
     $('ovSalesWeekSub').textContent = weekTarget > 0 ? '이번 주 목표 대비 달성률' : '목표 미설정';
     $('wSalesWeekSub').textContent = won(weekAchieved) + ' / ' + (weekTarget > 0 ? won(weekTarget) : '목표 미설정');
 
+    renderOverviewCategories(monthStart, monthEnd, wkStart, wkEnd);
     renderCatTargetTable();
+  }
+
+  // 개요 히어로 밴드의 카테고리별 달성률.
+  // 개요는 전 직원이 보는 화면이라 금액은 넣지 않고 달성률(%)만 씁니다.
+  function renderOverviewCategories(monthStart, monthEnd, wkStart, wkEnd) {
+    var box = $('ovCatList');
+    if (!box) return;
+    box.innerHTML = '';
+    if (!categories.length) {
+      var empty = document.createElement('span');
+      empty.className = 'hero-empty';
+      empty.textContent = '설정된 매출 카테고리가 없습니다.';
+      box.appendChild(empty);
+      return;
+    }
+    categories.forEach(function (c) {
+      var mTarget = Number(c.target) || 0;
+      var wTarget = currentWeekTarget(c);
+      var mPct = mTarget > 0 ? Math.round((sumSalesInRange(c.name, monthStart, monthEnd) / mTarget) * 100) : null;
+      var wPct = wTarget > 0 ? Math.round((sumSalesInRange(c.name, wkStart, wkEnd) / wTarget) * 100) : null;
+      var lv = levelOf(mPct);
+
+      var row = document.createElement('div'); row.className = 'hero-cat';
+
+      var name = document.createElement('span'); name.className = 'hero-cat-name';
+      name.textContent = c.name;
+      row.appendChild(name);
+
+      var pct = document.createElement('span'); pct.className = 'hero-cat-pct';
+      pct.textContent = (mPct === null ? '목표 미설정' : mPct + '%')
+        + (wPct === null ? '' : ' · 주 ' + wPct + '%');
+      row.appendChild(pct);
+
+      var track = document.createElement('span'); track.className = 'hero-cat-track';
+      var fill = document.createElement('span');
+      fill.className = 'hero-cat-fill' + (lv ? ' lvf-' + lv.key : '');
+      // 0%도 막대가 보이게 최소 폭을 둡니다 (아무것도 없는 것과 구분).
+      fill.style.width = mPct === null ? '0%' : Math.max(2, Math.min(100, mPct)) + '%';
+      track.appendChild(fill);
+      row.appendChild(track);
+
+      box.appendChild(row);
+    });
   }
 
   function renderOverview() {
