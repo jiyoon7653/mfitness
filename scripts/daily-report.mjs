@@ -13,6 +13,7 @@
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
+import assert from 'node:assert/strict';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -124,6 +125,18 @@ function weekOfMonthIndex(dateStr) {
 // 1~5주차 배열이 있으면 이번 주차 값을, 없으면 예전 단일 weekTarget 값을 씁니다.
 function currentWeekTarget(item, today) {
   return weekTargetOf(item, weekOfMonthIndex(today)) || 0;
+}
+
+// 일일 리포트가 나가는 예약 시각(UTC 13:10 = KST 22:10).
+// .github/workflows/daily-report.yml 의 daily cron 과 반드시 같아야 합니다.
+const DAILY_REPORT_UTC = { hour: 13, minute: 10 };
+// 직전 리포트가 나간 뒤로 새로 올라온 업무일지를 찾기 위한 시간 구간입니다.
+// 시작점을 "직전 예약 시각"으로 잡아서, 실행이 몇 분 밀려도 빠지는 구간이 없습니다.
+function lateWindow(nowMs) {
+  const d = new Date(nowMs);
+  const todayAt = Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate(), DAILY_REPORT_UTC.hour, DAILY_REPORT_UTC.minute);
+  const lastSent = todayAt <= nowMs ? todayAt : todayAt - 86400000;
+  return { start: lastSent - 86400000, end: nowMs };
 }
 
 function monthRange(today) {
@@ -285,6 +298,19 @@ function otAchievement(sessions) {
   return { achieved: groups.length, converted, decided };
 }
 
+// 직전 리포트 이후에 새로 올라온 "지난 날짜" 업무일지를 날짜별로 묶습니다.
+// 주말 매출(매니저가 월요일에 입력)이나 22시 이후 매출처럼 뒤늦게 올린 건이
+// 그날 리포트에서 0원으로 나간 뒤 그대로 묻히는 것을 막아 줍니다.
+function lateSalesByDate(worklogs, window, today) {
+  const late = worklogs.filter((w) => w.date < today
+    && Number(w.createdAt) >= window.start && Number(w.createdAt) < window.end);
+  return [...new Set(late.map((w) => w.date))].sort().map((date) => ({
+    date,
+    added: sumSales(late.filter((w) => w.date === date)).total,
+    dayTotal: sumSales(worklogs.filter((w) => w.date === date)).total,
+  }));
+}
+
 function achievementLine(label, sales, target) {
   const pct = target > 0 ? Math.round((sales.total / target) * 100) : null;
   const suffix = pct === null ? '(목표 미설정)' : `(목표 ${won(target)} · ${pct}%)`;
@@ -292,7 +318,7 @@ function achievementLine(label, sales, target) {
 }
 
 function buildReport(today, data) {
-  const { visitors, calls, todayWorklogs, weekWorklogs, monthWorklogs, lockers, categories, todayOt, weekOt, monthOt, otTarget, otWeekTarget } = data;
+  const { visitors, calls, todayWorklogs, weekWorklogs, monthWorklogs, lockers, categories, todayOt, weekOt, monthOt, otTarget, otWeekTarget, lookbackWorklogs, lateRange } = data;
 
   const todaySales = sumSales(todayWorklogs);
   const weekSales = sumSales(weekWorklogs);
@@ -339,8 +365,23 @@ function buildReport(today, data) {
   if (summaries.length) L.push(`📝 업무요약   ${summaries.join(' / ')}`);
 
   if (todayWorklogs.length === 0) {
+    const dow = dateFromYMD(today).getUTCDay();
+    const weekend = dow === 0 || dow === 6;
     L.push('');
-    L.push('_※ 오늘 작성된 업무일지가 없어 매출은 0으로 표시됩니다._');
+    L.push(`_※ 아직 오늘 업무일지가 올라오지 않았습니다${weekend ? ' (주말 · 매니저 미출근)' : ''}._`);
+    L.push('_나중에 올리면 다음 리포트의 "늦게 올라온 매출"에 자동으로 반영됩니다._');
+  }
+
+  const lateRows = lateSalesByDate(lookbackWorklogs, lateRange, today);
+  if (lateRows.length) {
+    L.push('');
+    L.push('🔄 *늦게 올라온 매출* _(직전 리포트 이후 입력분)_');
+    lateRows.forEach((r) => {
+      const whole = r.added === r.dayTotal;
+      L.push(`   ${r.date.slice(5)}(${weekdayKo(r.date)})  *${won(r.added)}*`
+        + (whole ? '' : `  → 그날 합계 ${won(r.dayTotal)}`));
+    });
+    L.push('_아래 주·달 누계에는 이미 반영돼 있습니다._');
   }
   L.push('');
   const dw = monthWeekOf(today);
@@ -555,10 +596,15 @@ async function main() {
   const rangeEnd = kind === 'daily' ? addDays(today, 1) : (kind === 'weekly' ? week.end : month.end);
   // 아래에서 monthWorklogs / monthOt 는 위 month 범위(월간이면 지난 달)를 씁니다.
 
-  const [visitorsRange, callsRange, monthWorklogs, lockers, catDoc, monthOt, trainerDoc, lockerSnapshot, dutyDoc] = await Promise.all([
+  // 늦게 올라온 업무일지를 찾기 위한 조회 범위. 달 첫머리에 지난 달 말일치가 올라오는
+  // 경우도 있어서, 월 범위와 별개로 최근 10일을 따로 훑습니다.
+  const lateLookbackStart = addDays(today, -10);
+
+  const [visitorsRange, callsRange, monthWorklogs, lookbackWorklogs, lockers, catDoc, monthOt, trainerDoc, lockerSnapshot, dutyDoc] = await Promise.all([
     queryByDateRange(projectId, token, 'visitors', rangeStart, rangeEnd),
     queryByDateRange(projectId, token, 'inquiryCalls', rangeStart, rangeEnd),
     queryByDateRange(projectId, token, 'worklogs', month.start, month.end),
+    queryByDateRange(projectId, token, 'worklogs', lateLookbackStart, addDays(today, 1)),
     listAll(projectId, token, 'lockers'),
     getDoc(projectId, token, 'settings/salesCategories'),
     queryByDateRange(projectId, token, 'otSessions', month.start, month.end),
@@ -592,6 +638,7 @@ async function main() {
     text = buildReport(today, {
       visitors: visitorsRange, calls: callsRange, todayWorklogs, weekWorklogs, monthWorklogs,
       lockers, categories, todayOt, weekOt, monthOt, otTarget, otWeekTarget,
+      lookbackWorklogs, lateRange: lateWindow(Date.now()),
     });
   }
 
@@ -603,7 +650,37 @@ async function main() {
   console.log(`전송 완료 (${kind}):`, kind === 'monthly' ? `${anchor} 기준 (실행일 ${today})` : today);
 }
 
-main().catch((e) => {
-  console.error(e);
-  process.exit(1);
-});
+// SELFTEST=1 node scripts/daily-report.mjs — 늦게 올라온 매출 판정 경계만 확인합니다.
+// 22:10 리포트가 나간 뒤에 올라온 일지만 "늦은 것"으로 잡혀야 합니다.
+function selftest() {
+  const at = (iso) => Date.parse(iso);
+  const run = at('2026-09-16T13:10:00Z');           // 9/16 예약 실행 (KST 22:10)
+  const w = lateWindow(run);
+  assert.equal(w.start, at('2026-09-15T13:10:00Z'), '창 시작은 직전 리포트 시각');
+
+  const rows = lateSalesByDate([
+    // 9/15 일지를 9/15 21:54 KST 에 올림 → 9/15 리포트에 이미 들어갔으므로 늦은 것이 아님
+    { date: '2026-09-15', createdAt: at('2026-09-15T12:54:00Z'), sales: { 신규: 900000 } },
+    // 9/13(일) 일지를 9/16 09:32 KST 에 올림 → 늦은 것
+    { date: '2026-09-13', createdAt: at('2026-09-16T00:32:00Z'), sales: { 신규: 313500 } },
+    // 9/15 22시 이후 매출을 9/16 오전에 추가로 올림 → 늦은 것, 그날 합계는 두 건의 합
+    { date: '2026-09-15', createdAt: at('2026-09-16T00:40:00Z'), sales: { 재등록: 150000 } },
+    // 오늘(9/16) 일지는 오늘 매출에 이미 들어가므로 제외
+    { date: '2026-09-16', createdAt: at('2026-09-16T01:00:00Z'), sales: { 신규: 50000 } },
+  ], w, '2026-09-16');
+
+  assert.deepEqual(rows, [
+    { date: '2026-09-13', added: 313500, dayTotal: 313500 },
+    { date: '2026-09-15', added: 150000, dayTotal: 1050000 },
+  ]);
+  console.log('selftest ok');
+}
+
+if (process.env.SELFTEST === '1') {
+  selftest();
+} else {
+  main().catch((e) => {
+    console.error(e);
+    process.exit(1);
+  });
+}
