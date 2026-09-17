@@ -543,6 +543,27 @@
   .up-file { font-size: 12px; color: var(--text-faint); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
   .upload-box.filled .up-file { color: var(--good); font-weight: 500; }
   .up-drop-hint { font-size: 11.5px; color: var(--text-faint); margin: 0 0 16px; }
+  /* ---- 유입경로 원형(도넛) 그래프 ---- */
+  .donut-wrap { display: grid; grid-template-columns: 220px 1fr; gap: 28px; align-items: center; margin-top: 16px; }
+  .donut-box { position: relative; }
+  .donut-box svg { width: 100%; height: auto; display: block; }
+  .donut-center { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; pointer-events: none; }
+  .donut-center .dc-num { font-size: 30px; font-weight: 700; letter-spacing: -0.03em; color: var(--text); line-height: 1; }
+  .donut-center .dc-cap { font-size: 11.5px; color: var(--text-muted); margin-top: 4px; }
+  .donut-legend { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+  .dl-row {
+    display: grid; grid-template-columns: 13px 1fr auto auto; gap: 10px; align-items: center;
+    padding: 7px 8px; border-radius: 9px; font-size: 13px; transition: background .15s var(--ease);
+  }
+  .dl-row:hover, .dl-row.on { background: var(--surface-2); }
+  .dl-sw { width: 13px; height: 13px; border-radius: 4px; }
+  .dl-name { color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .dl-cnt { color: var(--text-muted); font-variant-numeric: tabular-nums; }
+  .dl-pct { font-weight: 600; color: var(--text); font-variant-numeric: tabular-nums; min-width: 42px; text-align: right; }
+  .donut-seg { transition: opacity .15s var(--ease); cursor: default; }
+  .donut-seg.dim { opacity: .25; }
+  @media (max-width: 760px) { .donut-wrap { grid-template-columns: 1fr; gap: 18px; } }
+
   /* 칸이 좁아 이름이 한 글자씩 끊기지 않도록, 좁으면 가로로 밀립니다. */
   .calls-table { min-width: 760px; }
   .calls-table td:nth-child(5) { min-width: 160px; }
@@ -711,6 +732,27 @@
       <div class="stat-tile"><span class="stat-tile-label">등록 완료 건수 (누적)</span><span class="stat-tile-value c-good" id="vTotalDone">–</span></div>
       <div class="stat-tile"><span class="stat-tile-label">전체 등록 전환율</span><span class="stat-tile-value" id="vConvRate">–</span></div>
     </div>
+
+    <section class="panel" style="margin-bottom:24px;">
+      <div class="list-header">
+        <div>
+          <h2>유입경로 분포</h2>
+          <p class="panel-sub" id="chSub">어느 경로로 들어오는지 한눈에 봅니다</p>
+        </div>
+        <div class="filters">
+          <select id="chPeriod" aria-label="기간">
+            <option value="month">이번 달</option>
+            <option value="prevMonth">지난달</option>
+            <option value="all">전체 누적</option>
+          </select>
+        </div>
+      </div>
+      <div class="donut-wrap">
+        <div class="donut-box"><svg id="chDonut" viewBox="0 0 200 200" role="img" aria-label="유입경로 분포"></svg></div>
+        <div class="donut-legend" id="chLegend"></div>
+      </div>
+      <p class="empty-state" id="chEmpty" hidden>해당 기간에 등록된 방문자가 없습니다.</p>
+    </section>
 
     <div class="layout">
       <section class="panel">
@@ -1933,6 +1975,8 @@
       result: resultVal, product: productVal, note: noteVal
     }).then(function () { editingVisitorId = null; renderVisitors(); }).catch(function () { /* keep editing on failure */ });
   }
+
+  $('chPeriod').addEventListener('change', renderChannelDonut);
 
   function renderVisitors() {
     var chFilter = $('vFilterChannel').value, resFilter = $('vFilterResult').value;
@@ -4281,8 +4325,131 @@
     });
   })();
 
+  // ============================================================
+  //  유입경로 도넛 그래프
+  // ============================================================
+  // 조각 색은 방문자 등록 폼의 유입경로 칩과 같은 --series-N 을 씁니다.
+  // 같은 경로가 화면마다 다른 색이면 오히려 헷갈립니다.
+  function channelColor(name) {
+    var i = CHANNELS.indexOf(name);
+    return i >= 0 ? 'var(--series-' + (i + 1) + ')' : 'var(--text-faint)';
+  }
+
+  function channelPeriodRange() {
+    var v = $('chPeriod') ? $('chPeriod').value : 'month';
+    var now = new Date();
+    if (v === 'all') return { start: null, end: null, label: '전체 누적' };
+    var m = v === 'prevMonth' ? now.getMonth() - 1 : now.getMonth();
+    var start = new Date(now.getFullYear(), m, 1);
+    var end = new Date(now.getFullYear(), m + 1, 1);
+    return { start: start, end: end, label: (start.getMonth() + 1) + '월' };
+  }
+
+  function channelCounts() {
+    var r = channelPeriodRange();
+    var rows = visitors.filter(function (e) {
+      if (!e.date) return false;
+      if (!r.start) return true;
+      var d = parseLocalDate(e.date);
+      return d >= r.start && d < r.end;
+    });
+    var by = {};
+    rows.forEach(function (e) {
+      var k = e.channel || '미기재';
+      by[k] = (by[k] || 0) + 1;
+    });
+    var list = Object.keys(by).map(function (k) { return { name: k, count: by[k] }; });
+    // 큰 것부터. 같으면 등록 폼의 순서를 따릅니다.
+    list.sort(function (a, b) {
+      if (b.count !== a.count) return b.count - a.count;
+      return CHANNELS.indexOf(a.name) - CHANNELS.indexOf(b.name);
+    });
+    return { list: list, total: rows.length, label: r.label };
+  }
+
+  // 도넛 한 조각의 경로. 100%일 때는 원 하나를 그립니다(호로는 닫히지 않습니다).
+  function donutArc(from, to, r1, r2) {
+    var cx = 100, cy = 100;
+    function pt(a, r) {
+      var rad = (a - 90) * Math.PI / 180;
+      return [(cx + r * Math.cos(rad)).toFixed(2), (cy + r * Math.sin(rad)).toFixed(2)];
+    }
+    var large = (to - from) > 180 ? 1 : 0;
+    var a = pt(from, r2), b = pt(to, r2), c = pt(to, r1), d = pt(from, r1);
+    return 'M' + a[0] + ',' + a[1] +
+      'A' + r2 + ',' + r2 + ' 0 ' + large + ' 1 ' + b[0] + ',' + b[1] +
+      'L' + c[0] + ',' + c[1] +
+      'A' + r1 + ',' + r1 + ' 0 ' + large + ' 0 ' + d[0] + ',' + d[1] + 'Z';
+  }
+
+  function renderChannelDonut() {
+    var svg = $('chDonut');
+    if (!svg) return;
+    var data = channelCounts();
+    var box = svg.parentNode;
+    var old = box.querySelector('.donut-center');
+    if (old) box.removeChild(old);
+    svg.innerHTML = '';
+    $('chLegend').innerHTML = '';
+    $('chEmpty').hidden = data.total > 0;
+    $('chSub').textContent = data.label + ' 기준 · 방문자 ' + data.total.toLocaleString('ko-KR') + '명이 어느 경로로 들어왔는지';
+    if (!data.total) return;
+
+    var R2 = 92, R1 = 58, angle = 0;
+    data.list.forEach(function (item) {
+      var sweep = item.count / data.total * 360;
+      var el = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+      // 한 경로가 100%면 호가 닫히지 않으므로 아주 조금 줄여 그립니다.
+      var to = angle + (sweep >= 360 ? 359.99 : sweep);
+      el.setAttribute('d', donutArc(angle, to, R1, R2));
+      el.setAttribute('fill', channelColor(item.name));
+      el.setAttribute('class', 'donut-seg');
+      el.setAttribute('data-name', item.name);
+      // 조각 사이를 살짝 띄워 경계가 보이게 합니다.
+      el.setAttribute('stroke', 'var(--surface)');
+      el.setAttribute('stroke-width', '2');
+      var title = document.createElementNS('http://www.w3.org/2000/svg', 'title');
+      title.textContent = item.name + ' ' + item.count + '명 (' + Math.round(item.count / data.total * 100) + '%)';
+      el.appendChild(title);
+      svg.appendChild(el);
+      angle = to;
+    });
+
+    // 가운데 총계
+    var center = document.createElement('div');
+    center.className = 'donut-center';
+    var num = document.createElement('span'); num.className = 'dc-num'; num.textContent = data.total.toLocaleString('ko-KR');
+    var cap = document.createElement('span'); cap.className = 'dc-cap'; cap.textContent = '명';
+    center.appendChild(num); center.appendChild(cap);
+    box.appendChild(center);
+
+    // 범례 — 숫자와 비율을 같이 적어 색만으로 읽지 않아도 되게 합니다.
+    data.list.forEach(function (item) {
+      var row = document.createElement('div');
+      row.className = 'dl-row';
+      var sw = document.createElement('span'); sw.className = 'dl-sw'; sw.style.background = channelColor(item.name);
+      var nm = document.createElement('span'); nm.className = 'dl-name'; nm.textContent = item.name;
+      var ct = document.createElement('span'); ct.className = 'dl-cnt'; ct.textContent = item.count.toLocaleString('ko-KR') + '명';
+      var pc = document.createElement('span'); pc.className = 'dl-pct'; pc.textContent = Math.round(item.count / data.total * 100) + '%';
+      row.appendChild(sw); row.appendChild(nm); row.appendChild(ct); row.appendChild(pc);
+      // 범례에 마우스를 올리면 그 조각만 남기고 흐리게 — 어느 조각인지 바로 보입니다.
+      row.addEventListener('mouseenter', function () {
+        row.classList.add('on');
+        svg.querySelectorAll('.donut-seg').forEach(function (sg) {
+          sg.classList.toggle('dim', sg.getAttribute('data-name') !== item.name);
+        });
+      });
+      row.addEventListener('mouseleave', function () {
+        row.classList.remove('on');
+        svg.querySelectorAll('.donut-seg').forEach(function (sg) { sg.classList.remove('dim'); });
+      });
+      $('chLegend').appendChild(row);
+    });
+  }
+
   function renderAll() {
     renderVisitors();
+    renderChannelDonut();
     renderCalls();
     renderLockers();
     renderDuty();
@@ -4340,7 +4507,7 @@
       db.collection('visitors').orderBy('createdAt', 'desc').limit(1000).onSnapshot(function (snap) {
         visitors = snap.docs.map(function (d) { return Object.assign({ _id: d.id }, d.data()); });
         setConn('live', '실시간 동기화 중');
-        renderVisitors(); renderOverview();
+        renderVisitors(); renderChannelDonut(); renderOverview();
       }, function () { setConn('error', '동기화 오류가 발생했습니다.'); });
 
       db.collection('inquiryCalls').orderBy('createdAt', 'desc').limit(1000).onSnapshot(function (snap) {
