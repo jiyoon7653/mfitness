@@ -543,6 +543,12 @@
   .up-file { font-size: 12px; color: var(--text-faint); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
   .upload-box.filled .up-file { color: var(--good); font-weight: 500; }
   .up-drop-hint { font-size: 11.5px; color: var(--text-faint); margin: 0 0 16px; }
+  /* 칸이 좁아 이름이 한 글자씩 끊기지 않도록, 좁으면 가로로 밀립니다. */
+  .calls-table { min-width: 760px; }
+  .calls-table td:nth-child(5) { min-width: 160px; }
+
+  .si-link { display: flex; align-items: center; gap: 7px; font-size: 12px; color: var(--text-muted); cursor: pointer; }
+  .si-link input { width: auto; margin: 0; }
   .divider-line { height: 1px; background: var(--border); margin: 20px 0 18px; }
   .si-totals { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 14px; }
   .si-total-chip {
@@ -780,11 +786,17 @@
 
   <!-- ===================== 문의DB ===================== -->
   <section class="tab-panel" id="tab-calls" hidden>
-    <div class="kpi-row">
+    <div class="kpi-row cols-5">
       <div class="stat-tile"><span class="stat-tile-label">오늘 문의</span><span class="stat-tile-value" id="cToday">–</span></div>
       <div class="stat-tile"><span class="stat-tile-label">이번 주 문의</span><span class="stat-tile-value" id="cWeek">–</span></div>
       <div class="stat-tile"><span class="stat-tile-label">이번 달 문의</span><span class="stat-tile-value" id="cMonth">–</span></div>
       <div class="stat-tile"><span class="stat-tile-label">전체 누적</span><span class="stat-tile-value" id="cTotal">–</span></div>
+      <div class="stat-tile">
+        <span class="stat-tile-label">등록 전환</span>
+        <span class="stat-tile-value c-good" id="cConverted">–</span>
+        <div class="meter-track"><div class="meter-fill" id="cConvMeter"></div></div>
+        <span class="goal-sub" id="cConvSub">문의 중 실제 등록한 인원</span>
+      </div>
     </div>
     <div class="layout">
       <section class="panel">
@@ -803,11 +815,18 @@
       <section class="panel">
         <div class="list-header">
           <h2>문의 전화 기록</h2>
-          <div class="filters"><input type="text" id="cFilterSearch" placeholder="이름·번호·메모 검색"></div>
+          <div class="filters">
+            <select id="cFilterStatus" aria-label="등록 여부">
+              <option value="all">전체</option>
+              <option value="done">등록완료만</option>
+              <option value="open">미등록만</option>
+            </select>
+            <input type="text" id="cFilterSearch" placeholder="이름·번호·메모 검색">
+          </div>
         </div>
         <div class="table-wrap">
-          <table>
-            <thead><tr><th>날짜</th><th>이름</th><th>휴대폰</th><th>메모</th><th>담당자</th><th></th></tr></thead>
+          <table class="calls-table">
+            <thead><tr><th>날짜</th><th>이름</th><th>휴대폰</th><th>등록</th><th>메모</th><th>담당자</th><th></th></tr></thead>
             <tbody id="callBody"></tbody>
           </table>
           <p class="empty-state" id="callEmpty" hidden>아직 등록된 문의 전화 기록이 없습니다.</p>
@@ -899,7 +918,7 @@
         <p class="form-status" id="siWarn" aria-live="polite"></p>
         <div class="table-wrap">
           <table>
-            <thead><tr><th>시간</th><th>거래내용</th><th>회원</th><th class="num">금액</th><th>분류</th></tr></thead>
+            <thead><tr><th>시간</th><th>거래내용</th><th>회원</th><th class="num">금액</th><th>분류</th><th>문의DB</th></tr></thead>
             <tbody id="siBody"></tbody>
           </table>
         </div>
@@ -2051,22 +2070,73 @@
       .finally(function () { $('callSubmitBtn').disabled = false; });
   });
   $('cFilterSearch').addEventListener('input', renderCalls);
+  $('cFilterStatus').addEventListener('change', renderCalls);
+
+  // 매출명세로 자동 대조되지 않은 건은 손으로 표시할 수 있게 둡니다.
+  function markRegistered(e) {
+    if (!db) return;
+    var d = window.prompt((e.name || e.phone || '이 문의') + ' 님이 등록한 날짜를 입력해 주세요.', todayStr());
+    if (d === null) return;
+    d = d.trim();
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(d)) { window.alert('YYYY-MM-DD 형식으로 입력해 주세요.'); return; }
+    db.collection('inquiryCalls').doc(e._id).update({ registeredAt: d, registeredProduct: '', registeredAmount: 0 }).catch(function () {});
+  }
+  function clearRegistered(e) {
+    if (!db) return;
+    if (!window.confirm((e.name || e.phone || '이 문의') + ' 님의 등록 표시를 해제할까요?')) return;
+    db.collection('inquiryCalls').doc(e._id).update({
+      registeredAt: firebase.firestore.FieldValue.delete(),
+      registeredProduct: firebase.firestore.FieldValue.delete(),
+      registeredAmount: firebase.firestore.FieldValue.delete()
+    }).catch(function () {});
+  }
 
   function renderCalls() {
     var q = $('cFilterSearch').value.trim().toLowerCase();
+    var status = $('cFilterStatus') ? $('cFilterStatus').value : 'all';
     var filtered = calls.filter(function (e) {
+      if (status === 'done' && !e.registeredAt) return false;
+      if (status === 'open' && e.registeredAt) return false;
       if (!q) return true;
-      var hay = [e.name, e.phone, e.memo].filter(Boolean).join(' ').toLowerCase();
+      var hay = [e.name, e.phone, e.memo, e.registeredProduct].filter(Boolean).join(' ').toLowerCase();
       return hay.indexOf(q) !== -1;
     });
     var body = $('callBody'); body.innerHTML = '';
     $('callEmpty').hidden = filtered.length > 0;
     filtered.forEach(function (e) {
       var tr = document.createElement('tr');
-      var cells = [e.date || '', e.name || '-', e.phone || '', e.memo || '-', e.staff || '-'];
-      cells.forEach(function (v, i) {
+      [e.date || '', e.name || '-', e.phone || ''].forEach(function (v, i) {
         var td = document.createElement('td');
-        if (i === 0 || i === 2) td.className = 'nowrap';
+        td.className = 'nowrap';
+        td.textContent = v;
+        tr.appendChild(td);
+      });
+
+      // 매출명세를 올릴 때 이 사람이 실제로 등록했는지 표시됩니다.
+      var tdReg = document.createElement('td');
+      tdReg.className = 'nowrap';
+      if (e.registeredAt) {
+        var badge = document.createElement('span');
+        badge.className = 'badge badge-lv4';
+        badge.textContent = '등록 ' + e.registeredAt.slice(5);
+        badge.title = (e.registeredProduct || '') + (e.registeredAmount ? ' · ' + won(e.registeredAmount) : '');
+        tdReg.appendChild(badge);
+        var undo = document.createElement('button');
+        undo.type = 'button'; undo.className = 'link-btn'; undo.textContent = '해제';
+        undo.style.marginLeft = '8px';
+        tdReg.appendChild(document.createTextNode(' '));
+        undo.addEventListener('click', function () { clearRegistered(e); });
+        tdReg.appendChild(undo);
+      } else {
+        var mk = document.createElement('button');
+        mk.type = 'button'; mk.className = 'link-btn'; mk.textContent = '등록 표시';
+        mk.addEventListener('click', function () { markRegistered(e); });
+        tdReg.appendChild(mk);
+      }
+      tr.appendChild(tdReg);
+
+      [e.memo || '-', e.staff || '-'].forEach(function (v) {
+        var td = document.createElement('td');
         td.textContent = v;
         tr.appendChild(td);
       });
@@ -2082,6 +2152,13 @@
     $('cWeek').textContent = calls.filter(function (e) { if (!e.date) return false; var d = parseLocalDate(e.date); return d >= wkStart && d < wkEnd; }).length.toLocaleString('ko-KR');
     $('cMonth').textContent = calls.filter(function (e) { return e.date && e.date.slice(0, 7) === monthPrefix; }).length.toLocaleString('ko-KR');
     $('cTotal').textContent = calls.length.toLocaleString('ko-KR');
+
+    var converted = calls.filter(function (e) { return !!e.registeredAt; }).length;
+    var convPct = calls.length ? Math.round(converted / calls.length * 100) : null;
+    $('cConverted').textContent = converted.toLocaleString('ko-KR');
+    if (convPct !== null) applyMeter($('cConvMeter'), convPct);
+    $('cConvSub').textContent = convPct === null ? '문의 중 실제 등록한 인원'
+      : converted.toLocaleString('ko-KR') + '명 / ' + calls.length.toLocaleString('ko-KR') + '건 · ' + convPct + '%';
 
     updateStaffList();
   }
@@ -3938,12 +4015,16 @@
       }
       // 한글 윈도우에서 원화 기호가 역슬래시로 넘어오는 경우가 있어 되돌립니다.
       var desc = cellText(row[iDesc]).replace(/\\/g, '₩');
+      // 회원 옆 칸에는 회원번호(16자리)나 전화번호가 들어옵니다. 전화번호일 때만 대조에 씁니다.
+      var idCell = iMember === -1 ? '' : cellText(row[iMember + 1]);
       items.push({
         date: d, time: time,
         desc: desc,
         member: iMember === -1 ? '' : cellText(row[iMember]),
+        phone: looksLikePhone(idCell) ? idCell : '',
         amount: amount,
-        category: guessSalesCategory(desc)
+        category: guessSalesCategory(desc),
+        link: true
       });
     }
     if (!items.length) throw new Error('읽을 수 있는 거래 내역이 없습니다.');
@@ -3952,6 +4033,34 @@
 
   // 거래내용으로 카테고리를 추측합니다.
   // PT 는 어느 트레이너 몫인지 파일에 없어서 비워 두고 직접 고르게 합니다.
+  function digitsOnly(v) { return String(v == null ? '' : v).replace(/[^0-9]/g, ''); }
+  function looksLikePhone(v) {
+    var d = digitsOnly(v);
+    return d.length >= 10 && d.length <= 11 && d.charAt(0) === '0';
+  }
+  // 일일입장 같은 것은 '등록'이 아니라서 문의DB 대조에서 뺍니다.
+  function isRegistrationItem(desc) {
+    return !/일일|입장|1일/.test(String(desc || ''));
+  }
+  // 매출명세의 한 줄과 같은 사람으로 볼 문의 기록을 찾습니다.
+  // 전화번호가 가장 확실하고, 없으면 이름으로 찾되 동명이인이면 붙이지 않습니다.
+  function findInquiryMatch(item) {
+    if (!isRegistrationItem(item.desc)) return null;
+    var open = calls.filter(function (c) { return !c.registeredAt; });
+    var ph = digitsOnly(item.phone);
+    if (ph) {
+      var byPhone = open.filter(function (c) { return digitsOnly(c.phone) === ph; });
+      if (byPhone.length === 1) return { call: byPhone[0], by: '번호' };
+    }
+    var nm = (item.member || '').trim();
+    if (nm) {
+      var byName = open.filter(function (c) { return (c.name || '').trim() === nm; });
+      if (byName.length === 1) return { call: byName[0], by: '이름' };
+      if (byName.length > 1) return { ambiguous: byName.length };
+    }
+    return null;
+  }
+
   function findCategory(re) {
     for (var i = 0; i < categories.length; i++) if (re.test(categories[i].name)) return categories[i].name;
     return '';
@@ -4026,6 +4135,33 @@
       });
       tdCat.appendChild(sel);
       tr.appendChild(tdCat);
+
+      // 문의DB 대조 — 맞으면 체크해서 '등록완료'로 표시할 수 있게 합니다.
+      var tdLink = document.createElement('td');
+      tdLink.className = 'nowrap';
+      var m = findInquiryMatch(it);
+      it._match = m && m.call ? m.call : null;
+      if (m && m.call) {
+        var lab = document.createElement('label');
+        lab.className = 'si-link';
+        var cb = document.createElement('input');
+        cb.type = 'checkbox';
+        cb.checked = it.link !== false;
+        cb.addEventListener('change', function () { siItems[idx].link = cb.checked; });
+        var txt = document.createElement('span');
+        txt.textContent = (m.call.name || m.call.phone || '문의') + ' · ' + (m.call.date || '') + ' (' + m.by + ' 일치)';
+        lab.appendChild(cb); lab.appendChild(txt);
+        tdLink.appendChild(lab);
+      } else if (m && m.ambiguous) {
+        var amb = document.createElement('span');
+        amb.className = 'badge badge-warn';
+        amb.textContent = '동명이인 ' + m.ambiguous + '건';
+        tdLink.appendChild(amb);
+      } else {
+        tdLink.textContent = '-';
+        tdLink.style.color = 'var(--text-faint)';
+      }
+      tr.appendChild(tdLink);
       body.appendChild(tr);
     });
 
@@ -4101,7 +4237,36 @@
         if (t.by[c.name]) el.value = t.by[c.name];
       });
       var names = Object.keys(t.by).map(function (k) { return k + ' ' + won(t.by[k]); }).join(' · ');
-      setFormStatus('siStatus', siDate + ' 매출을 폼에 채웠습니다 — ' + names + '. 확인 후 등록하기를 눌러 주세요.', 'success');
+      var msg = siDate + ' 매출을 폼에 채웠습니다 — ' + names + '. 확인 후 등록하기를 눌러 주세요.';
+
+      // 체크된 문의 기록을 '등록완료'로 표시합니다 (업무일지 저장과는 별개로 바로 반영).
+      // 한 사람이 여러 건 결제한 경우가 있어, 문의 기록별로 묶어 한 번만 씁니다.
+      // 따로 쓰면 뒤엣것이 앞엣것을 덮어써서 금액이 작은 쪽만 남습니다.
+      var byCall = {};
+      siItems.forEach(function (it) {
+        if (it.link === false || !it._match) return;
+        var id = it._match._id;
+        if (!byCall[id]) byCall[id] = { items: [], amount: 0 };
+        byCall[id].items.push(it.desc);
+        byCall[id].amount += it.amount;
+      });
+      var ids = Object.keys(byCall);
+      if (ids.length && db) {
+        var done = 0;
+        ids.forEach(function (id) {
+          db.collection('inquiryCalls').doc(id).update({
+            registeredAt: siDate,
+            registeredProduct: byCall[id].items.join(' · '),
+            registeredAmount: byCall[id].amount
+          }).then(function () {
+            done++;
+            if (done === ids.length) {
+              setFormStatus('siStatus', msg + ' 문의DB ' + ids.length + '명을 등록완료로 표시했습니다.', 'success');
+            }
+          }).catch(function () {});
+        });
+      }
+      setFormStatus('siStatus', msg, 'success');
       $('wSummary').focus();
     });
   })();
