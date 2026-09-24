@@ -131,6 +131,25 @@
 
   .error{color:var(--danger);font-size:13.5px;}
   .note{font-size:13px;color:var(--ink-muted);background:var(--surface-2);border-radius:14px;padding:16px 18px;}
+
+  /* 지난달 회원 불러오기 */
+  .load-bar{display:flex;gap:12px;align-items:center;justify-content:space-between;flex-wrap:wrap;
+    background:var(--accent-bg);border-radius:14px;padding:12px 16px;margin:0 0 12px;}
+  .load-bar .lb-sub{display:block;font-size:12.5px;color:var(--ink-muted);margin-top:2px;}
+  .load-msg{margin:0 0 12px;font-size:13px;color:var(--success);}
+  .carry-tag{display:inline-block;margin-top:4px;font-size:11px;font-weight:600;letter-spacing:-0.004em;
+    color:var(--accent-strong);background:var(--accent-bg);padding:1px 8px;border-radius:980px;white-space:nowrap;}
+
+  /* 이새한 매출 구간표 */
+  .tier-table td{font-size:13.5px;}
+  .tier-table td:nth-child(2){white-space:nowrap;}
+  .tier-table tr.tier-now td{background:var(--accent-bg);font-weight:600;}
+  .pill-now{background:var(--accent);color:#fff;padding:2px 10px;font-size:11.5px;font-weight:600;}
+  .tier-need{font-size:12.5px;color:var(--ink-muted);}
+
+  /* 매출 이월 */
+  .carry-table tr.carry-on td{background:var(--warn-bg);}
+  .carry-table td:last-child{width:1%;white-space:nowrap;}
   a.linklike{color:var(--accent);cursor:pointer;font-weight:500;font-size:13.5px;text-decoration:none;}
   a.linklike:hover{text-decoration:underline;}
 
@@ -216,12 +235,28 @@
   function categoryRate(cat){ return CATEGORY_RATE.hasOwnProperty(cat) ? CATEGORY_RATE[cat] : 1; }
 
   // 이새한(트레이너) 당월 총매출 구간별 수업료율 - 700만원까지는 구간 요율, 초과분은 요율 고정(55%) + 초과분의 10% 별도 인센티브
-  function trainerRateForRevenue(rev){
-    if (rev <= 2990000) return 0.30;
-    if (rev <= 3990000) return 0.45;
-    if (rev <= 4990000) return 0.50;
-    return 0.55; // 500만~699만 및 700만 초과 구간 모두 요율은 55%로 고정, 700만 초과분만 별도 10% 인센티브
+  // 계산과 화면의 구간표가 이 배열 하나를 같이 씁니다 (숫자가 따로 놀지 않게).
+  var TRAINER_TIERS = [
+    { upTo: 2990000,  rate: 0.30, label: '299만원 이하' },
+    { upTo: 3990000,  rate: 0.45, label: '299만원 초과 ~ 399만원' },
+    { upTo: 4990000,  rate: 0.50, label: '399만원 초과 ~ 499만원' },
+    { upTo: 7000000,  rate: 0.55, label: '499만원 초과 ~ 700만원' },
+    { upTo: Infinity, rate: 0.55, label: '700만원 초과', bonus: true }   // 요율은 55% 그대로, 초과분의 10%를 별도 인센티브
+  ];
+  var TRAINER_EXCESS_BASE = 7000000;
+  function trainerTierIndex(rev){
+    for (var i=0; i<TRAINER_TIERS.length; i++){ if (rev <= TRAINER_TIERS[i].upTo) return i; }
+    return TRAINER_TIERS.length-1;
   }
+  function trainerRateForRevenue(rev){ return TRAINER_TIERS[trainerTierIndex(rev)].rate; }
+
+  // 'YYYY-MM' 에 d개월을 더한 달
+  function shiftMonth(k, d){
+    var p = k.split('-').map(Number);
+    var dt = new Date(p[0], p[1]-1+d, 1);
+    return dt.getFullYear()+'-'+String(dt.getMonth()+1).padStart(2,'0');
+  }
+  function monthLabel(k){ return Number(k.split('-')[1])+'월'; }
 
   function currentMonthKey(){
     var d = new Date();
@@ -360,12 +395,34 @@
   // 이새한(트레이너): 당월 총매출 합계 기준 구간 요율을 매출 전체에 일괄 적용.
   // 총매출은 회원별 진행 페이스(단가×이번달횟수)가 아니라, 그달 실제로 결제받은 금액(totalPaid)의 합계입니다.
   // 700만원 초과분에 대해서는 요율은 55%로 고정하되, 초과분의 10%를 별도 인센티브로 추가 지급(100만원당 10만원).
-  function calcTrainerTotals(monthData){
-    var grossRevenue = 0;
-    (monthData.sessions||[]).forEach(function(row){ grossRevenue += Number(row.totalPaid)||0; });
+  //
+  // 총매출 = 이번 달 결제액 − 다음 달로 이월한 매출 + 지난달에서 이월된 매출
+  //  · "지난달 회원 불러오기"로 가져온 회원(carriedFrom)은 결제가 지난달 매출로 이미 잡혔으므로 빼고 셉니다.
+  //  · 매출 이월(revenueCarryOut)은 관리자가 정하며, 이월한 금액은 이번 달 구간 계산에서 빠지고
+  //    다음 달 총매출에 더해집니다. 다음 달 쪽 금액은 지난달 기록에서 그때그때 읽어 옵니다.
+  // monthKey·empId 를 주지 않으면 지난달 이월분은 0으로 봅니다.
+  function carryInEntries(monthKey, empId){
+    if (!monthKey || !empId) return [];
+    var prev = STATE.months[shiftMonth(monthKey, -1)];
+    return (prev && prev[empId] && prev[empId].revenueCarryOut) || [];
+  }
+  function sumAmounts(list){
+    var t = 0; (list||[]).forEach(function(e){ t += Number(e.amount)||0; }); return t;
+  }
+  function calcTrainerTotals(monthData, monthKey, empId){
+    var paidTotal = 0, carriedPaid = 0, carriedCount = 0;
+    (monthData.sessions||[]).forEach(function(row){
+      var paid = Number(row.totalPaid)||0;
+      if (row.carriedFrom){ carriedPaid += paid; carriedCount++; }
+      else paidTotal += paid;
+    });
+    var carryOut = sumAmounts(monthData.revenueCarryOut);
+    var carryInList = carryInEntries(monthKey, empId);
+    var carryIn = sumAmounts(carryInList);
+    var grossRevenue = Math.max(0, paidTotal - carryOut) + carryIn;
     var rate = trainerRateForRevenue(grossRevenue);
     var baseFee = Math.round(grossRevenue * rate);
-    var excess = Math.max(0, grossRevenue - 7000000);
+    var excess = Math.max(0, grossRevenue - TRAINER_EXCESS_BASE);
     var excessIncentive = Math.round(excess * 0.10);
     var totalFee = baseFee + excessIncentive;
     var support = Number(monthData.supportAmount)||0;
@@ -373,7 +430,9 @@
     var rateD = monthData.deductionRate==null ? 3.3 : Number(monthData.deductionRate);
     var deduction = Math.round(preTax*rateD/100);
     var net = preTax - deduction;
-    return {grossRevenue:grossRevenue, rate:rate, baseFee:baseFee, excess:excess, excessIncentive:excessIncentive, totalFee:totalFee, support:support, preTax:preTax, deductionRate:rateD, deduction:deduction, net:net};
+    return {paidTotal:paidTotal, carriedPaid:carriedPaid, carriedCount:carriedCount,
+            carryOut:carryOut, carryIn:carryIn, carryInList:carryInList,
+            grossRevenue:grossRevenue, rate:rate, baseFee:baseFee, excess:excess, excessIncentive:excessIncentive, totalFee:totalFee, support:support, preTax:preTax, deductionRate:rateD, deduction:deduction, net:net};
   }
 
   // 최민영(인포): 월~금 19-22시(일 3시간) 고정 스케줄. 공휴일이 하루라도 포함된 주는 그 주의 주휴수당을 지급하지 않음.
@@ -636,7 +695,7 @@
   // 트레이너(이새한) 화면 전용
   function refreshSessionTotals(emp, m){
     var buf = DRAFT[emp.id] || m.sessions || [];
-    var totals = calcTrainerTotals({sessions:buf});
+    var totals = calcTrainerTotals({sessions:buf, revenueCarryOut:m.revenueCarryOut}, UI.month, emp.id);
     buf.forEach(function(row, i){
       var c = calcSessionRow(row);
       setCell(i, 'unit', fmt(c.unit));
@@ -645,11 +704,9 @@
       setCell(i, 'rate', Math.round(totals.rate*100)+'%');
       setCell(i, 'fee', won(Math.round(c.grossFee*totals.rate)));
     });
-    setText('v-total-fee', won(totals.totalFee));
-    setText('v-tr-gross', won(totals.grossRevenue));
-    setText('v-tr-rate', Math.round(totals.rate*100)+'%');
-    showRow('kv-tr-excess', totals.excess > 0);
-    setText('v-tr-excess', won(totals.excessIncentive));
+    // 요약·구간표 안에는 입력칸이 없어서 통째로 다시 그려도 입력 중인 칸에 영향이 없습니다.
+    setHtml('tr-rev-box', trainerRevenueHtml(totals, UI.month, false));
+    setHtml('tr-tier', trainerTierHtml(totals));
   }
 
   function refreshInfoTotals(emp, buf, monthKey){
@@ -682,7 +739,7 @@
 
   // 트레이너/인포 관리자 화면 전용 (매니저는 refreshManagerTotals 를 씁니다)
   function refreshAdminTotals(emp, m){
-    var t = emp.role==='trainer' ? calcTrainerTotals(m) : calcInfoTotals(UI.month, m);
+    var t = emp.role==='trainer' ? calcTrainerTotals(m, UI.month, emp.id) : calcInfoTotals(UI.month, m);
     if (emp.role==='info'){
       setText('v-ad-if-base', won(t.basePay));
       setText('v-ad-if-rest', won(t.restPay));
@@ -911,6 +968,209 @@
     '</div>';
   }
 
+  // ---------- 지난달 회원(세션카드) 불러오기 ----------
+  // 이번 달보다 앞선 달 중 회원 기록이 있는 가장 최근 달을 원본으로 씁니다
+  // (한 달을 건너뛰었어도 그 전 달에서 이어 올 수 있게).
+  function prevCardSource(empId, monthKey){
+    var keys = Object.keys(STATE.months).filter(function(k){ return k < monthKey; }).sort().reverse();
+    for (var i=0; i<keys.length; i++){
+      var r = STATE.months[keys[i]][empId];
+      if (r && r.sessions && r.sessions.length) return { key: keys[i], rows: r.sessions };
+    }
+    return null;
+  }
+  function cardKey(r){
+    return [String(r.client||'').trim(), Number(r.contractSessions)||0, Number(r.totalPaid)||0, Number(r.prevDone)||0].join('|');
+  }
+  // 불러올 회원 고르기: 계약 횟수를 다 쓴 회원은 빼고, 전월까지 = 원본의 (전월까지 + 금월),
+  // 금월은 비웁니다. 이미 표에 있는 회원은 다시 넣지 않습니다(두 번 눌러도 안전).
+  function planCardLoad(src, existing){
+    var have = {};
+    (existing||[]).forEach(function(r){ var k = cardKey(r); have[k] = (have[k]||0) + 1; });
+    var add = [], done = 0, dup = 0;
+    src.rows.forEach(function(r){
+      if (!String(r.client||'').trim()) return;
+      var contract = Number(r.contractSessions)||0;
+      var used = (Number(r.prevDone)||0) + (Number(r.thisMonthDone)||0);
+      if (contract > 0 && used >= contract){ done++; return; }
+      var nr = JSON.parse(JSON.stringify(r));
+      nr.prevDone = String(used);
+      nr.thisMonthDone = '';
+      nr.carriedFrom = src.key;
+      var k = cardKey(nr);
+      if (have[k]){ have[k]--; dup++; return; }
+      add.push(nr);
+    });
+    return { add: add, done: done, dup: dup };
+  }
+  function loadPrevBar(emp, rows, locked){
+    if (locked) return '';
+    var msg = (UI.loadMsg && UI.loadMsg.emp === emp.id && UI.loadMsg.month === UI.month)
+      ? '<p class="load-msg">'+esc(UI.loadMsg.text)+'</p>' : '';
+    var src = prevCardSource(emp.id, UI.month);
+    if (!src) return msg;
+    var plan = planCardLoad(src, rows);
+    if (!plan.add.length) return msg;
+    var sub = '전월까지 횟수는 '+monthLabel(src.key)+' 기록을 이어서 채우고, 금월 횟수만 새로 적으면 됩니다.' +
+      (plan.done ? ' 계약 횟수를 다 쓴 '+plan.done+'명은 빼고 불러옵니다.' : '');
+    if (emp.role === 'trainer') sub += ' 불러온 회원의 결제액은 이미 '+monthLabel(src.key)+' 매출이라 이번 달 총매출에는 넣지 않습니다.';
+    return msg + '<div class="load-bar"><div><strong>'+monthLabel(src.key)+' 진행 중 회원 '+plan.add.length+'명</strong>' +
+      '<span class="lb-sub">'+sub+'</span></div>' +
+      '<button class="btn-primary btn-sm" id="load-prev-btn">'+monthLabel(src.key)+' 회원 불러오기</button></div>';
+  }
+  // rows 배열에 바로 추가합니다. 직원 화면은 임시저장 때 저장되고, 관리자 화면은 바로 저장합니다.
+  function loadPrevCards(emp, rows, saveNow){
+    var src = prevCardSource(emp.id, UI.month);
+    if (!src) return;
+    var plan = planCardLoad(src, rows);
+    plan.add.forEach(function(r){ rows.push(r); });
+    UI.loadMsg = { emp: emp.id, month: UI.month,
+      text: monthLabel(src.key)+' 진행 중 회원 '+plan.add.length+'명을 불러왔습니다. 금월 횟수를 채워 주세요.' +
+        (saveNow ? '' : ' 임시저장을 눌러야 저장됩니다.') };
+    if (saveNow) persist(); else render();
+  }
+  function carryTag(row, emp){
+    if (!row.carriedFrom) return '';
+    var tip = row.carriedFrom+'에서 불러온 회원' +
+      (emp.role === 'trainer' ? ' · 결제액은 그 달 매출로 이미 잡혀 이번 달 총매출에서 뺍니다' : '');
+    return '<div class="carry-tag" title="'+esc(tip)+'">'+monthLabel(row.carriedFrom)+'에서</div>';
+  }
+
+  // ---------- 이새한(트레이너) 매출 구간표 · 매출 요약 · 매출 이월 ----------
+  function trainerTierHtml(t){
+    var cur = trainerTierIndex(t.grossRevenue);
+    var rows = TRAINER_TIERS.map(function(tier, i){
+      var rateTxt = Math.round(tier.rate*100)+'%' + (tier.bonus ? ' + 초과분의 10%' : '');
+      var st = '';
+      if (i === cur) st = '<span class="pill pill-now">현재</span>';
+      else if (i === cur+1){
+        var need = TRAINER_TIERS[cur].upTo - t.grossRevenue;
+        st = '<span class="tier-need">'+(need > 0 ? won(need)+' 넘게 더 하면' : '조금만 더 하면')+'</span>';
+      }
+      return '<tr'+(i===cur?' class="tier-now"':'')+'><td>'+tier.label+'</td><td class="num">'+rateTxt+'</td><td>'+st+'</td></tr>';
+    }).join('');
+    return '<h4 style="margin:20px 0 6px">매출 구간별 요율</h4>' +
+      '<div class="table-wrap"><table class="tier-table"><thead><tr><th>당월 총매출</th><th>요율</th><th></th></tr></thead><tbody>'+rows+'</tbody></table></div>' +
+      '<p class="muted" style="margin:6px 0 0;font-size:12.5px">요율은 당월 총매출 전체에 한 번에 적용됩니다. 700만원을 넘으면 요율은 55% 그대로이고, 넘은 금액의 10%를 인센티브로 더 받습니다.</p>';
+  }
+  function carryInNames(t){
+    var names = t.carryInList.map(function(e){ return e.client; }).filter(Boolean);
+    if (!names.length) return '';
+    return names.length > 2 ? names.slice(0,2).join(', ')+' 외 '+(names.length-2)+'건' : names.join(', ');
+  }
+  function trainerRevenueHtml(t, monthKey, forAdmin){
+    var h = '';
+    var detail = t.carriedCount || t.carryOut || t.carryIn;
+    function kv(k, v, strong){
+      return '<div class="kv"><div class="k"'+(strong?' style="font-weight:600;color:var(--ink)"':'')+'>'+k+'</div><div class="v"'+(strong?' style="font-weight:600"':'')+'>'+v+'</div></div>';
+    }
+    if (detail){
+      h += kv('이번 달 결제액'+(t.carriedCount ? ' (불러온 회원 제외)' : ''), won(t.paidTotal));
+      if (t.carriedCount) h += '<div class="kv"><div class="k">지난달에서 불러온 회원 '+t.carriedCount+'명 결제액 — 이미 그 달 매출이라 제외</div><div class="v muted">'+won(t.carriedPaid)+'</div></div>';
+      if (t.carryOut) h += kv('다음 달('+monthLabel(shiftMonth(monthKey,1))+')로 이월', '−'+won(t.carryOut));
+      if (t.carryIn){
+        var nm = carryInNames(t);
+        h += kv(monthLabel(shiftMonth(monthKey,-1))+'에서 이월된 매출'+(nm ? ' ('+esc(nm)+')' : ''), '+'+won(t.carryIn));
+      }
+    }
+    h += kv('당월 총매출'+(forAdmin && !detail ? ' (총 결제금액 합계)' : ''), '<span id="v-tr-gross">'+won(t.grossRevenue)+'</span>', detail);
+    h += kv('적용 구간 요율', '<span id="v-tr-rate">'+Math.round(t.rate*100)+'%</span>');
+    if (forAdmin) h += kv('기본 수업료', won(t.baseFee));
+    if (t.excess > 0) h += kv('700만원 초과분 인센티브 (10%)', '<span id="v-tr-excess">'+won(t.excessIncentive)+'</span>');
+    h += kv(forAdmin ? '총수업료' : '이번 달 총수업료', '<span id="v-total-fee">'+won(t.totalFee)+'</span>');
+    return h;
+  }
+  // 급여명세서의 수업료 줄에 이월 내역을 덧붙입니다.
+  function carryNote(t, monthKey){
+    var s2 = '';
+    if (t.carryIn) s2 += ' · '+monthLabel(shiftMonth(monthKey,-1))+' 이월 +'+won(t.carryIn);
+    if (t.carryOut) s2 += ' · '+monthLabel(shiftMonth(monthKey,1))+'로 이월 −'+won(t.carryOut);
+    return s2;
+  }
+  // 이번 달 회원(불러온 회원 제외)마다 이월 키. 같은 회원·같은 결제가 두 줄이면 #2 로 구분합니다.
+  function ownPaidRows(m){
+    var seen = {}, out = [];
+    (m.sessions||[]).forEach(function(row, i){
+      if (row.carriedFrom || !(Number(row.totalPaid) > 0)) return;
+      var base = [String(row.client||'').trim(), Number(row.contractSessions)||0, Number(row.totalPaid)||0].join('|');
+      seen[base] = (seen[base]||0) + 1;
+      out.push({ i: i, row: row, key: base+'#'+seen[base] });
+    });
+    return out;
+  }
+  function renderCarrySection(emp, m, locked){
+    var nextKey = shiftMonth(UI.month, 1);
+    var nextRec = (STATE.months[nextKey]||{})[emp.id];
+    var nextLocked = !!(nextRec && nextRec.status === 'confirmed');
+    var off = locked || nextLocked;
+    var entries = m.revenueCarryOut || [];
+    var byKey = {};
+    entries.forEach(function(e, idx){ byKey[e.key] = idx; });
+    var own = ownPaidRows(m), usedKeys = {};
+    var body = own.map(function(o){
+      var on = byKey.hasOwnProperty(o.key);
+      if (on) usedKeys[o.key] = true;
+      var btn = off ? (on ? '<span class="muted">이월됨</span>' : '')
+        : '<button class="btn-ghost btn-sm" data-carry-row="'+o.i+'">'+(on ? '이월 취소' : monthLabel(nextKey)+'로 이월')+'</button>';
+      return '<tr'+(on?' class="carry-on"':'')+'><td>'+esc(o.row.client||'(이름 없음)')+'</td><td class="num">'+won(Number(o.row.totalPaid)||0)+'</td><td>'+btn+'</td></tr>';
+    });
+    // 직접 입력한 금액, 또는 결제액을 나중에 고쳐 표의 줄과 더는 맞지 않는 이월분
+    entries.forEach(function(e, idx){
+      if (usedKeys[e.key]) return;
+      var btn = off ? '<span class="muted">이월됨</span>' : '<button class="btn-ghost btn-sm" data-carry-del="'+idx+'">이월 취소</button>';
+      body.push('<tr class="carry-on"><td>'+esc(e.client||'직접 입력')+' <span class="muted">('+(e.manual?'금액 직접 입력':'표에 없는 결제')+')</span></td><td class="num">'+won(Number(e.amount)||0)+'</td><td>'+btn+'</td></tr>');
+    });
+    var total = sumAmounts(entries);
+    var html = '<div class="divider"></div><h3 style="margin:4px 0 6px">매출 이월</h3>' +
+      '<p class="muted" style="margin:0 0 10px">이번 달 결제 중 일부를 '+monthLabel(nextKey)+' 매출로 넘깁니다. 넘긴 금액은 이번 달 구간·수업료 계산에서 빠지고, '+monthLabel(nextKey)+' 총매출에 더해져 '+monthLabel(nextKey)+' 구간을 정합니다.</p>';
+    if (nextLocked) html += '<p class="error" style="margin:0 0 10px">'+monthLabel(nextKey)+' 정산이 이미 확정되어 이월을 바꿀 수 없습니다. 바꾸려면 '+monthLabel(nextKey)+'을 먼저 재오픈하세요.</p>';
+    else if (locked) html += '<p class="muted" style="margin:0 0 10px">확정된 달이라 이월을 바꿀 수 없습니다.</p>';
+    html += '<div class="table-wrap"><table class="carry-table"><thead><tr><th>회원</th><th>결제액</th><th></th></tr></thead><tbody>' +
+      (body.join('') || '<tr><td colspan="3" class="muted">이번 달 결제 기록이 없습니다.</td></tr>') + '</tbody></table></div>';
+    if (!off){
+      html += '<div class="row" style="margin-top:10px">' +
+        '<input id="carry-memo" type="text" placeholder="회원/메모 (선택)" style="width:180px">' +
+        '<input id="carry-amt" type="number" inputmode="numeric" placeholder="금액" style="width:140px">' +
+        '<button class="btn-ghost btn-sm" id="carry-add-btn">금액 직접 이월</button>' +
+      '</div>';
+    }
+    html += '<div class="kv" style="margin-top:10px"><div class="k" style="font-weight:600">'+monthLabel(nextKey)+'로 이월하는 매출</div><div class="v" style="font-weight:600">'+won(total)+'</div></div>';
+    return html;
+  }
+  function bindCarrySection(emp, m){
+    function paidTotalNow(){ return calcTrainerTotals(m, UI.month, emp.id).paidTotal; }
+    document.querySelectorAll('[data-carry-row]').forEach(function(b){
+      b.onclick = function(){
+        var i = Number(b.getAttribute('data-carry-row'));
+        var o = ownPaidRows(m).filter(function(x){ return x.i === i; })[0];
+        if (!o) return;
+        m.revenueCarryOut = m.revenueCarryOut || [];
+        var idx = -1;
+        m.revenueCarryOut.forEach(function(e, j){ if (e.key === o.key) idx = j; });
+        if (idx >= 0) m.revenueCarryOut.splice(idx, 1);
+        else m.revenueCarryOut.push({ key: o.key, client: String(o.row.client||'').trim(), amount: Number(o.row.totalPaid)||0, at: new Date().toISOString() });
+        persist();
+      };
+    });
+    document.querySelectorAll('[data-carry-del]').forEach(function(b){
+      b.onclick = function(){
+        (m.revenueCarryOut||[]).splice(Number(b.getAttribute('data-carry-del')), 1);
+        persist();
+      };
+    });
+    var add = document.getElementById('carry-add-btn');
+    if (add) add.onclick = function(){
+      var amt = Math.round(Number(document.getElementById('carry-amt').value)||0);
+      var memo = document.getElementById('carry-memo').value.trim();
+      if (amt <= 0){ window.alert('이월할 금액을 입력해 주세요.'); return; }
+      var left = paidTotalNow() - sumAmounts(m.revenueCarryOut);
+      if (amt > left){ window.alert('이번 달 결제액에서 이월할 수 있는 금액은 '+won(Math.max(0,left))+'까지입니다.'); return; }
+      m.revenueCarryOut = m.revenueCarryOut || [];
+      m.revenueCarryOut.push({ key: 'manual-'+Date.now(), client: memo, amount: amt, manual: true, at: new Date().toISOString() });
+      persist();
+    };
+  }
+
   // ---------- 매니저(고범수) 정산 화면 ----------
   // 직원 본인 화면과 관리자 화면이 이 함수 하나를 똑같이 씁니다.
   // 차이는 locked(제출 후 수정 권한)뿐입니다.
@@ -920,7 +1180,7 @@
     var rows = (m.sessions||[]).map(function(row, i){
       var c = managerRowCalc(row);
       return '<tr>' +
-        '<td><input data-i="'+i+'" data-f="client" value="'+esc(row.client||'')+'" '+(locked?'disabled':'')+' style="width:90px"></td>' +
+        '<td><input data-i="'+i+'" data-f="client" value="'+esc(row.client||'')+'" '+(locked?'disabled':'')+' style="width:90px">'+carryTag(row, emp)+'</td>' +
         '<td><select data-i="'+i+'" data-f="category" '+(locked?'disabled':'')+'>' + CATEGORY_OPTS.map(function(c2){return '<option'+(row.category===c2?' selected':'')+'>'+c2+'</option>';}).join('') + '</select></td>' +
         '<td><input data-i="'+i+'" data-f="contractSessions" type="number" value="'+(row.contractSessions||'')+'" '+(locked?'disabled':'')+' style="width:70px"></td>' +
         '<td><input data-i="'+i+'" data-f="totalPaid" type="number" value="'+(row.totalPaid||'')+'" '+(locked?'disabled':'')+' style="width:110px"></td>' +
@@ -939,6 +1199,7 @@
     // ① 수업료
     html += '<h3 style="margin:4px 0 8px">① 수업료</h3>';
     html += '<p class="muted" style="margin:0 0 8px">회당단가 = 결제금액 ÷ 계약세션 × 분류별 요율 · 합산 수업료 = 회당단가 × 금월진행횟수</p>';
+    html += loadPrevBar(emp, m.sessions||[], locked);
     html += '<div class="table-wrap"><table><thead><tr>' +
         '<th>고객명</th><th>분류</th><th>계약세션</th><th>결제금액</th><th>전월진행횟수</th><th>금월진행횟수</th><th>잔여횟수</th><th>요율</th><th>회당단가</th><th>합산 수업료</th>' +
         (locked?'':'<th></th>') +
@@ -984,6 +1245,8 @@
     document.querySelectorAll('[data-del]').forEach(function(b){
       b.onclick = function(){ m.sessions.splice(Number(b.getAttribute('data-del')),1); renderKeepFocus(); };
     });
+    var loadBtn = document.getElementById('load-prev-btn');
+    if (loadBtn) loadBtn.onclick = function(){ loadPrevCards(emp, m.sessions, UI.session && UI.session.type === 'admin'); };
     var addRow = document.getElementById('mg-add-row');
     if (addRow) addRow.onclick = function(){
       m.sessions.push({client:'',category:'신규',contractSessions:'',totalPaid:'',prevDone:'',thisMonthDone:''});
@@ -1012,14 +1275,15 @@
   // 트레이너(이새한) 세션 표. 직원 화면(임시저장 전까지 buf 로 편집)과 관리자 화면
   // (즉시 m.sessions 를 직접 편집) 양쪽에서 함께 씁니다.
   function renderSessionTable(emp, rows, locked){
-    var trainerRate = calcTrainerTotals({sessions:rows}).rate;
+    var mRec = (STATE.months[UI.month]||{})[emp.id] || {};
+    var trainerRate = calcTrainerTotals({sessions:rows, revenueCarryOut:mRec.revenueCarryOut}, UI.month, emp.id).rate;
     var body = rows.map(function(row, i){
       var c = calcSessionRow(row);
       var rate = trainerRate;
       var gross = c.grossFee;
       var payFee = Math.round(gross * rate);
       return '<tr>' +
-        '<td><input data-i="'+i+'" data-f="client" value="'+esc(row.client||'')+'" '+(locked?'disabled':'')+' style="width:90px"></td>' +
+        '<td><input data-i="'+i+'" data-f="client" value="'+esc(row.client||'')+'" '+(locked?'disabled':'')+' style="width:90px">'+carryTag(row, emp)+'</td>' +
         '<td><select data-i="'+i+'" data-f="category" '+(locked?'disabled':'')+'>' + CATEGORY_OPTS.map(function(c2){return '<option'+(row.category===c2?' selected':'')+'>'+c2+'</option>';}).join('') + '</select></td>' +
         '<td><input data-i="'+i+'" data-f="contractSessions" type="number" value="'+(row.contractSessions||'')+'" '+(locked?'disabled':'')+' style="width:60px"></td>' +
         '<td><input data-i="'+i+'" data-f="totalPaid" type="number" value="'+(row.totalPaid||'')+'" '+(locked?'disabled':'')+' style="width:100px"></td>' +
@@ -1033,7 +1297,7 @@
         (locked ? '' : '<td><button class="btn-danger btn-sm" data-del="'+i+'">삭제</button></td>') +
       '</tr>';
     }).join('');
-    return '<div class="table-wrap"><table><thead><tr>' +
+    return loadPrevBar(emp, rows, locked) + '<div class="table-wrap"><table><thead><tr>' +
         '<th>고객명</th><th>분류</th><th>계약세션</th><th>총결제금액</th><th>단가</th><th>전월까지</th><th>금월횟수</th><th>잔여</th><th>매출</th><th>요율</th><th>수업료</th>' +
         (locked?'':'<th></th>') +
       '</tr></thead><tbody>' + (body || '<tr><td colspan="12" class="muted">아직 입력된 세션이 없습니다.</td></tr>') + '</tbody></table></div>' +
@@ -1052,22 +1316,20 @@
     }
 
     var buf = DRAFT[emp.id] || (DRAFT[emp.id] = JSON.parse(JSON.stringify(m.sessions||[])));
-    var totals = calcTrainerTotals({sessions:buf});
+    var totals = calcTrainerTotals({sessions:buf, revenueCarryOut:m.revenueCarryOut}, UI.month, emp.id);
     return '' +
       reopenNote(m) + submittedNote(m) +
       renderSessionTable(emp, buf, locked) +
       '<div class="divider"></div>' +
-      '<div class="kv"><div class="k">당월 총매출</div><div class="v" id="v-tr-gross">'+won(totals.grossRevenue)+'</div></div>' +
-      '<div class="kv"><div class="k">적용 구간 요율</div><div class="v" id="v-tr-rate">'+Math.round(totals.rate*100)+'%</div></div>' +
-      '<div class="kv" id="kv-tr-excess"'+(totals.excess>0?'':' style="display:none"')+'><div class="k">700만원 초과분 인센티브 (10%)</div><div class="v" id="v-tr-excess">'+won(totals.excessIncentive)+'</div></div>' +
-      '<div class="kv"><div class="k">이번 달 총수업료</div><div class="v" id="v-total-fee">'+won(totals.totalFee)+'</div></div>' +
+      '<div id="tr-rev-box">'+trainerRevenueHtml(totals, UI.month, false)+'</div>' +
+      '<div id="tr-tier">'+trainerTierHtml(totals)+'</div>' +
       (locked ? renderConfirmedSummary(emp, m) : '') +
       actions;
   }
 
   // 트레이너 전용 확정 요약
   function renderConfirmedSummary(emp, m){
-    var t = calcTrainerTotals(m);
+    var t = calcTrainerTotals(m, UI.month, emp.id);
     return '<div class="note" style="margin-top:10px">' +
       '<div class="kv"><div class="k">영업지원금</div><div class="v">'+won(t.support)+'</div></div>' +
       '<div class="kv"><div class="k">공제액 ('+t.deductionRate+'%)</div><div class="v">-'+won(t.deduction)+'</div></div>' +
@@ -1112,7 +1374,7 @@
     if (!keys.length) return '';
     var rows = keys.map(function(k){
       var m = STATE.months[k][emp.id];
-      var t = emp.role==='manager' ? calcManagerTotals(emp,m) : (emp.role==='trainer' ? calcTrainerTotals(m) : calcInfoTotals(k,m));
+      var t = emp.role==='manager' ? calcManagerTotals(emp,m) : (emp.role==='trainer' ? calcTrainerTotals(m,k,emp.id) : calcInfoTotals(k,m));
       var amount = m.status==='draft' ? '<span class="muted">작성중</span>' : won(t.net);
       return '<tr><td>'+k+'</td><td>'+statusPill(m.status)+'</td><td class="num">'+amount+'</td>' +
         '<td><button class="btn-ghost btn-sm" data-open-month="'+k+'">열기</button></td></tr>';
@@ -1172,6 +1434,8 @@
       document.querySelectorAll('[data-del]').forEach(function(b){
         b.onclick = function(){ buf2.splice(Number(b.getAttribute('data-del')),1); render(); };
       });
+      var loadBtn2 = document.getElementById('load-prev-btn');
+      if (loadBtn2) loadBtn2.onclick = function(){ loadPrevCards(emp, buf2, false); };
       var addBtn = document.getElementById('add-row-btn');
       if (addBtn) addBtn.onclick = function(){ buf2.push({client:'',category:'신규',contractSessions:'',totalPaid:'',prevDone:'',thisMonthDone:''}); render(); };
     }
@@ -1231,7 +1495,7 @@
     html += '<div class="card"><h2>'+UI.month+' 제출 현황</h2><div class="table-wrap"><table><thead><tr><th>직원</th><th>역할</th><th>상태</th><th>지급 예정/확정액</th><th></th></tr></thead><tbody>';
     STATE.employees.forEach(function(emp){
       var m = STATE.months[UI.month][emp.id];
-      var t = emp.role==='manager' ? calcManagerTotals(emp,m) : (emp.role==='trainer' ? calcTrainerTotals(m) : calcInfoTotals(UI.month,m));
+      var t = emp.role==='manager' ? calcManagerTotals(emp,m) : (emp.role==='trainer' ? calcTrainerTotals(m,UI.month,emp.id) : calcInfoTotals(UI.month,m));
       var amountCell = m.status==='draft' ? '<span class="muted">—</span>' : won(t.net);
       html += '<tr><td>'+esc(emp.name)+'</td><td>'+ROLE_LABEL[emp.role]+'</td><td>'+statusPill(m.status)+'</td><td class="num">'+amountCell+'</td>' +
         '<td><button class="btn-ghost btn-sm" data-open="'+emp.id+'">열기</button></td></tr>';
@@ -1249,7 +1513,7 @@
       STATE.employees.forEach(function(emp){
         var m = STATE.months[k][emp.id];
         if (m && m.status==='confirmed'){
-          var t = emp.role==='manager' ? calcManagerTotals(emp,m) : (emp.role==='trainer' ? calcTrainerTotals(m) : calcInfoTotals(k,m));
+          var t = emp.role==='manager' ? calcManagerTotals(emp,m) : (emp.role==='trainer' ? calcTrainerTotals(m,k,emp.id) : calcInfoTotals(k,m));
           rows.push('<tr><td>'+k+'</td><td>'+esc(emp.name)+'</td><td class="num">'+won(t.net)+'</td></tr>');
         }
       });
@@ -1269,13 +1533,11 @@
       html += renderManagerPage(emp, m, locked);
     } else if (emp.role==='trainer'){
       html += renderSessionTable(emp, m.sessions||[], locked);
-      var t2 = calcTrainerTotals(m);
+      var t2 = calcTrainerTotals(m, UI.month, emp.id);
       html += '<div class="divider"></div>';
-      html += '<div class="kv"><div class="k">당월 총매출 (총 결제금액 합계)</div><div class="v">'+won(t2.grossRevenue)+'</div></div>';
-      html += '<div class="kv"><div class="k">적용 구간 요율</div><div class="v">'+Math.round(t2.rate*100)+'%</div></div>';
-      html += '<div class="kv"><div class="k">기본 수업료</div><div class="v">'+won(t2.baseFee)+'</div></div>';
-      if (t2.excess>0) html += '<div class="kv"><div class="k">700만원 초과분 인센티브 (10%)</div><div class="v">'+won(t2.excessIncentive)+'</div></div>';
-      html += '<div class="kv"><div class="k">총수업료</div><div class="v">'+won(t2.totalFee)+'</div></div>';
+      html += trainerRevenueHtml(t2, UI.month, true);
+      html += trainerTierHtml(t2);
+      html += renderCarrySection(emp, m, locked);
       html += adminMoneyFields(m, locked);
       html += '<div class="divider"></div>';
       html += summaryKv(t2.preTax, t2.deductionRate, t2.deduction, t2.net);
@@ -1370,8 +1632,8 @@
       pay.push(['③ 매출 인센티브 (매출 '+won(t.revenue)+' · 구간 '+t.rate+'%)', t.incentive]);
       ded.push(['사업소득 원천징수 ('+t.deductionRate+'%)', t.deduction]);
     } else if (emp.role==='trainer'){
-      t = calcTrainerTotals(m);
-      pay.push(['수업료 (당월 총매출 '+won(t.grossRevenue)+' · 요율 '+Math.round(t.rate*100)+'%)', t.baseFee]);
+      t = calcTrainerTotals(m, monthKey, emp.id);
+      pay.push(['수업료 (당월 총매출 '+won(t.grossRevenue)+' · 요율 '+Math.round(t.rate*100)+'%'+carryNote(t, monthKey)+')', t.baseFee]);
       if (t.excess>0) pay.push(['700만원 초과분 인센티브 (10%)', t.excessIncentive]);
       if (t.support) pay.push(['영업지원금', t.support]);
       ded.push(['사업소득 원천징수 ('+t.deductionRate+'%)', t.deduction]);
@@ -1527,6 +1789,9 @@
         m.sessions.push({client:'',category:'신규',contractSessions:'',totalPaid:'',prevDone:'',thisMonthDone:''});
         renderKeepFocus();
       };
+      var loadBtnA = document.getElementById('load-prev-btn');
+      if (loadBtnA) loadBtnA.onclick = function(){ loadPrevCards(emp, m.sessions, true); };
+      bindCarrySection(emp, m);
     }
 
     if (emp.role !== 'info'){
