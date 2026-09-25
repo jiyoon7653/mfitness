@@ -5,6 +5,14 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="color-scheme" content="light dark">
 <title>M휘트니스 급여 정산</title>
+<script>
+  // 운영 보드에서 고른 화면 테마(라이트/다크/시스템)를 그대로 따릅니다 — 같은 사이트라 저장값을 공유합니다.
+  (function(){
+    var mode = null;
+    try { mode = localStorage.getItem('mfitness-theme'); } catch (e) {}
+    if (mode === 'light' || mode === 'dark') document.documentElement.setAttribute('data-theme', mode);
+  })();
+</script>
 <style id="sync-style">
   #sync-badge{position:fixed;right:18px;bottom:18px;z-index:9999;max-width:min(340px,calc(100vw - 36px));
     padding:9px 16px;border-radius:980px;border:1px solid var(--border,#D2D2D7);
@@ -25,24 +33,28 @@
 <link id="app-font-link" rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
 <style id="app-style">
   :root{
-    /* Apple 팔레트 — 밝은 회색 배경 + 순백 카드 + 헤어라인 보더 */
-    --bg:#F5F5F7; --surface:#FFFFFF; --surface-2:#F5F5F7; --ink:#1D1D1F; --ink-muted:#6E6E73;
-    --border:#D2D2D7; --accent:#0071E3; --accent-strong:#0071E3; --accent-bg:#E8F2FE;
-    --warn:#A85400; --warn-bg:#FFF4E5; --danger:#D70015; --danger-bg:#FFEBE9; --success:#248A3D; --success-bg:#E8F7EC;
+    /* 운영 보드와 같은 샌드 팔레트 — 따뜻한 베이지 배경 + 아이보리 카드 + 그림자로 띄운 박스.
+       값은 index.html 의 :root 와 맞춰 두었습니다 (한쪽을 바꾸면 다른 쪽도 같이). */
+    --bg:#F0ECE5; --surface:#FFFDFA; --surface-2:#F6F2EB; --ink:#241F1A; --ink-muted:#6B6158; --ink-faint:#988D82;
+    --border:#DED6C9; --accent:#9A5B2C; --accent-strong:#9A5B2C; --accent-hover:#AC6733; --accent-contrast:#FFFFFF; --accent-bg:rgba(154,91,44,.12);
+    --warn:#8A620B; --warn-bg:#F8EED8; --danger:#B03A2E; --danger-bg:#F7E4E1; --success:#4F7A3B; --success-bg:#EAF0E4;
+    --shadow:rgba(74,56,38,.10); --focus-ring:rgba(154,91,44,.35);
     --radius-card:18px; --radius-field:12px;
     --ease:cubic-bezier(.4,0,.2,1);
   }
   @media (prefers-color-scheme: dark){
     :root:not([data-theme="light"]){
-      --bg:#000000; --surface:#1D1D1F; --surface-2:#2C2C2E; --ink:#F5F5F7; --ink-muted:#A1A1A6;
-      --border:#38383A; --accent:#2997FF; --accent-strong:#2997FF; --accent-bg:#0B2A45;
-      --warn:#FF9F0A; --warn-bg:#3A2A0B; --danger:#FF453A; --danger-bg:#3A1614; --success:#30D158; --success-bg:#0E3319;
+      --bg:#0E1424; --surface:#18203A; --surface-2:#1C2542; --ink:#EDF1FA; --ink-muted:#9AA6C2; --ink-faint:#74809C;
+      --border:#2A3555; --accent:#F0A93B; --accent-strong:#F0A93B; --accent-hover:#F7BC5E; --accent-contrast:#17120A; --accent-bg:rgba(240,169,59,.18);
+      --warn:#F0A93B; --warn-bg:rgba(240,169,59,.16); --danger:#FF6B6B; --danger-bg:rgba(255,107,107,.16); --success:#47D07F; --success-bg:rgba(71,208,127,.16);
+      --shadow:rgba(0,0,0,.5); --focus-ring:rgba(240,169,59,.45);
     }
   }
   :root[data-theme="dark"]{
-    --bg:#000000; --surface:#1D1D1F; --surface-2:#2C2C2E; --ink:#F5F5F7; --ink-muted:#A1A1A6;
-    --border:#38383A; --accent:#2997FF; --accent-strong:#2997FF; --accent-bg:#0B2A45;
-    --warn:#FF9F0A; --warn-bg:#3A2A0B; --danger:#FF453A; --danger-bg:#3A1614; --success:#30D158; --success-bg:#0E3319;
+    --bg:#0E1424; --surface:#18203A; --surface-2:#1C2542; --ink:#EDF1FA; --ink-muted:#9AA6C2; --ink-faint:#74809C;
+    --border:#2A3555; --accent:#F0A93B; --accent-strong:#F0A93B; --accent-hover:#F7BC5E; --accent-contrast:#17120A; --accent-bg:rgba(240,169,59,.18);
+    --warn:#F0A93B; --warn-bg:rgba(240,169,59,.16); --danger:#FF6B6B; --danger-bg:rgba(255,107,107,.16); --success:#47D07F; --success-bg:rgba(71,208,127,.16);
+    --shadow:rgba(0,0,0,.5); --focus-ring:rgba(240,169,59,.45);
   }
   *{box-sizing:border-box;}
   html,body{margin:0;padding:0;}
@@ -51,6 +63,7 @@
     font-family:-apple-system,BlinkMacSystemFont,'SF Pro Display','SF Pro Text','Pretendard Variable',Pretendard,'Apple SD Gothic Neo','Helvetica Neue',Arial,sans-serif;
     font-size:15px; line-height:1.55; letter-spacing:-0.011em;
     -webkit-font-smoothing:antialiased; -moz-osx-font-smoothing:grayscale;
+    word-break:keep-all; overflow-wrap:break-word;   /* 한글은 단어 중간에서 끊지 않습니다 */
   }
   #app-root{max-width:1040px;margin:0 auto;padding:44px 22px 96px;}
 
@@ -64,7 +77,8 @@
   .muted{color:var(--ink-muted);}
 
   .card{
-    background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-card);
+    background:var(--surface); border:none; border-radius:var(--radius-card);
+    box-shadow:0 1px 2px var(--shadow), 0 8px 22px var(--shadow);
     padding:28px; margin-bottom:20px;
   }
   .row{display:flex;gap:12px;align-items:center;flex-wrap:wrap;}
@@ -79,7 +93,7 @@
     transition:border-color .18s var(--ease), box-shadow .18s var(--ease);
   }
   input:hover,select:hover{border-color:var(--ink-muted);}
-  input:focus,select:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 4px color-mix(in srgb,var(--accent) 18%,transparent);}
+  input:focus,select:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 4px var(--focus-ring);}
   input[type="number"]{font-variant-numeric:tabular-nums;}
   input:disabled,select:disabled{background:var(--surface-2);color:var(--ink-muted);opacity:1;}
 
@@ -89,9 +103,9 @@
     transition:background .18s var(--ease), border-color .18s var(--ease), opacity .18s var(--ease), transform .12s var(--ease);
   }
   button:active{transform:scale(.975);}
-  button:focus-visible{outline:none;box-shadow:0 0 0 4px color-mix(in srgb,var(--accent) 28%,transparent);}
-  .btn-primary{background:var(--accent);color:#fff;}
-  .btn-primary:hover{background:color-mix(in srgb,var(--accent) 88%,#000);}
+  button:focus-visible{outline:none;box-shadow:0 0 0 4px var(--focus-ring);}
+  .btn-primary{background:var(--accent);color:var(--accent-contrast);}
+  .btn-primary:hover{background:var(--accent-hover);}
   .btn-ghost{background:transparent;border-color:var(--border);color:var(--ink);}
   .btn-ghost:hover{background:var(--surface-2);border-color:var(--ink-muted);}
   .btn-danger{background:transparent;border-color:var(--border);color:var(--danger);}
@@ -127,7 +141,7 @@
     transition:background .2s var(--ease), color .2s var(--ease);
   }
   .tab:hover{color:var(--ink);}
-  .tab.active{background:var(--surface);color:var(--ink);box-shadow:0 1px 3px rgba(0,0,0,.09);}
+  .tab.active{background:var(--surface);color:var(--ink);font-weight:600;box-shadow:0 1px 3px var(--shadow);}
 
   .error{color:var(--danger);font-size:13.5px;}
   .note{font-size:13px;color:var(--ink-muted);background:var(--surface-2);border-radius:14px;padding:16px 18px;}
@@ -138,10 +152,12 @@
   .load-bar .lb-sub{display:block;font-size:12.5px;color:var(--ink-muted);margin-top:2px;}
   .load-msg{margin:0 0 12px;font-size:13px;color:var(--success);}
   /* 이번 달 진행 · 잔여 횟수 */
-  .sess-stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin:12px 0 4px;}
-  .sess-stat{background:var(--surface-2);border-radius:14px;padding:12px 14px;}
-  .sess-stat .ss-k{font-size:12px;color:var(--ink-muted);}
-  .sess-stat .ss-v{font-size:22px;font-weight:700;letter-spacing:-0.02em;font-variant-numeric:tabular-nums;line-height:1.25;}
+  .sess-stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;margin:16px 0 6px;}
+  .sess-stat{background:var(--surface);border-radius:16px;padding:16px 18px;display:flex;flex-direction:column;gap:6px;
+    box-shadow:0 1px 2px var(--shadow), 0 6px 16px var(--shadow);}
+  .sess-stat .ss-k{font-size:12.5px;color:var(--ink-muted);letter-spacing:-0.004em;}
+  .sess-stat .ss-v{font-size:28px;font-weight:600;letter-spacing:-0.022em;font-variant-numeric:tabular-nums;line-height:1.15;}
+  @media (max-width:560px){ .sess-stats{gap:8px;} .sess-stat{padding:12px 12px;} .sess-stat .ss-v{font-size:22px;} }
   .sess-stat .ss-v small{font-size:13px;font-weight:500;color:var(--ink-muted);margin-left:2px;}
   .sess-warn{font-size:12.5px;color:var(--danger);margin:4px 0 0;}
   .sale-chk{width:18px;height:18px;padding:0;margin:0;accent-color:var(--accent);cursor:pointer;vertical-align:middle;}
@@ -152,7 +168,7 @@
   .tier-table td{font-size:13.5px;}
   .tier-table td:nth-child(2){white-space:nowrap;}
   .tier-table tr.tier-now td{background:var(--accent-bg);font-weight:600;}
-  .pill-now{background:var(--accent);color:#fff;padding:2px 10px;font-size:11.5px;font-weight:600;}
+  .pill-now{background:var(--accent);color:var(--accent-contrast);padding:2px 10px;font-size:11.5px;font-weight:600;}
   .tier-need{font-size:12.5px;color:var(--ink-muted);}
 
   /* 매출 이월 */
@@ -165,7 +181,7 @@
   .login-card{width:100%;max-width:400px;padding:36px 32px;}
   .emp-pick{display:flex;flex-wrap:wrap;gap:8px;}
   .emp-pick button{flex:1;min-width:96px;}
-  .emp-pick button.selected{background:var(--accent);border-color:var(--accent);color:#fff;}
+  .emp-pick button.selected{background:var(--accent);border-color:var(--accent);color:var(--accent-contrast);}
   ::placeholder{color:var(--ink-muted);opacity:.55;}
 
   /* 다크 모드에서는 입력란을 카드보다 한 톤 밝게 해 경계를 분명히 합니다. */
@@ -1090,7 +1106,7 @@
   function trainerTierHtml(t){
     var cur = trainerTierIndex(t.grossRevenue);
     var rows = TRAINER_TIERS.map(function(tier, i){
-      var rateTxt = Math.round(tier.rate*100)+'%' + (tier.bonus ? ' + 초과분의 10%' : '');
+      var rateTxt = Math.round(tier.rate*100)+'%' + (tier.bonus ? '<br><span class="tier-need">+ 초과분의 10%</span>' : '');
       var st = '';
       if (i === cur) st = '<span class="pill pill-now">현재</span>';
       else if (i === cur+1){
