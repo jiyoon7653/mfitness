@@ -137,6 +137,13 @@
     background:var(--accent-bg);border-radius:14px;padding:12px 16px;margin:0 0 12px;}
   .load-bar .lb-sub{display:block;font-size:12.5px;color:var(--ink-muted);margin-top:2px;}
   .load-msg{margin:0 0 12px;font-size:13px;color:var(--success);}
+  /* 이번 달 진행 · 잔여 횟수 */
+  .sess-stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin:12px 0 4px;}
+  .sess-stat{background:var(--surface-2);border-radius:14px;padding:12px 14px;}
+  .sess-stat .ss-k{font-size:12px;color:var(--ink-muted);}
+  .sess-stat .ss-v{font-size:22px;font-weight:700;letter-spacing:-0.02em;font-variant-numeric:tabular-nums;line-height:1.25;}
+  .sess-stat .ss-v small{font-size:13px;font-weight:500;color:var(--ink-muted);margin-left:2px;}
+  .sess-warn{font-size:12.5px;color:var(--danger);margin:4px 0 0;}
   .sale-chk{width:18px;height:18px;padding:0;margin:0;accent-color:var(--accent);cursor:pointer;vertical-align:middle;}
   .carry-tag{display:inline-block;margin-top:4px;font-size:11px;font-weight:600;letter-spacing:-0.004em;
     color:var(--accent-strong);background:var(--accent-bg);padding:1px 8px;border-radius:980px;white-space:nowrap;}
@@ -685,6 +692,7 @@
   // (한글 입력 중에 화면을 다시 그리면 글자가 깨지기 때문).
   function refreshManagerTotals(emp, m){
     var t = calcManagerTotals(emp, m);
+    setHtml('sess-stats', sessionStatsHtml(m.sessions));
     (m.sessions||[]).forEach(function(row, i){
       var c = managerRowCalc(row);
       setCell(i, 'remaining', fmt(c.remaining));
@@ -711,6 +719,7 @@
   function refreshSessionTotals(emp, m){
     var buf = DRAFT[emp.id] || m.sessions || [];
     var totals = calcTrainerTotals({sessions:buf, revenueCarryOut:m.revenueCarryOut}, UI.month, emp.id);
+    setHtml('sess-stats', sessionStatsHtml(buf));
     buf.forEach(function(row, i){
       var c = calcSessionRow(row);
       setCell(i, 'unit', fmt(c.unit));
@@ -983,6 +992,31 @@
     '</div>';
   }
 
+  // ---------- 이번 달 진행 횟수 · 잔여 횟수 (고범수·이새한 공통) ----------
+  // 잔여는 계약 − (전월까지 + 금월). 계약 횟수를 넘겨 적은 줄(음수)은 합계에 넣지 않고 따로 알립니다.
+  function sessionStats(rows){
+    var done = 0, remaining = 0, active = 0, members = 0, over = [];
+    (rows||[]).forEach(function(r){
+      if (!String(r.client||'').trim() && !Number(r.contractSessions)) return;
+      members++;
+      done += Number(r.thisMonthDone)||0;
+      var left = (Number(r.contractSessions)||0) - (Number(r.prevDone)||0) - (Number(r.thisMonthDone)||0);
+      if (left > 0){ remaining += left; active++; }
+      else if (left < 0) over.push(String(r.client||'').trim() || '(이름 없음)');
+    });
+    return { done: done, remaining: remaining, active: active, members: members, over: over };
+  }
+  function sessionStatsHtml(rows){
+    var st = sessionStats(rows);
+    function tile(k, v, unit){ return '<div class="sess-stat"><div class="ss-k">'+k+'</div><div class="ss-v">'+fmt(v)+'<small>'+unit+'</small></div></div>'; }
+    return '<div class="sess-stats">' +
+        tile('이번 달 진행', st.done, '회') +
+        tile('남은 회차', st.remaining, '회') +
+        tile('진행 중 회원', st.active, '명') +
+      '</div>' +
+      (st.over.length ? '<p class="sess-warn">계약 횟수보다 많이 적힌 회원이 있습니다: '+esc(st.over.join(', '))+' — 전월까지·금월 횟수를 확인해 주세요.</p>' : '');
+  }
+
   // ---------- 지난달 회원(세션카드) 불러오기 ----------
   // 이번 달보다 앞선 달 중 회원 기록이 있는 가장 최근 달을 원본으로 씁니다
   // (한 달을 건너뛰었어도 그 전 달에서 이어 올 수 있게).
@@ -1221,6 +1255,7 @@
         '<th>고객명</th><th>분류</th><th>계약세션</th><th>결제금액</th><th>전월진행횟수</th><th>금월진행횟수</th><th>잔여횟수</th><th>요율</th><th>회당단가</th><th>합산 수업료</th>' +
         (locked?'':'<th></th>') +
       '</tr></thead><tbody>' + (rows || '<tr><td colspan="11" class="muted">아직 입력된 회원이 없습니다.</td></tr>') + '</tbody></table></div>';
+    html += '<div id="sess-stats">'+sessionStatsHtml(m.sessions)+'</div>';
     if (!locked) html += '<button class="btn-ghost btn-sm" id="mg-add-row" style="margin-top:8px">+ 회원 추가</button>';
     html += '<div class="kv" style="margin-top:10px"><div class="k" style="font-weight:600">① 수업료 합계</div><div class="v" style="font-weight:600" id="v-mg-fee-total">'+won(t.feeTotal)+'</div></div>';
 
@@ -1321,6 +1356,7 @@
       '</tr></thead><tbody>' + (body || '<tr><td colspan="13" class="muted">아직 입력된 세션이 없습니다.</td></tr>') + '</tbody></table></div>' +
       '<p class="muted" style="margin:8px 0 0;font-size:12.5px"><b>당월 매출</b> 체크 = 이번 달에 새로 결제한 회원(신규·재등록). 체크한 회원의 결제액만 당월 매출로 잡혀 요율 구간을 정합니다. ' +
         '<b>수업료</b>는 체크와 관계없이 이전 회원까지 모두 <b>진행금액(단가 × 금월횟수) × 요율</b>로 받습니다.</p>' +
+      '<div id="sess-stats">'+sessionStatsHtml(rows)+'</div>' +
       (locked ? '' : '<button class="btn-ghost btn-sm" id="add-row-btn" style="margin-top:10px">+ 회원 추가</button>');
   }
 
