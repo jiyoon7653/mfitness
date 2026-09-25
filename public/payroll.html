@@ -236,17 +236,19 @@
 
   // 이새한(트레이너) 당월 총매출 구간별 수업료율 - 700만원까지는 구간 요율, 초과분은 요율 고정(55%) + 초과분의 10% 별도 인센티브
   // 계산과 화면의 구간표가 이 배열 하나를 같이 씁니다 (숫자가 따로 놀지 않게).
+  // from 은 "이상" 입니다 (예: 300만원 이상 ~ 400만원 미만 → from 3,000,000).
   var TRAINER_TIERS = [
-    { upTo: 2990000,  rate: 0.30, label: '299만원 이하' },
-    { upTo: 3990000,  rate: 0.45, label: '299만원 초과 ~ 399만원' },
-    { upTo: 4990000,  rate: 0.50, label: '399만원 초과 ~ 499만원' },
-    { upTo: 7000000,  rate: 0.55, label: '499만원 초과 ~ 700만원' },
-    { upTo: Infinity, rate: 0.55, label: '700만원 초과', bonus: true }   // 요율은 55% 그대로, 초과분의 10%를 별도 인센티브
+    { from: 0,       rate: 0.30, label: '300만원 미만' },
+    { from: 3000000, rate: 0.45, label: '300만원 이상 ~ 400만원 미만' },
+    { from: 4000000, rate: 0.50, label: '400만원 이상 ~ 500만원 미만' },
+    { from: 5000000, rate: 0.55, label: '500만원 이상 ~ 700만원 미만' },
+    { from: 7000000, rate: 0.55, label: '700만원 이상', bonus: true }   // 요율은 55% 그대로, 700만원을 넘는 금액의 10%를 별도 인센티브
   ];
   var TRAINER_EXCESS_BASE = 7000000;
   function trainerTierIndex(rev){
-    for (var i=0; i<TRAINER_TIERS.length; i++){ if (rev <= TRAINER_TIERS[i].upTo) return i; }
-    return TRAINER_TIERS.length-1;
+    var idx = 0;
+    TRAINER_TIERS.forEach(function(t, i){ if (rev >= t.from) idx = i; });
+    return idx;
   }
   function trainerRateForRevenue(rev){ return TRAINER_TIERS[trainerTierIndex(rev)].rate; }
 
@@ -1044,8 +1046,8 @@
       var st = '';
       if (i === cur) st = '<span class="pill pill-now">현재</span>';
       else if (i === cur+1){
-        var need = TRAINER_TIERS[cur].upTo - t.grossRevenue;
-        st = '<span class="tier-need">'+(need > 0 ? won(need)+' 넘게 더 하면' : '조금만 더 하면')+'</span>';
+        var need = TRAINER_TIERS[i].from - t.grossRevenue;
+        st = '<span class="tier-need">'+won(need)+' 더 하면</span>';
       }
       return '<tr'+(i===cur?' class="tier-now"':'')+'><td>'+tier.label+'</td><td class="num">'+rateTxt+'</td><td>'+st+'</td></tr>';
     }).join('');
