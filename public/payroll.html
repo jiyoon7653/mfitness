@@ -39,6 +39,7 @@
     --border:#DED6C9; --accent:#9A5B2C; --accent-strong:#9A5B2C; --accent-hover:#AC6733; --accent-contrast:#FFFFFF; --accent-bg:rgba(154,91,44,.12);
     --warn:#8A620B; --warn-bg:#F8EED8; --danger:#B03A2E; --danger-bg:#F7E4E1; --success:#4F7A3B; --success-bg:#EAF0E4;
     --shadow:rgba(74,56,38,.10); --focus-ring:rgba(154,91,44,.35);
+    --band-bg:linear-gradient(135deg,#3A2A1C 0%,#9A5B2C 100%); --band-ink:#FDF8F2; --band-dim:rgba(253,248,242,.74); --band-track:rgba(255,255,255,.22); --band-fill:#FFD27A;
     --radius-card:18px; --radius-field:12px;
     --ease:cubic-bezier(.4,0,.2,1);
   }
@@ -48,6 +49,7 @@
       --border:#2A3555; --accent:#F0A93B; --accent-strong:#F0A93B; --accent-hover:#F7BC5E; --accent-contrast:#17120A; --accent-bg:rgba(240,169,59,.18);
       --warn:#F0A93B; --warn-bg:rgba(240,169,59,.16); --danger:#FF6B6B; --danger-bg:rgba(255,107,107,.16); --success:#47D07F; --success-bg:rgba(71,208,127,.16);
       --shadow:rgba(0,0,0,.5); --focus-ring:rgba(240,169,59,.45);
+      --band-bg:linear-gradient(135deg,#060A14 0%,#23305A 100%); --band-ink:#FFFFFF; --band-dim:rgba(255,255,255,.7); --band-track:rgba(255,255,255,.18); --band-fill:#F0A93B;
     }
   }
   :root[data-theme="dark"]{
@@ -55,6 +57,7 @@
     --border:#2A3555; --accent:#F0A93B; --accent-strong:#F0A93B; --accent-hover:#F7BC5E; --accent-contrast:#17120A; --accent-bg:rgba(240,169,59,.18);
     --warn:#F0A93B; --warn-bg:rgba(240,169,59,.16); --danger:#FF6B6B; --danger-bg:rgba(255,107,107,.16); --success:#47D07F; --success-bg:rgba(71,208,127,.16);
     --shadow:rgba(0,0,0,.5); --focus-ring:rgba(240,169,59,.45);
+    --band-bg:linear-gradient(135deg,#060A14 0%,#23305A 100%); --band-ink:#FFFFFF; --band-dim:rgba(255,255,255,.7); --band-track:rgba(255,255,255,.18); --band-fill:#F0A93B;
   }
   *{box-sizing:border-box;}
   html,body{margin:0;padding:0;}
@@ -145,6 +148,34 @@
 
   .error{color:var(--danger);font-size:13.5px;}
   .note{font-size:13px;color:var(--ink-muted);background:var(--surface-2);border-radius:14px;padding:16px 18px;}
+
+  #app-root > .row.between{margin-bottom:22px;}   /* 이름·월 선택 줄과 아래 내용 사이 간격 (좁은 화면에서 붙지 않게) */
+  /* 지급 예정 히어로 밴드 — 운영 보드 개요의 밴드와 같은 모양 */
+  .hero-band{background:var(--band-bg);color:var(--band-ink);border-radius:18px;padding:24px 26px;margin-bottom:20px;
+    box-shadow:0 1px 2px var(--shadow), 0 10px 26px var(--shadow);}
+  .hero-grid{display:grid;grid-template-columns:minmax(0,300px) 1fr;gap:34px;align-items:start;}
+  .hero-label{font-size:12px;color:var(--band-dim);}
+  .hero-value{font-size:44px;font-weight:700;letter-spacing:-0.035em;line-height:1.05;font-variant-numeric:tabular-nums;margin-top:6px;white-space:nowrap;}
+  .hero-value small{font-size:22px;font-weight:600;margin-left:2px;}
+  .hero-meta{font-size:12px;color:var(--band-dim);margin-top:8px;}
+  .hero-split{display:flex;gap:28px;margin-top:18px;}
+  .hero-split-v{font-size:22px;font-weight:600;font-variant-numeric:tabular-nums;margin-top:2px;}
+  .hero-split-v small{font-size:13px;font-weight:500;color:var(--band-dim);margin-left:2px;}
+  .hero-sec-label{font-size:11px;font-weight:700;letter-spacing:.1em;color:var(--band-dim);margin:0 0 12px;}
+  .hero-sec-label + .hero-list{margin-bottom:18px;}
+  .hero-list{display:grid;gap:12px;}
+  .hero-row{display:grid;grid-template-columns:1fr auto;gap:5px 12px;align-items:baseline;}
+  .hero-row-name{font-size:13px;}
+  .hero-row-v{font-size:13px;font-variant-numeric:tabular-nums;white-space:nowrap;font-weight:600;}
+  .hero-row-sub{grid-column:1 / -1;font-size:11.5px;color:var(--band-dim);margin-top:-2px;}
+  .hero-track{grid-column:1 / -1;height:7px;border-radius:999px;background:var(--band-track);overflow:hidden;}
+  .hero-fill{display:block;height:100%;border-radius:999px;background:var(--band-fill);}
+  .hero-pill{display:inline-block;font-size:11px;font-weight:600;padding:2px 9px;border-radius:980px;background:var(--band-track);color:var(--band-ink);margin-left:6px;vertical-align:2px;}
+  @media (max-width:720px){
+    .hero-grid{grid-template-columns:1fr;gap:22px;}
+    .hero-value{font-size:38px;}
+    .hero-band{padding:20px;}
+  }
 
   /* 지난달 회원 불러오기 */
   .load-bar{display:flex;gap:12px;align-items:center;justify-content:space-between;flex-wrap:wrap;
@@ -709,6 +740,7 @@
   function refreshManagerTotals(emp, m){
     var t = calcManagerTotals(emp, m);
     setHtml('sess-stats', sessionStatsHtml(m.sessions));
+    refreshHero(emp);
     (m.sessions||[]).forEach(function(row, i){
       var c = managerRowCalc(row);
       setCell(i, 'remaining', fmt(c.remaining));
@@ -736,6 +768,7 @@
     var buf = DRAFT[emp.id] || m.sessions || [];
     var totals = calcTrainerTotals({sessions:buf, revenueCarryOut:m.revenueCarryOut}, UI.month, emp.id);
     setHtml('sess-stats', sessionStatsHtml(buf));
+    refreshHero(emp);
     buf.forEach(function(row, i){
       var c = calcSessionRow(row);
       setCell(i, 'unit', fmt(c.unit));
@@ -751,6 +784,7 @@
 
   function refreshInfoTotals(emp, buf, monthKey){
     var t = calcInfoTotals(monthKey, buf);
+    refreshHero(emp);
     setText('v-if-weekday', t.weekdayCount+'일');
     setText('v-if-actual', t.actualDays+'일');
     setText('v-if-base', won(t.basePay));
@@ -779,6 +813,7 @@
 
   // 트레이너/인포 관리자 화면 전용 (매니저는 refreshManagerTotals 를 씁니다)
   function refreshAdminTotals(emp, m){
+    refreshHero(emp);
     var t = emp.role==='trainer' ? calcTrainerTotals(m, UI.month, emp.id) : calcInfoTotals(UI.month, m);
     if (emp.role==='info'){
       setText('v-ad-if-base', won(t.basePay));
@@ -983,6 +1018,7 @@
 
     if (UI.pinChange) html += renderPinChangeCard(emp);
 
+    html += payHeroHtml(emp, m);
     html += '<div class="card"><div class="row between"><h2>'+UI.month+' 정산</h2>'+statusPill(m.status)+'</div>';
 
     if (emp.role === 'info'){
@@ -1006,6 +1042,72 @@
       '</div>' +
       (UI.pinErr ? '<p class="error">'+esc(UI.pinErr)+'</p>' : '') +
     '</div>';
+  }
+
+  // ---------- 지급 예정 히어로 밴드 (본인 것만 — 직원은 자기 화면, 관리자는 연 직원) ----------
+  // 직원 화면은 아직 저장 전인 입력(DRAFT)까지 반영해 보여 줍니다.
+  function heroSource(emp, m){
+    var isEmp = UI.session && UI.session.type === 'employee';
+    if (emp.role === 'trainer'){
+      var rows = (isEmp && DRAFT[emp.id]) || m.sessions || [];
+      return { rows: rows, data: { sessions: rows, revenueCarryOut: m.revenueCarryOut, supportAmount: m.supportAmount, deductionRate: m.deductionRate } };
+    }
+    if (emp.role === 'info'){
+      var locked = m.status === 'confirmed' || m.status === 'submitted';
+      return { data: (isEmp && !locked && DRAFT[emp.id]) || m };
+    }
+    return { rows: m.sessions || [], data: m };
+  }
+  function payHeroInner(emp, m){
+    var src = heroSource(emp, m), t, parts = [], splits = [], extra = '';
+    if (emp.role === 'manager'){
+      t = calcManagerTotals(emp, src.data);
+      parts = [['① 수업료', t.feeTotal], ['② 기본급', t.baseSalary], ['③ 매출 인센티브', t.incentive]];
+    } else if (emp.role === 'trainer'){
+      t = calcTrainerTotals(src.data, UI.month, emp.id);
+      parts = [['수업료', t.baseFee, '진행금액 '+won(t.sessionAmount)+' × '+Math.round(t.rate*100)+'%']];
+      if (t.excessIncentive) parts.push(['700만원 초과 인센티브', t.excessIncentive]);
+      if (t.support) parts.push(['영업지원금', t.support]);
+      // 요율 구간 진행 막대: 지금 구간 시작 → 다음 구간 시작
+      var cur = trainerTierIndex(t.grossRevenue), next = TRAINER_TIERS[cur+1];
+      var fill = next ? Math.max(0, Math.min(100, (t.grossRevenue - TRAINER_TIERS[cur].from) / (next.from - TRAINER_TIERS[cur].from) * 100)) : 100;
+      extra = '<p class="hero-sec-label">당월 매출 · 요율 구간</p><div class="hero-list">' +
+        '<div class="hero-row"><span class="hero-row-name">당월 매출 '+won(t.grossRevenue)+'</span><span class="hero-row-v">'+Math.round(t.rate*100)+'% 구간</span>' +
+        '<span class="hero-track"><span class="hero-fill" style="width:'+fill.toFixed(1)+'%"></span></span>' +
+        '<span class="hero-row-sub">'+(next ? Math.round(next.rate*100)+'% 구간'+(next.bonus?'(초과 인센티브)':'')+'까지 '+won(next.from - t.grossRevenue) : '최고 구간')+'</span></div></div>';
+    } else {
+      t = calcInfoTotals(UI.month, src.data);
+      parts = [['기본급', t.basePay, '실근무 '+t.actualDays+'일 × 3시간'], ['주휴수당', t.restPay, t.restWeeks+'주']];
+      if (t.adjustAmount) parts.push(['조정액', t.adjustAmount, t.adjustNote||'']);
+    }
+    if (emp.role === 'info'){
+      splits = [['실근무', t.actualDays, '일'], ['주휴수당', t.restWeeks, '주']];
+    } else {
+      var st = sessionStats(src.rows);
+      splits = [['이번 달 진행', st.done, '회'], ['남은 회차', st.remaining, '회']];
+    }
+    var status = m.status === 'confirmed' ? '확정 지급액' : '지급 예정';
+    var pill = m.status === 'confirmed' ? '확정' : (m.status === 'submitted' ? '제출됨' : '작성 중');
+    var dedLabel = emp.role === 'info' ? '3대보험' : t.deductionRate+'%';
+    var html = '<div class="hero-grid"><div>' +
+      '<span class="hero-label">'+monthLabel(UI.month)+' '+status+'</span><span class="hero-pill">'+pill+'</span>' +
+      '<div class="hero-value">'+fmt(t.net)+'<small>원</small></div>' +
+      '<div class="hero-meta">공제 전 '+won(t.preTax)+' · 공제 −'+won(t.deduction)+' ('+dedLabel+')</div>' +
+      '<div class="hero-split">' + splits.map(function(x){
+        return '<div><span class="hero-label">'+x[0]+'</span><div class="hero-split-v">'+fmt(x[1])+'<small>'+x[2]+'</small></div></div>';
+      }).join('') + '</div></div><div>' + extra +
+      '<p class="hero-sec-label">급여 구성</p><div class="hero-list">' + parts.map(function(p){
+        var share = t.preTax > 0 ? Math.max(0, Math.min(100, p[1] / t.preTax * 100)) : 0;
+        return '<div class="hero-row"><span class="hero-row-name">'+p[0]+'</span><span class="hero-row-v">'+(p[1]<0?'−':'')+won(Math.abs(p[1]))+'</span>' +
+          '<span class="hero-track"><span class="hero-fill" style="width:'+share.toFixed(1)+'%"></span></span>' +
+          (p[2] ? '<span class="hero-row-sub">'+esc(p[2])+'</span>' : '') + '</div>';
+      }).join('') + '</div></div></div>';
+    return html;
+  }
+  function payHeroHtml(emp, m){ return '<div class="hero-band" id="pay-hero">'+payHeroInner(emp, m)+'</div>'; }
+  function refreshHero(emp){
+    var m = (STATE.months[UI.month]||{})[emp.id];
+    if (m) setHtml('pay-hero', payHeroInner(emp, m));
   }
 
   // ---------- 이번 달 진행 횟수 · 잔여 횟수 (고범수·이새한 공통) ----------
@@ -1599,6 +1701,7 @@
     var locked = m.status==='confirmed';
     var html = '<div class="card"><div class="row between"><h2>'+esc(emp.name)+' · '+UI.month+'</h2>'+statusPill(m.status)+'</div>';
     html += '<button class="btn-ghost btn-sm" id="back-btn" style="margin:8px 0 14px">← 목록으로</button>';
+    html += payHeroHtml(emp, m);
 
     if (emp.role==='manager'){
       // 매니저 화면은 본인이 쓰는 화면과 똑같이 보여줍니다 (권한만 다름).
